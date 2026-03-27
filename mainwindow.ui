@@ -1,0 +1,868 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1407</width>
+    <height>713</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">/* ============================= */
+/* ===== BACKGROUND FIX ===== */
+/* ============================= */
+QWidget#centralwidget {
+    background-color: #f4efe9;
+}
+
+QWidget {
+    background-color: transparent;
+}
+
+/* ============================= */
+/* ===== GLOBAL ===== */
+/* ============================= */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ============================= */
+/* ===== GROUP BOX ===== */
+/* ============================= */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 8px;
+    margin-top: 22px;
+    padding: 12px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 14px;
+    padding: 0 8px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ============================= */
+/* ===== LABELS ===== */
+/* ============================= */
+QLabel {
+    color: #3b2a1a;
+    font-weight: 500;
+}
+
+/* ============================= */
+/* ===== INPUTS (LISIBLES) ===== */
+/* ============================= */
+QLineEdit,
+QTextEdit,
+QComboBox,
+QDateEdit {
+    background-color: #ffffff;
+    color: #2b1a0f;
+    border: 2px solid #b89b82;
+    border-radius: 6px;
+    padding: 6px;
+    font-size: 11pt;
+    min-height: 26px;
+}
+
+/* Placeholder */
+QLineEdit::placeholder {
+    color: #9a7f66;
+    font-style: italic;
+}
+
+/* Focus */
+QLineEdit:focus,
+QTextEdit:focus,
+QComboBox:focus,
+QDateEdit:focus {
+    border: 2px solid #6b3f2b;
+    background-color: #fffdfb;
+}
+
+/* Désactivé */
+QLineEdit:disabled,
+QComboBox:disabled,
+QDateEdit:disabled {
+    background-color: #eee6dd;
+    color: #7a6a5a;
+}
+
+/* ============================= */
+/* ===== COMBOBOX ===== */
+/* ============================= */
+QComboBox::drop-down {
+    border-left: 1px solid #b89b82;
+    width: 22px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    color: #2b1a0f;
+    selection-background-color: #d8c2aa;
+    selection-color: black;
+}
+
+/* ============================= */
+/* ===== TABLE ===== */
+/* ============================= */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ============================= */
+/* ===== BUTTONS ===== */
+/* ============================= */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ============================= */
+/* ===== ACTION BUTTONS ===== */
+/* ============================= */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ============================= */
+/* ===== MENU BAR ===== */
+/* ============================= */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ============================= */
+/* ===== STATUS BAR ===== */
+/* ============================= */
+QStatusBar {
+    background-color: #e7dccf;
+}
+/* ============================= */
+/* ===== POPUP / DIALOG FIX ===== */
+/* ============================= */
+QDialog {
+    background-color: #f8f3ed;
+}
+/* ============================= */
+/* ===== TABLE CONTENT FIX ===== */
+/* ============================= */
+QTableWidget {
+    background-color: #ffffff;
+    color: #2b1a0f;                 /* TEXTE VISIBLE */
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+/* Cellules */
+QTableWidget::item {
+    color: #2b1a0f;                 /* TEXTE des cellules */
+    background-color: #ffffff;
+}
+
+/* Cellule sélectionnée */
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: #2b1a0f;
+}
+
+/* Ligne sélectionnée mais pas active */
+QTableWidget::item:selected:!active {
+    background-color: #e6d2bd;
+    color: #2b1a0f;
+}
+
+</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QTableWidget" name="tableWidget">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>260</y>
+      <width>1021</width>
+      <height>301</height>
+     </rect>
+    </property>
+    <column>
+     <property name="text">
+      <string>Nom fournisseur </string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Type matiere</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Teléphone</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Adresse</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>délai de livraison</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Qualié de matiére</string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Status </string>
+     </property>
+    </column>
+    <column>
+     <property name="text">
+      <string>Nouvelle colonne</string>
+     </property>
+    </column>
+   </widget>
+   <widget class="QPushButton" name="pushButton_3">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>580</y>
+      <width>90</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Ajouter </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_4">
+    <property name="geometry">
+     <rect>
+      <x>530</x>
+      <y>580</y>
+      <width>101</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Modifier </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_5">
+    <property name="geometry">
+     <rect>
+      <x>670</x>
+      <y>580</y>
+      <width>111</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Supprimer </string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_6">
+    <property name="geometry">
+     <rect>
+      <x>820</x>
+      <y>580</y>
+      <width>101</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Actualiser</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_8">
+    <property name="geometry">
+     <rect>
+      <x>350</x>
+      <y>110</y>
+      <width>461</width>
+      <height>81</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">/* ===== GLOBAL ===== */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ===== GROUP BOX ===== */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 6px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ===== LABELS ===== */
+QLabel {
+    color: #3b2a1a;
+}
+
+/* ===== INPUTS ===== */
+QLineEdit, QTextBrowser, QComboBox, QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    border-left: 1px solid #c7b299;
+}
+
+/* ===== TABLE ===== */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ===== BUTTONS (DEFAULT) ===== */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ===== ACTION BUTTONS ===== */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ===== MENU BAR ===== */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ===== STATUS BAR ===== */
+QStatusBar {
+    background-color: #e7dccf;
+}
+</string>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt; font-weight:700; font-style:italic; text-decoration: underline; color:#550000;&quot;&gt;Gestion des fournisseurs :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_7">
+    <property name="geometry">
+     <rect>
+      <x>1080</x>
+      <y>210</y>
+      <width>131</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Recherche</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_8">
+    <property name="geometry">
+     <rect>
+      <x>1070</x>
+      <y>110</y>
+      <width>131</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Exporter PDF</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_9">
+    <property name="geometry">
+     <rect>
+      <x>1230</x>
+      <y>110</y>
+      <width>121</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Statistiques</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_9">
+    <property name="geometry">
+     <rect>
+      <x>230</x>
+      <y>150</y>
+      <width>161</width>
+      <height>141</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">/* ===== GLOBAL ===== */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ===== GROUP BOX ===== */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 6px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ===== LABELS ===== */
+QLabel {
+    color: #3b2a1a;
+}
+
+/* ===== INPUTS ===== */
+QLineEdit, QTextBrowser, QComboBox, QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    border-left: 1px solid #c7b299;
+}
+
+/* ===== TABLE ===== */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ===== BUTTONS (DEFAULT) ===== */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ===== ACTION BUTTONS ===== */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ===== MENU BAR ===== */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ===== STATUS BAR ===== */
+QStatusBar {
+    background-color: #e7dccf;
+}
+</string>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt; font-weight:700;&quot;&gt;ID commande :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit">
+    <property name="geometry">
+     <rect>
+      <x>380</x>
+      <y>200</y>
+      <width>161</width>
+      <height>42</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_10">
+    <property name="geometry">
+     <rect>
+      <x>640</x>
+      <y>150</y>
+      <width>161</width>
+      <height>141</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">/* ===== GLOBAL ===== */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ===== GROUP BOX ===== */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 6px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ===== LABELS ===== */
+QLabel {
+    color: #3b2a1a;
+}
+
+/* ===== INPUTS ===== */
+QLineEdit, QTextBrowser, QComboBox, QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    border-left: 1px solid #c7b299;
+}
+
+/* ===== TABLE ===== */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ===== BUTTONS (DEFAULT) ===== */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ===== ACTION BUTTONS ===== */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ===== MENU BAR ===== */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ===== STATUS BAR ===== */
+QStatusBar {
+    background-color: #e7dccf;
+}
+</string>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt; font-weight:700;&quot;&gt;Date commande:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QLineEdit" name="lineEdit_2">
+    <property name="geometry">
+     <rect>
+      <x>800</x>
+      <y>200</y>
+      <width>161</width>
+      <height>42</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>50</x>
+      <y>30</y>
+      <width>251</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="pixmap">
+     <pixmap>../../../../Downloads/projet2626/projet2626/Logo.png</pixmap>
+    </property>
+    <property name="scaledContents">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_10">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>520</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&lt;</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_11">
+    <property name="geometry">
+     <rect>
+      <x>440</x>
+      <y>520</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>1</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_12">
+    <property name="geometry">
+     <rect>
+      <x>510</x>
+      <y>520</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>2</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_13">
+    <property name="geometry">
+     <rect>
+      <x>580</x>
+      <y>520</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>3</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_14">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
+      <y>520</y>
+      <width>51</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&gt;</string>
+    </property>
+   </widget>
+   <zorder>label</zorder>
+   <zorder>tableWidget</zorder>
+   <zorder>pushButton_3</zorder>
+   <zorder>pushButton_4</zorder>
+   <zorder>pushButton_5</zorder>
+   <zorder>pushButton_6</zorder>
+   <zorder>label_8</zorder>
+   <zorder>pushButton_7</zorder>
+   <zorder>pushButton_8</zorder>
+   <zorder>pushButton_9</zorder>
+   <zorder>label_9</zorder>
+   <zorder>lineEdit</zorder>
+   <zorder>label_10</zorder>
+   <zorder>lineEdit_2</zorder>
+   <zorder>pushButton_10</zorder>
+   <zorder>pushButton_11</zorder>
+   <zorder>pushButton_12</zorder>
+   <zorder>pushButton_13</zorder>
+   <zorder>pushButton_14</zorder>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1407</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

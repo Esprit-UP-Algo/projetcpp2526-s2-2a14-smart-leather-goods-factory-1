@@ -1,0 +1,38 @@
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
+#include <QMainWindow>
+#include <QString>
+
+QT_BEGIN_NAMESPACE
+namespace Ui {
+class MainWindow;
+}
+QT_END_NAMESPACE
+
+class MainWindow : public QMainWindow
+{
+    Q_OBJECT
+
+public:
+    MainWindow(QWidget *parent = nullptr);
+    ~MainWindow();
+
+private slots:
+    void on_pushButton_3_clicked(); // Bouton Ajouter
+    void on_pushButton_4_clicked(); // Bouton Modifier
+    void on_pushButton_5_clicked(); // Bouton Supprimer
+    void on_pushButton_6_clicked(); // Bouton Actualiser
+    void on_pushButton_7_clicked(); // Bouton Recherche
+
+private:
+    bool resoudreStructureFournisseurs();
+    bool chargerFournisseurs(const QString &idFiltre = QString(), const QString &nomFiltre = QString());
+    QString genererIdFournisseur();
+    bool validerTelephone(const QString &telephone) const;
+    void afficherErreurSql(const QString &operation, const QString &detail);
+
+    Ui::MainWindow *ui;
+    QString m_tableFournisseurs;
+};
+#endif // MAINWINDOW_H
