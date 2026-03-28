@@ -1,0 +1,672 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>produitswindow</class>
+ <widget class="QMainWindow" name="produitswindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1740</width>
+    <height>716</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Gestion des Produits</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">/* ═══════════════════════════════════════════
+   SMART LEATHER – PREMIUM CUIR THEME v2
+═══════════════════════════════════════════ */
+
+/* ── GLOBAL ── */
+QMainWindow {
+    background: qlineargradient(x1:0, y1:0, x2:0.3, y2:1,
+        stop:0 #f5efe8, stop:0.4 #ece3d8, stop:1 #e4d9cc);
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 13px;
+    color: #3a2a20;
+}
+
+QWidget {
+    font-family: &quot;Segoe UI&quot;;
+    color: #3a2a20;
+}
+
+/* ── LABELS ── */
+QLabel {
+    color: #4a3628;
+    background: transparent;
+}
+
+QLabel#label_8 {
+    font-size: 20px;
+    font-weight: 800;
+    color: #3a1f14;
+    letter-spacing: 2px;
+}
+
+QLabel#label_tri, QLabel#label_9, QLabel#label_10 {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5b3a28;
+}
+
+/* ── INPUTS ── */
+QLineEdit, QDateTimeEdit, QComboBox {
+    background-color: rgba(255, 255, 255, 0.75);
+    border: 2px solid #d4c4b0;
+    border-radius: 10px;
+    padding: 7px 12px;
+    color: #3a2a20;
+    font-size: 13px;
+}
+
+QLineEdit:focus, QDateTimeEdit:focus, QComboBox:focus {
+    border: 2px solid #8b6f5a;
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+QComboBox::drop-down {
+    border: none;
+    padding-right: 8px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #faf6f1;
+    border: 2px solid #d4c4b0;
+    border-radius: 6px;
+    selection-background-color: #c9a87c;
+    selection-color: white;
+    padding: 4px;
+}
+
+/* ── TABLE ── */
+QTableView {
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 2px solid #c9b8a5;
+    border-radius: 16px;
+    gridline-color: #e8ddd0;
+    alternate-background-color: #f5efe8;
+    selection-background-color: #c9a87c;
+    selection-color: #2a1a12;
+}
+
+QTableView::viewport {
+    background-color: transparent;
+    border-radius: 14px;
+}
+
+QHeaderView {
+    background-color: transparent;
+}
+
+QHeaderView::section {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #5b3020, stop:0.5 #4a2517, stop:1 #3a1a10);
+    color: #f5efe8;
+    padding: 10px 8px;
+    border: none;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+QHeaderView::section:first {
+    border-top-left-radius: 14px;
+}
+
+QHeaderView::section:last {
+    border-top-right-radius: 14px;
+}
+
+QTableView::item {
+    padding: 8px;
+    border-bottom: 1px solid #e8ddd0;
+}
+
+QTableView::item:selected {
+    background-color: #c9a87c;
+    color: #2a1a12;
+}
+
+QTableView::item:hover {
+    background-color: rgba(201, 168, 124, 0.3);
+}
+
+/* ── BUTTONS (default) ── */
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #6b4530, stop:1 #4a2a18);
+    border: none;
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-weight: 700;
+    font-size: 12px;
+    color: #f5efe8;
+    letter-spacing: 0.5px;
+}
+
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #7d5840, stop:1 #5b3a28);
+}
+
+QPushButton:pressed {
+    background: #3a1f14;
+    padding-top: 12px;
+    padding-bottom: 8px;
+}
+
+/* Ajouter – vert */
+QPushButton#pushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #5a8a2a, stop:1 #7aaa4a);
+    border-radius: 12px;
+}
+QPushButton#pushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #6a9a3a, stop:1 #8aba5a);
+}
+
+/* Modifier – ambre */
+QPushButton#pushButton_2 {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #b06a1c, stop:1 #d08a3c);
+}
+QPushButton#pushButton_2:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #c07a2c, stop:1 #e09a4c);
+}
+
+/* Supprimer – rouge */
+QPushButton#pushButton_3 {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #8a2a1a, stop:1 #b04a3a);
+    border-radius: 12px;
+}
+QPushButton#pushButton_3:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #9a3a2a, stop:1 #c05a4a);
+}
+
+/* Actualiser – cuir */
+QPushButton#pushButton_4 {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #6b5040, stop:1 #8b7060);
+}
+
+/* Exporter PDF / Statistiques */
+QPushButton#pushButton_7, QPushButton#pushButton_9 {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #4a3a2a, stop:1 #6a5a4a);
+    border: 2px solid #c9a87c;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+QPushButton#pushButton_7:hover, QPushButton#pushButton_9:hover {
+    border-color: #e0c090;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #5a4a3a, stop:1 #7a6a5a);
+}
+
+/* Recherche */
+QPushButton#pushButton_10 {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #5b3a28, stop:1 #7b5a48);
+    border: 2px solid #c9a87c;
+}
+
+/* Pagination – petits cercles */
+QPushButton#pushButton_8,
+QPushButton#pushButton_13,
+QPushButton#pushButton_14,
+QPushButton#pushButton_15,
+QPushButton#pushButton_16 {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #a08060, stop:1 #806040);
+    border: none;
+    border-radius: 14px;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0px;
+}
+QPushButton#pushButton_8:hover,
+QPushButton#pushButton_13:hover,
+QPushButton#pushButton_14:hover,
+QPushButton#pushButton_15:hover,
+QPushButton#pushButton_16:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #b09070, stop:1 #907050);
+}
+
+/* ── CALENDAR POPUP ── */
+QCalendarWidget {
+    background-color: #faf6f1;
+    color: #3a2a20;
+}
+QCalendarWidget QWidget#qt_calendar_navigationbar {
+    background-color: #5b3020;
+    border-radius: 6px;
+    min-height: 32px;
+}
+QCalendarWidget QToolButton {
+    color: #f5efe8;
+    background: transparent;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+QCalendarWidget QToolButton:hover {
+    background-color: #7b5040;
+}
+QCalendarWidget QSpinBox {
+    background-color: #4a2517;
+    color: #f5efe8;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 13px;
+    font-weight: bold;
+}
+QCalendarWidget QAbstractItemView {
+    background-color: #faf6f1;
+    color: #3a2a20;
+    selection-background-color: #c9a87c;
+    selection-color: #2a1a12;
+    alternate-background-color: #f0e8de;
+    font-size: 12px;
+    border: none;
+}
+QCalendarWidget QMenu {
+    background-color: #faf6f1;
+    color: #3a2a20;
+    border: 1px solid #d4c4b0;
+}
+QCalendarWidget QMenu::item:selected {
+    background-color: #c9a87c;
+}
+
+/* ── MESSAGE BOX ── */
+QMessageBox {
+    background-color: #faf6f1;
+}
+QMessageBox QLabel {
+    color: #3a2a20;
+    font-size: 13px;
+}
+QMessageBox QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #6b4530, stop:1 #4a2a18);
+    border: none;
+    border-radius: 8px;
+    padding: 8px 24px;
+    font-weight: 700;
+    color: #f5efe8;
+    min-width: 80px;
+}
+QMessageBox QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #7d5840, stop:1 #5b3a28);
+}
+
+/* ── MENU BAR ── */
+QMenuBar {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #3a1a10, stop:1 #4a2a1a);
+    color: #f5efe8;
+    border-bottom: 2px solid #c9a87c;
+}
+
+QMenuBar::item:selected {
+    background-color: #6b4530;
+}
+
+/* ── STATUS BAR ── */
+QStatusBar {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #e4d9cc, stop:1 #d8cbb8);
+    color: #4a3628;
+    border-top: 1px solid #c9b8a5;
+    font-size: 11px;
+}
+</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QStackedWidget" name="stackedWidget">
+    <property name="geometry">
+     <rect>
+      <x>240</x>
+      <y>20</y>
+      <width>1461</width>
+      <height>691</height>
+     </rect>
+    </property>
+    <property name="currentIndex">
+     <number>0</number>
+    </property>
+    <widget class="QWidget" name="page">
+     <widget class="QTableView" name="tableView">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>170</y>
+        <width>1021</width>
+        <height>411</height>
+       </rect>
+      </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+      </property>
+      <property name="selectionBehavior">
+       <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+      </property>
+      <attribute name="horizontalHeaderStretchLastSection">
+       <bool>true</bool>
+      </attribute>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+     </widget>
+     <widget class="QPushButton" name="pushButton">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>620</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Ajouter</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_2">
+      <property name="geometry">
+       <rect>
+        <x>290</x>
+        <y>620</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Modifier</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_3">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>620</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Supprimer</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_4">
+      <property name="geometry">
+       <rect>
+        <x>620</x>
+        <y>620</y>
+        <width>101</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Actualiser</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_7">
+      <property name="geometry">
+       <rect>
+        <x>780</x>
+        <y>48</y>
+        <width>151</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Exporter PDF</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_8">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>-10</y>
+        <width>381</width>
+        <height>81</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt; font-style:italic; text-decoration: underline;&quot;&gt;Gestion des produits :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_8">
+      <property name="geometry">
+       <rect>
+        <x>230</x>
+        <y>528</y>
+        <width>32</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&lt;</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_13">
+      <property name="geometry">
+       <rect>
+        <x>306</x>
+        <y>528</y>
+        <width>32</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>2</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_14">
+      <property name="geometry">
+       <rect>
+        <x>268</x>
+        <y>528</y>
+        <width>32</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>1</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_15">
+      <property name="geometry">
+       <rect>
+        <x>382</x>
+        <y>528</y>
+        <width>32</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&gt;</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_16">
+      <property name="geometry">
+       <rect>
+        <x>344</x>
+        <y>528</y>
+        <width>32</width>
+        <height>32</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>3</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_9">
+      <property name="geometry">
+       <rect>
+        <x>950</x>
+        <y>50</y>
+        <width>141</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Statistiques</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_10">
+      <property name="geometry">
+       <rect>
+        <x>610</x>
+        <y>118</y>
+        <width>141</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Recherche</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_9">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>130</y>
+        <width>141</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Nom produit :&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_5">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>130</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLineEdit" name="lineEdit_6">
+      <property name="geometry">
+       <rect>
+        <x>460</x>
+        <y>130</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_10">
+      <property name="geometry">
+       <rect>
+        <x>300</x>
+        <y>130</y>
+        <width>171</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;prix du produit :&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_tri">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>70</y>
+        <width>101</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Trier par :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+     </widget>
+     <widget class="QComboBox" name="comboBox_tri">
+      <property name="geometry">
+       <rect>
+        <x>110</x>
+        <y>70</y>
+        <width>181</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <item>
+       <property name="text">
+        <string>Aucun tri</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Prix croissant</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Prix décroissant</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Catégorie A-Z</string>
+       </property>
+      </item>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="page_2"/>
+   </widget>
+   <widget class="QLabel" name="label">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>10</y>
+      <width>211</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="pixmap">
+     <pixmap resource="logo.qrc">:/Logo.png</pixmap>
+    </property>
+    <property name="scaledContents">
+     <bool>true</bool>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1740</width>
+     <height>25</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources>
+  <include location="logo.qrc"/>
+ </resources>
+ <connections/>
+</ui>
