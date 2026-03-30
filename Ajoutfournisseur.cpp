@@ -56,7 +56,7 @@ AjoutFournisseur::AjoutFournisseur(QWidget *parent)
 
     mainLayout->addWidget(new QLabel("Qualité matière"));
     qualiteCombo = new QComboBox(this);
-    qualiteCombo->addItems({"A (bonne)", "B (moyenne)", "C (mediocre)"});
+    qualiteCombo->addItems({"1er choix", "2eme choix", "3eme choix"});
     mainLayout->addWidget(qualiteCombo);
 
     mainLayout->addWidget(new QLabel("Statut"));

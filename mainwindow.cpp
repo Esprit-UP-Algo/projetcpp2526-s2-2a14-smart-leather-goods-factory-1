@@ -136,12 +136,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     QPixmap logo;
     for (const QString &path : logoPaths) {
-        if (logo.load(path)) {
-            break;
-        }
+        if (logo.load(path)) { break; }
     }
     if (!logo.isNull()) {
-        ui->labelLogo->setPixmap(logo.scaled(ui->labelLogo->size(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        ui->labelLogo->setPixmap(logo.scaled(ui->labelLogo->size(), 
+            Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
     if (resoudreStructureFournisseurs()) {
@@ -505,9 +504,9 @@ bool MainWindow::chargerFournisseurs(const QString &idFiltre, const QString &typ
         sql += " ORDER BY DELAI_LIVRAISON DESC NULLS LAST, IDFOURNISSEUR";
     } else if (triIndex == 3) {
         sql += " ORDER BY CASE "
-               "WHEN UPPER(QUALITE) LIKE 'A%' THEN 1 "
-               "WHEN UPPER(QUALITE) LIKE 'B%' THEN 2 "
-               "WHEN UPPER(QUALITE) LIKE 'C%' THEN 3 "
+               "WHEN UPPER(QUALITE) LIKE '1%' THEN 1 "
+               "WHEN UPPER(QUALITE) LIKE '2%' THEN 2 "
+               "WHEN UPPER(QUALITE) LIKE '3%' THEN 3 "
                "ELSE 4 END, IDFOURNISSEUR";
     } else {
         sql += " ORDER BY IDFOURNISSEUR";
@@ -599,16 +598,16 @@ void MainWindow::on_pushButton_9_clicked()
     QSqlQuery query;
     query.prepare(
         QString("SELECT CASE "
-                "WHEN UPPER(QUALITE) LIKE 'A%%' THEN 'A' "
-                "WHEN UPPER(QUALITE) LIKE 'B%%' THEN 'B' "
-                "WHEN UPPER(QUALITE) LIKE 'C%%' THEN 'C' "
+                "WHEN UPPER(QUALITE) LIKE '1%%' THEN 'A' "
+                "WHEN UPPER(QUALITE) LIKE '2%%' THEN 'B' "
+                "WHEN UPPER(QUALITE) LIKE '3%%' THEN 'C' "
                 "ELSE 'AUTRE' END AS QUALITE_GROUPE, "
                 "COUNT(*) AS TOTAL "
                 "FROM %1 "
                 "GROUP BY CASE "
-                "WHEN UPPER(QUALITE) LIKE 'A%%' THEN 'A' "
-                "WHEN UPPER(QUALITE) LIKE 'B%%' THEN 'B' "
-                "WHEN UPPER(QUALITE) LIKE 'C%%' THEN 'C' "
+                "WHEN UPPER(QUALITE) LIKE '1%%' THEN 'A' "
+                "WHEN UPPER(QUALITE) LIKE '2%%' THEN 'B' "
+                "WHEN UPPER(QUALITE) LIKE '3%%' THEN 'C' "
                 "ELSE 'AUTRE' END")
             .arg(m_tableFournisseurs)
         );
@@ -649,14 +648,14 @@ void MainWindow::on_pushButton_9_clicked()
 
     QString dominante = "Aucune";
     int maxCount = countA;
-    dominante = "A (bonne)";
+    dominante = "1er choix";
     if (countB > maxCount) {
         maxCount = countB;
-        dominante = "B (moyenne)";
+        dominante = "2eme choix";
     }
     if (countC > maxCount) {
         maxCount = countC;
-        dominante = "C (mediocre)";
+        dominante = "3eme choix";
     }
     if (countAutre > maxCount) {
         dominante = "Autre";
@@ -684,14 +683,14 @@ void MainWindow::on_pushButton_9_clicked()
         }
     };
 
-    addSlice("A (bonne)", countA, QColor("#6ba539"));
-    addSlice("B (moyenne)", countB, QColor("#e5a93d"));
-    addSlice("C (mediocre)", countC, QColor("#d45a3a"));
+    addSlice("1er choix", countA, QColor("#6ba539"));
+    addSlice("2eme choix", countB, QColor("#e5a93d"));
+    addSlice("3eme choix", countC, QColor("#d45a3a"));
     addSlice("Autre", countAutre, QColor("#8f8f8f"));
 
     auto *chart = new QChart();
     chart->addSeries(series);
-    chart->setTitle("Repartition des fournisseurs par qualite de matiere");
+    chart->setTitle("Repartition des fournisseurs par qualite");
     chart->setTitleBrush(QBrush(QColor("#4a2717")));
     chart->setAnimationOptions(QChart::SeriesAnimations);
     chart->setBackgroundBrush(QBrush(QColor("#fffaf5")));
@@ -717,7 +716,7 @@ void MainWindow::on_pushButton_9_clicked()
     barChart->setBackgroundBrush(QBrush(QColor("#fffaf5")));
 
     QStringList categories;
-    categories << "A" << "B" << "C" << "Autre";
+    categories << "1er choix" << "2eme choix" << "3eme choix" << "Autre";
     auto *axisX = new QBarCategoryAxis();
     axisX->append(categories);
     barChart->addAxis(axisX, Qt::AlignBottom);
@@ -760,7 +759,7 @@ void MainWindow::on_pushButton_9_clicked()
     auto *title = new QLabel("Qualite des matieres: vue analytique", dialog);
     title->setObjectName("title");
     auto *subtitle = new QLabel(
-        QString("Total fournisseurs: %1 | A: %2  B: %3  C: %4  Autre: %5")
+        QString("Total fournisseurs: %1 | 1er choix: %2  2eme choix: %3  3eme choix: %4  Autre: %5")
             .arg(total)
             .arg(countA)
             .arg(countB)

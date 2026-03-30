@@ -48,7 +48,7 @@ ModifierFournisseur::ModifierFournisseur(QWidget *parent) : QDialog(parent) {
     delaiDate->setCalendarPopup(true);
 
     qualiteCombo = new QComboBox();
-    qualiteCombo->addItems({"A (bonne)", "B (moyenne)", "C (mediocre)"});
+    qualiteCombo->addItems({"1er choix", "2eme choix", "3eme choix"});
 
     statutCombo = new QComboBox();
     statutCombo->addItems({"Actif", "Inactif"});

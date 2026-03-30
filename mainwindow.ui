@@ -1012,7 +1012,7 @@ QStatusBar {
     </item>
     <item>
      <property name="text">
-      <string>Qualité de matières A-C</string>
+      <string>Selon choix</string>
      </property>
     </item>
    </widget>
