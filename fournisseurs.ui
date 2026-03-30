@@ -1,0 +1,904 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>fournisseurs</class>
+ <widget class="QDialog" name="fournisseurs">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1352</width>
+    <height>782</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">/* =====================================================
+   THEME ERP – STITCHED LEATHER / CUIR PREMIUM
+===================================================== */
+
+/* =======================
+   GLOBAL
+======================= */
+QMainWindow, QWidget {
+    background-color: #f1e7dc;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 13px;
+    color: #3a2a20;
+}
+
+/* =======================
+   LABELS
+======================= */
+QLabel {
+    color: #3a2a20;
+}
+
+/* Main title */
+QLabel#label_8 {
+    font-size: 20px;
+    font-weight: bold;
+    color: #5b2f1d;
+    letter-spacing: 1px;
+}
+
+/* =======================
+   GROUPBOX – STITCHED LEATHER
+======================= */
+QGroupBox {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #fff6ec,
+        stop:1 #ead7c6
+    );
+    border: 2px dashed #b08a6b;   /* stitched effect */
+    border-radius: 14px;
+    margin-top: 22px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 16px;
+    top: -12px;
+    padding: 2px 10px;
+    background-color: #f1e7dc;
+    color: #5b2f1d;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+/* =======================
+   INPUTS – EMBEDDED LEATHER
+======================= */
+QLineEdit, QDateTimeEdit, QComboBox {
+    background-color: rgba(255, 250, 245, 0.6);
+    border: 1px solid #c6a88d;
+    border-radius: 6px;
+    padding: 6px;
+    color: #3a2a20;
+}
+
+QLineEdit:focus,
+QDateTimeEdit:focus,
+QComboBox:focus {
+    border: 2px solid #6b3e26;
+    background-color: #fffaf5;
+}
+
+QLineEdit:disabled,
+QDateTimeEdit:disabled {
+    color: #8a7a6e;
+    background-color: #e6d8cc;
+}
+
+/* =======================
+   COMBOBOX DROPDOWN
+======================= */
+QComboBox::drop-down {
+    border-left: 1px solid #c6a88d;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #fffaf5;
+    selection-background-color: #d8b59c;
+    border: 1px solid #c6a88d;
+}
+
+/* =======================
+   TABLE – LEATHER PANEL
+======================= */
+QTableWidget {
+    background-color: #fffaf5;
+    border: 2px solid #b08a6b;
+    border-radius: 14px;
+    gridline-color: #e0d2c5;
+}
+
+QHeaderView::section {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #6b3e26,
+        stop:1 #4a2717
+    );
+    color: #fffaf5;
+    padding: 8px;
+    border: none;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+QTableWidget::item {
+    padding: 8px;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8b59c;
+    color: #2a1a12;
+}
+
+/* =======================
+   BUTTONS – LEATHER PATCH
+======================= */
+QPushButton {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #7a4a2e,
+        stop:1 #5b2f1d
+    );
+    border: 2px solid #3a1f14;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-weight: bold;
+    color: #fffaf5;
+}
+
+QPushButton:hover {
+    background-color: qlineargradient(
+        x1:0, y1:0, x2:0, y2:1,
+        stop:0 #8b5a3a,
+        stop:1 #6b3e26
+    );
+}
+
+QPushButton:pressed {
+    background-color: #4a2717;
+}
+
+/* Accent buttons */
+QPushButton#pushButton {
+    background-color: #6f8f3d;
+    border-color: #4c6328;
+}
+
+QPushButton#pushButton_3 {
+    background-color: #a23b2a;
+    border-color: #6e2418;
+}
+
+/* Pagination buttons */
+QPushButton#pushButton_8,
+QPushButton#pushButton_13,
+QPushButton#pushButton_14,
+QPushButton#pushButton_15,
+QPushButton#pushButton_16 {
+    background-color: #a47148;
+    border-color: #6b3e26;
+}
+
+/* =======================
+   MENU BAR – DARK LEATHER
+======================= */
+QMenuBar {
+    background-color: #4a2717;
+    color: #fffaf5;
+}
+
+QMenuBar::item:selected {
+    background-color: #7a4a2e;
+}
+
+/* =======================
+   STATUS BAR
+======================= */
+QStatusBar {
+    background-color: #e9dccf;
+    color: #3a2a20;
+    border-top: 1px solid #c6a88d;
+}
+</string>
+  </property>
+  <widget class="QPushButton" name="pushButton_14">
+   <property name="geometry">
+    <rect>
+     <x>730</x>
+     <y>520</y>
+     <width>51</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>&gt;</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_10">
+   <property name="geometry">
+    <rect>
+     <x>450</x>
+     <y>520</y>
+     <width>51</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>&lt;</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_13">
+   <property name="geometry">
+    <rect>
+     <x>660</x>
+     <y>520</y>
+     <width>51</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>3</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_9">
+   <property name="geometry">
+    <rect>
+     <x>310</x>
+     <y>150</y>
+     <width>161</width>
+     <height>141</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">/* ===== GLOBAL ===== */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ===== GROUP BOX ===== */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 6px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ===== LABELS ===== */
+QLabel {
+    color: #3b2a1a;
+}
+
+/* ===== INPUTS ===== */
+QLineEdit, QTextBrowser, QComboBox, QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    border-left: 1px solid #c7b299;
+}
+
+/* ===== TABLE ===== */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ===== BUTTONS (DEFAULT) ===== */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ===== ACTION BUTTONS ===== */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ===== MENU BAR ===== */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ===== STATUS BAR ===== */
+QStatusBar {
+    background-color: #e7dccf;
+}
+</string>
+   </property>
+   <property name="text">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt; font-weight:700;&quot;&gt;ID commande :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_10">
+   <property name="geometry">
+    <rect>
+     <x>670</x>
+     <y>180</y>
+     <width>161</width>
+     <height>141</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">/* ===== GLOBAL ===== */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ===== GROUP BOX ===== */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 6px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ===== LABELS ===== */
+QLabel {
+    color: #3b2a1a;
+}
+
+/* ===== INPUTS ===== */
+QLineEdit, QTextBrowser, QComboBox, QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    border-left: 1px solid #c7b299;
+}
+
+/* ===== TABLE ===== */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ===== BUTTONS (DEFAULT) ===== */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ===== ACTION BUTTONS ===== */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ===== MENU BAR ===== */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ===== STATUS BAR ===== */
+QStatusBar {
+    background-color: #e7dccf;
+}
+</string>
+   </property>
+   <property name="text">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt; font-weight:696;&quot;&gt;Name&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="searchNomEdit">
+   <property name="geometry">
+    <rect>
+     <x>800</x>
+     <y>200</y>
+     <width>161</width>
+     <height>42</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton">
+   <property name="geometry">
+    <rect>
+     <x>430</x>
+     <y>730</y>
+     <width>90</width>
+     <height>29</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Ajouter </string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_8">
+   <property name="geometry">
+    <rect>
+     <x>430</x>
+     <y>110</y>
+     <width>371</width>
+     <height>81</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">/* ===== GLOBAL ===== */
+QMainWindow {
+    background-color: #f4efe9;
+    font-family: &quot;Segoe UI&quot;;
+    font-size: 11pt;
+}
+
+/* ===== GROUP BOX ===== */
+QGroupBox {
+    background-color: #f8f3ed;
+    border: 1px solid #c7b299;
+    border-radius: 6px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 6px;
+    color: #4b2e1f;
+    font-weight: bold;
+}
+
+/* ===== LABELS ===== */
+QLabel {
+    color: #3b2a1a;
+}
+
+/* ===== INPUTS ===== */
+QLineEdit, QTextBrowser, QComboBox, QDateEdit {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+QComboBox::drop-down {
+    border-left: 1px solid #c7b299;
+}
+
+/* ===== TABLE ===== */
+QTableWidget {
+    background-color: #ffffff;
+    border: 1px solid #c7b299;
+    gridline-color: #e0d6c9;
+}
+
+QHeaderView::section {
+    background-color: #6b3f2b;
+    color: white;
+    padding: 6px;
+    border: none;
+    font-weight: bold;
+}
+
+QTableWidget::item:selected {
+    background-color: #d8c2aa;
+    color: black;
+}
+
+/* ===== BUTTONS (DEFAULT) ===== */
+QPushButton {
+    background-color: #6b3f2b;
+    color: white;
+    border-radius: 6px;
+    padding: 6px 14px;
+}
+
+QPushButton:hover {
+    background-color: #8a5a44;
+}
+
+/* ===== ACTION BUTTONS ===== */
+QPushButton#pushButton_3 { /* Ajouter */
+    background-color: #5a7d3b;
+}
+
+QPushButton#pushButton_4 { /* Modifier */
+    background-color: #d07a2d;
+}
+
+QPushButton#pushButton_5 { /* Supprimer */
+    background-color: #b23a2b;
+}
+
+QPushButton#pushButton_6 { /* Actualiser */
+    background-color: #7b4a32;
+}
+
+/* ===== MENU BAR ===== */
+QMenuBar {
+    background-color: #6b3f2b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #8a5a44;
+}
+
+/* ===== STATUS BAR ===== */
+QStatusBar {
+    background-color: #e7dccf;
+}
+</string>
+   </property>
+   <property name="text">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:14pt; font-weight:700; font-style:italic; text-decoration: underline; color:#550000;&quot;&gt;Gestion des fournisseurs :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>40</y>
+     <width>251</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">border-image: url(:/Logo.png);</string>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="pixmap">
+    <pixmap>../../Downloads/projet2626/projet2626/Logo.png</pixmap>
+   </property>
+   <property name="scaledContents">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_3">
+   <property name="geometry">
+    <rect>
+     <x>830</x>
+     <y>730</y>
+     <width>111</width>
+     <height>29</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Supprimer </string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_6">
+   <property name="geometry">
+    <rect>
+     <x>1010</x>
+     <y>730</y>
+     <width>101</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Actualiser</string>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="tableWidget">
+   <property name="geometry">
+    <rect>
+     <x>310</x>
+     <y>260</y>
+     <width>801</width>
+     <height>461</height>
+    </rect>
+   </property>
+   <column>
+    <property name="text">
+     <string>Nom fournisseur </string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Type matiere</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Teléphone</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Adresse</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>délai de livraison</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Qualié de matiére</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Status </string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>Nouvelle colonne</string>
+    </property>
+   </column>
+  </widget>
+  <widget class="QLineEdit" name="searchIdEdit">
+   <property name="geometry">
+    <rect>
+     <x>460</x>
+     <y>200</y>
+     <width>161</width>
+     <height>42</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_7">
+   <property name="geometry">
+    <rect>
+     <x>990</x>
+     <y>208</y>
+     <width>131</width>
+     <height>31</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Exporter </string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_9">
+   <property name="geometry">
+    <rect>
+     <x>1000</x>
+     <y>130</y>
+     <width>121</width>
+     <height>29</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Statistiques</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_2">
+   <property name="geometry">
+    <rect>
+     <x>630</x>
+     <y>730</y>
+     <width>101</width>
+     <height>29</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Modifier </string>
+   </property>
+  </widget>
+  <widget class="QGroupBox" name="groupBox">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>150</y>
+     <width>271</width>
+     <height>621</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string/>
+   </property>
+   <widget class="QPushButton" name="pushButton_15">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>516</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>quitter</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_16">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>60</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Commandes</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_17">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>136</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Employe</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_20">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>212</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Fournisseur</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_22">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>364</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Matieres Premieres</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_21">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>288</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Products</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_23">
+    <property name="geometry">
+     <rect>
+      <x>21</x>
+      <y>440</y>
+      <width>231</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Machine</string>
+    </property>
+   </widget>
+  </widget>
+  <zorder>label_10</zorder>
+  <zorder>pushButton_14</zorder>
+  <zorder>pushButton_10</zorder>
+  <zorder>pushButton_13</zorder>
+  <zorder>label_9</zorder>
+  <zorder>searchNomEdit</zorder>
+  <zorder>pushButton</zorder>
+  <zorder>label_8</zorder>
+  <zorder>pushButton_3</zorder>
+  <zorder>pushButton_6</zorder>
+  <zorder>tableWidget</zorder>
+  <zorder>searchIdEdit</zorder>
+  <zorder>pushButton_7</zorder>
+  <zorder>pushButton_9</zorder>
+  <zorder>pushButton_2</zorder>
+  <zorder>groupBox</zorder>
+  <zorder>label</zorder>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
