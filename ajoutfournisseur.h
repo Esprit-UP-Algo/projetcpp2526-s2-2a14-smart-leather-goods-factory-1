@@ -23,7 +23,7 @@ public:
     QString getTelephone() const { return telephoneEdit->text(); }
     QString getAdresse() const { return adresseEdit->text(); }
     QDate getDelaiLivraison() const { return delaiDate->date(); }
-    QString getQualiteMatiere() const { return qualiteEdit->text(); }
+    QString getQualiteMatiere() const { return qualiteCombo->currentText(); }
     QString getStatut() const { return statutCombo->currentText(); }
 
 private:
@@ -33,13 +33,16 @@ private:
     QLineEdit *telephoneEdit;
     QLineEdit *adresseEdit;
     QDateEdit *delaiDate;
-    QLineEdit *qualiteEdit;
+    QComboBox *qualiteCombo;
     QComboBox *statutCombo;
 
     QPushButton *btnSave;
     QPushButton *btnCancel;
 
     void setupStyle(); // Applies the Stitched Leather QSS
+
+private slots:
+    void mettreAJourValidation();
 };
 
 #endif // AJOUTFOURNISSEUR_H

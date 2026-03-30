@@ -24,10 +24,13 @@ private slots:
     void on_pushButton_5_clicked(); // Bouton Supprimer
     void on_pushButton_6_clicked(); // Bouton Actualiser
     void on_pushButton_7_clicked(); // Bouton Recherche
+    void on_pushButton_8_clicked(); // Bouton Exporter PDF
+    void on_pushButton_9_clicked(); // Bouton Statistiques
+    void on_comboBox_currentIndexChanged(int index); // Tri
 
 private:
     bool resoudreStructureFournisseurs();
-    bool chargerFournisseurs(const QString &idFiltre = QString(), const QString &nomFiltre = QString());
+    bool chargerFournisseurs(const QString &idFiltre = QString(), const QString &typeFiltre = QString());
     QString genererIdFournisseur();
     bool validerTelephone(const QString &telephone) const;
     void afficherErreurSql(const QString &operation, const QString &detail);

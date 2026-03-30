@@ -26,7 +26,7 @@ public:
     QString getTelephone() const { return telephoneEdit->text(); }
     QString getAdresse() const { return adresseEdit->text(); }
     QDate getDelaiLivraison() const { return delaiDate->date(); }
-    QString getQualiteMatiere() const { return qualiteEdit->text(); }
+    QString getQualiteMatiere() const { return qualiteCombo->currentText(); }
     QString getStatut() const { return statutCombo->currentText(); }
 
 private:
@@ -36,7 +36,7 @@ private:
     QLineEdit *telephoneEdit;
     QLineEdit *adresseEdit;
     QDateEdit *delaiDate;
-    QLineEdit *qualiteEdit;
+    QComboBox *qualiteCombo;
     QComboBox *statutCombo;
 
     QPushButton *btnSave;
@@ -44,6 +44,9 @@ private:
 
     // Theme method
     void setupStyle();
+
+private slots:
+    void mettreAJourValidation();
 };
 
 #endif // MODIFIERFOURNISSEUR_H
