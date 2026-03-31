@@ -221,7 +221,7 @@ QStatusBar {
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>:/Logo.png</pixmap>
+    <pixmap resource="logo.qrc">:/Logo.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -302,7 +302,7 @@ QStatusBar {
       </rect>
      </property>
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;ID produit :&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Rrix produit :&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
     <widget class="QLineEdit" name="searchIdEdit">
@@ -335,7 +335,7 @@ QStatusBar {
       </rect>
      </property>
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Nom &lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;Nom produit&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-size:12pt; font-weight:700;&quot;&gt;&lt;br/&gt;&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
     </widget>
     <widget class="QTableView" name="tableWidget">
@@ -412,10 +412,10 @@ QTableView::item:selected {
 </string>
      </property>
      <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAsNeeded</enum>
+      <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
      </property>
      <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarAsNeeded</enum>
+      <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
      </property>
      <attribute name="horizontalHeaderVisible">
       <bool>false</bool>
@@ -435,7 +435,6 @@ QTableView::item:selected {
      <attribute name="horizontalHeaderStretchLastSection">
       <bool>true</bool>
      </attribute>
-
     </widget>
     <zorder>tableWidget</zorder>
     <zorder>pushButton_7</zorder>
@@ -606,6 +605,8 @@ QTableView::item:selected {
    </property>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="logo.qrc"/>
+ </resources>
  <connections/>
 </ui>
