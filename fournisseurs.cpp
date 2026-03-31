@@ -1,953 +1,362 @@
-    #include "fournisseurs.h"
-    #include "ui_fournisseurs.h"
-    #include <QMessageBox>
-    #include <QLineEdit>
-    #include <QComboBox>
-    #include <QLabel>
-    #include <QPushButton>
-    #include <QVBoxLayout>
-    #include <QHBoxLayout>
-    #include <QDialog>
-    #include <QDateEdit>
-    #include <QDebug>
-    #include <QPrinter>
-    #include <QPainter>
-    #include <QFileDialog>
-    #include <QDateTime>
+#include "fournisseurs.h"
+#include "ui_fournisseurs.h"
+#include <QMessageBox>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QDialog>
+#include <QDateEdit>
+#include <QDebug>
+#include <QPrinter>
+#include <QPainter>
+#include <QFileDialog>
+#include <QDateTime>
+#include <QFile>
+#include <QTextStream>
+#include <QSqlQuery>
+#include <QSqlError>
 
-    #include "commandes.h"
-    #include "pageemployee.h"
-    #include "login.h"
-    #include "products.h"
-    #include "matieres.h"
-    #include "pagemachine.h"
-    #include <QFile>
-    #include <QTextStream>
-    #include <QSqlQuery>
-    #include <QSqlError>
+#include "commandes.h"
+#include "pageemployee.h"
+#include "login.h"
+#include "products.h"
+#include "matieres.h"
+#include "pagemachine.h"
 
+fournisseurs::fournisseurs(QWidget *parent)
+    : QDialog(parent)
+    , ui(new Ui::fournisseurs)
+{
+    ui->setupUi(this);
+    model = new CustomFournisseurModel(this);
+    setupFournisseursTable();
+    loadFournisseurs();
+    setupSearch();
+}
 
-    fournisseurs::fournisseurs(QWidget *parent)
-        : QDialog(parent)
-        , ui(new Ui::fournisseurs)
-    {
-        ui->setupUi(this);
-        setupFournisseursTable();
-        loadFournisseurs();
-        setupSearch();
+fournisseurs::~fournisseurs()
+{
+    delete ui;
+}
+
+void fournisseurs::setupSearch()
+{
+    connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &fournisseurs::filterTable);
+    connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &fournisseurs::filterTable);
+}
+
+void fournisseurs::filterTable()
+{
+    QString idFilter = ui->searchIdEdit->text();
+    QString nomFilter = ui->searchNomEdit->text();
+
+    QString sql = "SELECT ID_FOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT FROM FOURNISSEUR WHERE 1=1";
+    if (!idFilter.isEmpty()) sql += " AND LOWER(ID_FOURNISSEUR) LIKE LOWER('%" + idFilter + "%')";
+    if (!nomFilter.isEmpty()) sql += " AND LOWER(NOM) LIKE LOWER('%" + nomFilter + "%')";
+
+    model->setQuery(sql);
+}
+
+void fournisseurs::setupFournisseursTable()
+{
+    ui->tableWidget->setModel(model);
+    model->setHeaderData(0, Qt::Horizontal, "ID");
+    model->setHeaderData(1, Qt::Horizontal, "Nom");
+    model->setHeaderData(2, Qt::Horizontal, "Type Matière");
+    model->setHeaderData(3, Qt::Horizontal, "Téléphone");
+    model->setHeaderData(4, Qt::Horizontal, "Adresse");
+    model->setHeaderData(5, Qt::Horizontal, "Délai");
+    model->setHeaderData(6, Qt::Horizontal, "Qualité");
+    model->setHeaderData(7, Qt::Horizontal, "Statut");
+
+    ui->tableWidget->setColumnWidth(0, 80);
+    ui->tableWidget->setColumnWidth(1, 150);
+    ui->tableWidget->setColumnWidth(2, 120);
+    ui->tableWidget->setColumnWidth(3, 120);
+    ui->tableWidget->setColumnWidth(4, 200);
+    ui->tableWidget->setColumnWidth(5, 100);
+    ui->tableWidget->setColumnWidth(6, 90);
+    ui->tableWidget->setColumnWidth(7, 85);
+
+    ui->tableWidget->setSortingEnabled(true);
+    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->tableWidget->setAlternatingRowColors(true);
+}
+
+void fournisseurs::loadFournisseurs()
+{
+    model->setQuery("SELECT ID_FOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT FROM FOURNISSEUR");
+    if (model->lastError().isValid()) {
+        QMessageBox::warning(this, "Erreur Oracle", model->lastError().text());
+    }
+}
+
+// Navigation Slots
+void fournisseurs::on_pushButton_16_clicked() { hide(); (new commandes(this))->show(); }
+void fournisseurs::on_pushButton_17_clicked() { hide(); (new pageemployee(this))->show(); }
+void fournisseurs::on_pushButton_15_clicked() { hide(); (new login(this))->show(); }
+void fournisseurs::on_pushButton_20_clicked() { hide(); (new fournisseurs(this))->show(); }
+void fournisseurs::on_pushButton_21_clicked() { hide(); (new products(this))->show(); }
+void fournisseurs::on_pushButton_22_clicked() { hide(); (new Matieres(this))->show(); }
+void fournisseurs::on_pushButton_23_clicked() { hide(); (new pagemachine(this))->show(); }
+
+void fournisseurs::on_pushButton_4_clicked() { loadFournisseurs(); }
+
+void fournisseurs::on_pushButton_clicked()
+{
+    QDialog *ajoutDialog = new QDialog(this);
+    ajoutDialog->setWindowTitle("Nouveau Fournisseur");
+    ajoutDialog->setFixedSize(650, 800);
+    ajoutDialog->setStyleSheet("QDialog { background-color: #f4ede6; border: 3px dashed #c9b2a2; border-radius: 20px; }");
+    
+    QVBoxLayout *layout = new QVBoxLayout(ajoutDialog);
+    layout->setContentsMargins(40,40,40,40);
+    layout->setSpacing(15);
+
+    QString nextId = "FR001";
+    QSqlQuery idQ("SELECT MAX(ID_FOURNISSEUR) FROM FOURNISSEUR");
+    if(idQ.next() && !idQ.value(0).isNull()){
+        QString last = idQ.value(0).toString();
+        nextId = QString("FR%1").arg(last.mid(2).toInt() + 1, 3, 10, QChar('0'));
     }
 
-    fournisseurs::~fournisseurs()
-    {
-        delete ui;
-    }
+    QLineEdit *idEdit = new QLineEdit(nextId);
+    idEdit->setReadOnly(true);
+    idEdit->setStyleSheet("background-color: #e6d8cc; font-weight: bold;");
+    
+    QLineEdit *nomEdit = new QLineEdit();
+    nomEdit->setPlaceholderText("Nom:");
+    
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItems({"Cuir", "Tissu", "Accessoires", "Emballage"});
 
-    void fournisseurs::setupSearch()
-    {
-        connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &fournisseurs::filterTable);
-        connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &fournisseurs::filterTable);
-    }
+    QLineEdit *phoneEdit = new QLineEdit();
+    phoneEdit->setPlaceholderText("Téléphone:");
 
-    void fournisseurs::filterTable()
-    {
-        QString idFilter = ui->searchIdEdit->text();
-        QString nomFilter = ui->searchNomEdit->text();
+    QLineEdit *addrEdit = new QLineEdit();
+    addrEdit->setPlaceholderText("Adresse:");
 
-        for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-            bool match = true;
+    QDateEdit *dateEdit = new QDateEdit(QDate::currentDate().addDays(7));
+    dateEdit->setDisplayFormat("dd/MM/yyyy");
+    dateEdit->setCalendarPopup(true);
 
-            if (!idFilter.isEmpty()) {
-                QString id = ui->tableWidget->item(row, 0)->text();
-                if (!id.contains(idFilter, Qt::CaseInsensitive)) {
-                    match = false;
-                }
-            }
+    QComboBox *qualiteCombo = new QComboBox();
+    qualiteCombo->addItems({"Qualité A", "Qualité B", "Qualité C"});
 
-            if (match && !nomFilter.isEmpty()) {
-                QString nom = ui->tableWidget->item(row, 1)->text();
-                if (!nom.contains(nomFilter, Qt::CaseInsensitive)) {
-                    match = false;
-                }
-            }
+    QComboBox *statutCombo = new QComboBox();
+    statutCombo->addItems({"Actif", "Inactif"});
 
-            ui->tableWidget->setRowHidden(row, !match);
-        }
-    }
+    layout->addWidget(new QLabel("ID AUTOMATIQUE:")); layout->addWidget(idEdit);
+    layout->addWidget(new QLabel("NOM:")); layout->addWidget(nomEdit);
+    layout->addWidget(new QLabel("TYPE:")); layout->addWidget(typeCombo);
+    layout->addWidget(new QLabel("TÉLÉPHONE:")); layout->addWidget(phoneEdit);
+    layout->addWidget(new QLabel("ADRESSE:")); layout->addWidget(addrEdit);
+    layout->addWidget(new QLabel("DÉLAI ESTIMÉ:")); layout->addWidget(dateEdit);
+    layout->addWidget(new QLabel("QUALITÉ:")); layout->addWidget(qualiteCombo);
+    layout->addWidget(new QLabel("STATUT:")); layout->addWidget(statutCombo);
 
-    void fournisseurs::setupFournisseursTable()
-    {
-        QStringList headers = {"ID", "Nom", "Type matière", "Téléphone",
-                              "Adresse", "Délai livraison", "Qualité", "Statut"};
-        ui->tableWidget->setColumnCount(headers.size());
-        ui->tableWidget->setHorizontalHeaderLabels(headers);
+    QPushButton *btnSave = new QPushButton("💾 Enregistrer");
+    btnSave->setStyleSheet("background-color: #6f8f3d; color: white; padding: 15px; border-radius: 10px; font-weight: bold;");
+    layout->addWidget(btnSave);
 
-        ui->tableWidget->setColumnWidth(0, 80);
-        ui->tableWidget->setColumnWidth(1, 150);
-        ui->tableWidget->setColumnWidth(2, 120);
-        ui->tableWidget->setColumnWidth(3, 120);
-        ui->tableWidget->setColumnWidth(4, 200);
-        ui->tableWidget->setColumnWidth(5, 120);
-        ui->tableWidget->setColumnWidth(6, 100);
-        ui->tableWidget->setColumnWidth(7, 80);
+    auto validateForm = [=]() {
+        bool allValid = true;
+        auto check = [&](QLineEdit* e, bool cond) {
+            if (cond) e->setStyleSheet("border: 2px solid #6f8f3d; background-color: #fafffa; padding: 12px; border-radius: 10px;");
+            else { e->setStyleSheet("border: 2px solid #c0392b; background-color: #fff5f5; padding: 12px; border-radius: 10px;"); allValid = false; }
+        };
 
-        ui->tableWidget->setSortingEnabled(true);
-        ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-        ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-        ui->tableWidget->setAlternatingRowColors(true);
-    }
-
-    void fournisseurs::loadFournisseurs()
-    {
-        ui->tableWidget->setRowCount(0);
-
-        QSqlQuery query;
-        query.prepare("SELECT ID_FOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT FROM FOURNISSEUR");
+        check(nomEdit, nomEdit->text().trimmed().length() >= 2);
         
-        if (query.exec()) {
-            while (query.next()) {
-                addFournisseurToTable(
-                    query.value(0).toString(),
-                    query.value(1).toString(),
-                    query.value(2).toString(),
-                    query.value(3).toString(),
-                    query.value(4).toString(),
-                    query.value(5).toString(),
-                    query.value(6).toString(),
-                    query.value(7).toString()
-                );
-            }
+        QRegularExpression phoneRx("^[0-9]{8,12}$");
+        check(phoneEdit, phoneRx.match(phoneEdit->text()).hasMatch());
+        
+        check(addrEdit, addrEdit->text().trimmed().length() >= 5);
+
+        btnSave->setEnabled(allValid);
+    };
+
+    connect(nomEdit, &QLineEdit::textChanged, validateForm);
+    connect(phoneEdit, &QLineEdit::textChanged, validateForm);
+    connect(addrEdit, &QLineEdit::textChanged, validateForm);
+    validateForm();
+
+    connect(btnSave, &QPushButton::clicked, [=](){
+        QSqlQuery q;
+        q.prepare("INSERT INTO FOURNISSEUR (ID_FOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT) VALUES (:id, :nom, :type, :tel, :addr, :delai, :qual, :stat)");
+        q.bindValue(":id", idEdit->text());
+        q.bindValue(":nom", nomEdit->text());
+        q.bindValue(":type", typeCombo->currentText());
+        q.bindValue(":tel", phoneEdit->text());
+        q.bindValue(":addr", addrEdit->text());
+        q.bindValue(":delai", dateEdit->date().toString("dd/MM/yyyy"));
+        q.bindValue(":qual", qualiteCombo->currentText());
+        q.bindValue(":stat", statutCombo->currentText());
+
+        if(q.exec()){
+            QMessageBox::information(ajoutDialog, "Succès", "Fournisseur ajouté.");
+            loadFournisseurs();
+            ajoutDialog->accept();
         } else {
-            qDebug() << "Erreur de chargement des fournisseurs:" << query.lastError().text();
-            QMessageBox::warning(this, "Erreur Base de données", "Impossible de charger les fournisseurs depuis la base de données.");
+            QMessageBox::critical(ajoutDialog, "Erreur", q.lastError().text());
         }
-    }
+    });
 
-    void fournisseurs::addFournisseurToTable(const QString &id, const QString &nom,
-                                             const QString &typeMatiere, const QString &telephone,
-                                             const QString &adresse, const QString &delaiLivraison,
-                                             const QString &qualite, const QString &statut)
-    {
-        int row = ui->tableWidget->rowCount();
-        ui->tableWidget->insertRow(row);
+    ajoutDialog->exec();
+}
 
-        ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
-        ui->tableWidget->setItem(row, 1, new QTableWidgetItem(nom));
-        ui->tableWidget->setItem(row, 2, new QTableWidgetItem(typeMatiere));
-        ui->tableWidget->setItem(row, 3, new QTableWidgetItem(telephone));
-        ui->tableWidget->setItem(row, 4, new QTableWidgetItem(adresse));
-        ui->tableWidget->setItem(row, 5, new QTableWidgetItem(delaiLivraison));
-        ui->tableWidget->setItem(row, 6, new QTableWidgetItem(qualite));
-        ui->tableWidget->setItem(row, 7, new QTableWidgetItem(statut));
+void fournisseurs::on_pushButton_2_clicked()
+{
+    int row = ui->tableWidget->currentIndex().row();
+    if (row < 0) { QMessageBox::warning(this, "Sélection", "Sélectionnez un fournisseur."); return; }
 
-        updateRowColors(row);
-    }
+    QString id = model->index(row, 0).data().toString();
+    
+    QDialog *editDialog = new QDialog(this);
+    editDialog->setWindowTitle("Modifier Fournisseur");
+    editDialog->setFixedSize(650, 800);
+    editDialog->setStyleSheet("QDialog { background-color: #f4ede6; border: 3px dashed #c9b2a2; border-radius: 20px; }");
+    
+    QVBoxLayout *layout = new QVBoxLayout(editDialog);
+    layout->setContentsMargins(40,40,40,40);
+    layout->setSpacing(15);
 
-    void fournisseurs::updateRowColors(int row)
-    {
-        QTableWidgetItem *statutItem = ui->tableWidget->item(row, 7);
-        if (statutItem) {
-            QString statut = statutItem->text();
-            if (statut == "Actif") {
-                statutItem->setBackground(QColor(200, 255, 200));
-                statutItem->setForeground(QColor(0, 100, 0));
-            } else if (statut == "Inactif") {
-                statutItem->setBackground(QColor(255, 200, 200));
-                statutItem->setForeground(QColor(139, 0, 0));
-            }
+    QLineEdit *nomEdit = new QLineEdit(model->index(row, 1).data().toString());
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItems({"Cuir", "Tissu", "Accessoires", "Emballage"});
+    typeCombo->setCurrentText(model->index(row, 2).data().toString());
+
+    QLineEdit *phoneEdit = new QLineEdit(model->index(row, 3).data().toString());
+    QLineEdit *addrEdit = new QLineEdit(model->index(row, 4).data().toString());
+
+    QDateEdit *dateEdit = new QDateEdit(QDate::fromString(model->index(row, 5).data().toString(), "dd/MM/yyyy"));
+    dateEdit->setDisplayFormat("dd/MM/yyyy");
+    dateEdit->setCalendarPopup(true);
+
+    QComboBox *qualiteCombo = new QComboBox();
+    qualiteCombo->addItems({"Qualité A", "Qualité B", "Qualité C"});
+    qualiteCombo->setCurrentText(model->index(row, 6).data().toString());
+
+    QComboBox *statutCombo = new QComboBox();
+    statutCombo->addItems({"Actif", "Inactif"});
+    statutCombo->setCurrentText(model->index(row, 7).data().toString());
+
+    layout->addWidget(new QLabel("NOM:")); layout->addWidget(nomEdit);
+    layout->addWidget(new QLabel("TYPE:")); layout->addWidget(typeCombo);
+    layout->addWidget(new QLabel("TÉLÉPHONE:")); layout->addWidget(phoneEdit);
+    layout->addWidget(new QLabel("ADRESSE:")); layout->addWidget(addrEdit);
+    layout->addWidget(new QLabel("DÉLAI ESTIMÉ:")); layout->addWidget(dateEdit);
+    layout->addWidget(new QLabel("QUALITÉ:")); layout->addWidget(qualiteCombo);
+    layout->addWidget(new QLabel("STATUT:")); layout->addWidget(statutCombo);
+
+    QPushButton *btnSave = new QPushButton("💾 Mettre à jour");
+    btnSave->setStyleSheet("background-color: #6f8f3d; color: white; padding: 15px; border-radius: 10px; font-weight: bold;");
+    layout->addWidget(btnSave);
+
+    auto validateForm = [=]() {
+        bool allValid = true;
+        auto check = [&](QLineEdit* e, bool cond) {
+            if (cond) e->setStyleSheet("border: 2px solid #6f8f3d; background-color: #fafffa; padding: 12px; border-radius: 10px;");
+            else { e->setStyleSheet("border: 2px solid #c0392b; background-color: #fff5f5; padding: 12px; border-radius: 10px;"); allValid = false; }
+        };
+        check(nomEdit, nomEdit->text().trimmed().length() >= 2);
+        QRegularExpression phoneRx("^[0-9]{8,12}$");
+        check(phoneEdit, phoneRx.match(phoneEdit->text()).hasMatch());
+        check(addrEdit, addrEdit->text().trimmed().length() >= 5);
+        btnSave->setEnabled(allValid);
+    };
+
+    connect(nomEdit, &QLineEdit::textChanged, validateForm);
+    connect(phoneEdit, &QLineEdit::textChanged, validateForm);
+    connect(addrEdit, &QLineEdit::textChanged, validateForm);
+    validateForm();
+
+    connect(btnSave, &QPushButton::clicked, [=](){
+        QSqlQuery q;
+        q.prepare("UPDATE FOURNISSEUR SET NOM=:nom, TYPE_MATIERE=:type, TELEPHONE=:tel, ADRESSE=:addr, DELAI_LIVRAISON=:delai, QUALITE=:qual, STATUT=:stat WHERE ID_FOURNISSEUR=:id");
+        q.bindValue(":nom", nomEdit->text());
+        q.bindValue(":type", typeCombo->currentText());
+        q.bindValue(":tel", phoneEdit->text());
+        q.bindValue(":addr", addrEdit->text());
+        q.bindValue(":delai", dateEdit->date().toString("dd/MM/yyyy"));
+        q.bindValue(":qual", qualiteCombo->currentText());
+        q.bindValue(":stat", statutCombo->currentText());
+        q.bindValue(":id", id);
+        
+        if(q.exec()){
+            QMessageBox::information(editDialog, "Succès", "Mise à jour réussie.");
+            loadFournisseurs();
+            editDialog->accept();
+        } else {
+            QMessageBox::critical(editDialog, "Erreur", q.lastError().text());
         }
+    });
 
-        QTableWidgetItem *qualiteItem = ui->tableWidget->item(row, 6);
-        if (qualiteItem) {
-            QString qualite = qualiteItem->text();
-            if (qualite.contains("A")) {
-                qualiteItem->setBackground(QColor(200, 230, 255));
-            } else if (qualite.contains("B")) {
-                qualiteItem->setBackground(QColor(255, 255, 200));
-            } else if (qualite.contains("C")) {
-                qualiteItem->setBackground(QColor(255, 200, 230));
-            }
-        }
+    editDialog->exec();
+}
+
+void fournisseurs::on_pushButton_3_clicked()
+{
+    int row = ui->tableWidget->currentIndex().row();
+    if (row < 0) return;
+    QString id = model->index(row, 0).data().toString();
+    if(QMessageBox::question(this,"Confirmation","Supprimer?") == QMessageBox::Yes){
+        QSqlQuery q;
+        q.prepare("DELETE FROM FOURNISSEUR WHERE ID_FOURNISSEUR=:id");
+        q.bindValue(":id", id);
+        if(q.exec()){ loadFournisseurs(); }
     }
-
-    void fournisseurs::updateFournisseurInTable(int row, const QString &nom,
-                                                const QString &typeMatiere, const QString &telephone,
-                                                const QString &adresse, const QString &delaiLivraison,
-                                                const QString &qualite, const QString &statut)
-    {
-        if (row >= 0 && row < ui->tableWidget->rowCount()) {
-            ui->tableWidget->item(row, 1)->setText(nom);
-            ui->tableWidget->item(row, 2)->setText(typeMatiere);
-            ui->tableWidget->item(row, 3)->setText(telephone);
-            ui->tableWidget->item(row, 4)->setText(adresse);
-            ui->tableWidget->item(row, 5)->setText(delaiLivraison);
-            ui->tableWidget->item(row, 6)->setText(qualite);
-            ui->tableWidget->item(row, 7)->setText(statut);
-
-            updateRowColors(row);
-        }
-    }
-
-    void fournisseurs::on_pushButton_16_clicked()
-    {
-        hide();
-        commandes *lg = new commandes(this);
-        lg->show();
-    }
-
-    void fournisseurs::on_pushButton_17_clicked()
-    {
-        hide();
-        pageemployee *pl = new pageemployee(this);
-        pl->show();
-    }
-
-    void fournisseurs::on_pushButton_15_clicked()
-    {
-        hide();
-        login *lg = new login(this);
-        lg->show();
-    }
-
-    void fournisseurs::on_pushButton_20_clicked()
-    {
-        hide();
-        fournisseurs *fr = new fournisseurs(this);
-        fr->show();
-    }
-
-    void fournisseurs::on_pushButton_21_clicked()
-    {
-        hide();
-        products *pd = new products(this);
-        pd->show();
-    }
-
-    void fournisseurs::on_pushButton_22_clicked()
-    {
-        hide();
-        Matieres *pddd = new Matieres(this);
-        pddd->show();
-    }
-
-    void fournisseurs::on_pushButton_23_clicked()
-    {
-        hide();
-        pagemachine *ss = new pagemachine(this);
-        ss->show();
-    }
-
-    void fournisseurs::on_pushButton_clicked()
-    {
-        QDialog *ajoutDialog = new QDialog(this);
-        ajoutDialog->setWindowTitle("Ajouter un fournisseur");
-        ajoutDialog->setFixedSize(700, 850);
-        ajoutDialog->setModal(true);
-
-        ajoutDialog->setStyleSheet(
-            "QDialog {"
-            "   background-color: #f4ede6;"
-            "   border: 3px dashed #c9b2a2;"
-            "   border-radius: 20px;"
-            "}"
-            "QLabel#headerLabel {"
-            "   color: #6b3e26;"
-            "   font-size: 22px;"
-            "   font-weight: bold;"
-            "   margin-bottom: 15px;"
-            "}"
-            "QLabel { color: #3a2a20; font-weight: bold; font-size: 14px; }"
-            "QLineEdit, QComboBox, QDateEdit {"
-            "   background-color: #fffaf5;"
-            "   border: 1px solid #c9b2a2;"
-            "   border-radius: 10px;"
-            "   padding: 12px;"
-            "   color: #3a2a20;"
-            "   font-size: 14px;"
-            "   min-height: 20px;"
-            "}"
-            "QLineEdit:focus, QComboBox:focus, QDateEdit:focus { border: 2px solid #6b3e26; }"
-            "QPushButton {"
-            "   border-radius: 10px; padding: 15px; font-weight: bold; color: white;"
-            "   border-bottom: 3px solid rgba(0,0,0,0.2);"
-            "   font-size: 15px;"
-            "   min-width: 150px;"
-            "}"
-            "QPushButton#btnSave { background-color: #6f8f3d; }"
-            "QPushButton#btnCancel { background-color: #b3a398; color: #3a2a20; }"
-            "QPushButton:pressed { margin-top: 3px; border-bottom: 1px solid rgba(0,0,0,0.2); }"
-        );
-
-        QVBoxLayout *mainLayout = new QVBoxLayout(ajoutDialog);
-        mainLayout->setContentsMargins(40, 40, 40, 40);
-        mainLayout->setSpacing(15);
-
-        QLabel *header = new QLabel("AJOUTER UN FOURNISSEUR");
-        header->setObjectName("headerLabel");
-        header->setAlignment(Qt::AlignCenter);
-        mainLayout->addWidget(header);
-
-        QLineEdit *idEdit = new QLineEdit();
-        idEdit->setPlaceholderText("ID fournisseur (ex: F001)");
-        idEdit->setAlignment(Qt::AlignCenter);
-
-        QLineEdit *nomEdit = new QLineEdit();
-        nomEdit->setPlaceholderText("Nom du fournisseur");
-        nomEdit->setAlignment(Qt::AlignCenter);
-
-        QComboBox *typeCombo = new QComboBox();
-        typeCombo->addItems({"Cuir", "Tissu", "Métal", "Plastique", "Bois", "Verre"});
-
-        QLineEdit *telephoneEdit = new QLineEdit();
-        telephoneEdit->setPlaceholderText("Téléphone");
-        telephoneEdit->setAlignment(Qt::AlignCenter);
-
-        QLineEdit *adresseEdit = new QLineEdit();
-        adresseEdit->setPlaceholderText("Adresse complète");
-        adresseEdit->setAlignment(Qt::AlignCenter);
-
-        QDateEdit *delaiDate = new QDateEdit(QDate::currentDate().addDays(15));
-        delaiDate->setDisplayFormat("dd/MM/yyyy");
-        delaiDate->setCalendarPopup(true);
-
-        QComboBox *qualiteCombo = new QComboBox();
-        qualiteCombo->addItems({"Qualité A", "Qualité B", "Qualité C"});
-
-        QComboBox *statutCombo = new QComboBox();
-        statutCombo->addItems({"Actif", "Inactif"});
-
-        mainLayout->addWidget(new QLabel("🔑 Identifiant :"));
-        mainLayout->addWidget(idEdit);
-        mainLayout->addWidget(new QLabel("🏢 Nom du fournisseur :"));
-        mainLayout->addWidget(nomEdit);
-        mainLayout->addWidget(new QLabel("📦 Type de matière :"));
-        mainLayout->addWidget(typeCombo);
-        mainLayout->addWidget(new QLabel("📞 Téléphone :"));
-        mainLayout->addWidget(telephoneEdit);
-        mainLayout->addWidget(new QLabel("📍 Adresse :"));
-        mainLayout->addWidget(adresseEdit);
-        mainLayout->addWidget(new QLabel("📅 Délai de livraison :"));
-        mainLayout->addWidget(delaiDate);
-        mainLayout->addWidget(new QLabel("⭐ Qualité matière :"));
-        mainLayout->addWidget(qualiteCombo);
-        mainLayout->addWidget(new QLabel("⚡ Statut :"));
-        mainLayout->addWidget(statutCombo);
-
-        QHBoxLayout *btnLayout = new QHBoxLayout();
-        btnLayout->setSpacing(20);
-        QPushButton *btnSave = new QPushButton("💾 Enregistrer");
-        btnSave->setObjectName("btnSave");
-        QPushButton *btnCancel = new QPushButton("❌ Annuler");
-        btnCancel->setObjectName("btnCancel");
-        btnLayout->addWidget(btnSave);
-        btnLayout->addWidget(btnCancel);
-        mainLayout->addLayout(btnLayout);
-
-        connect(btnSave, &QPushButton::clicked, [ajoutDialog, idEdit, nomEdit, typeCombo,
-                                                  telephoneEdit, adresseEdit, delaiDate,
-                                                  qualiteCombo, statutCombo, this]() {
-            if (idEdit->text().isEmpty() || nomEdit->text().isEmpty() ||
-                telephoneEdit->text().isEmpty() || adresseEdit->text().isEmpty()) {
-                QMessageBox::warning(ajoutDialog, "Champs manquants",
-                                   "Veuillez remplir tous les champs obligatoires.");
-                return;
-            }
-
-            QString telephone = telephoneEdit->text();
-            bool phoneValid = true;
-            for (QChar c : telephone) {
-                if (!c.isDigit() && c != ' ' && c != '+' && c != '-') {
-                    phoneValid = false;
-                    break;
-                }
-            }
-
-            if (!phoneValid) {
-                QMessageBox::warning(ajoutDialog, "Téléphone invalide",
-                                   "Veuillez entrer un numéro de téléphone valide.");
-                return;
-            }
-
-            QString delaiFormatted = delaiDate->date().toString("dd/MM/yyyy");
-
-            QSqlQuery query;
-            query.prepare("INSERT INTO FOURNISSEUR (ID_FOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT) "
-                          "VALUES (:id, :nom, :type, :telephone, :adresse, :delai, :qualite, :statut)");
-            query.bindValue(":id", idEdit->text());
-            query.bindValue(":nom", nomEdit->text());
-            query.bindValue(":type", typeCombo->currentText());
-            query.bindValue(":telephone", telephoneEdit->text());
-            query.bindValue(":adresse", adresseEdit->text());
-            query.bindValue(":delai", delaiFormatted);
-            query.bindValue(":qualite", qualiteCombo->currentText());
-            query.bindValue(":statut", statutCombo->currentText());
-
-            if (query.exec()) {
-                QMessageBox::information(ajoutDialog, "Succès", "✅ Le fournisseur a été ajouté avec succès!");
-                loadFournisseurs();
-                ajoutDialog->accept();
-            } else {
-                QMessageBox::critical(ajoutDialog, "Erreur", "Erreur lors de l'ajout :\n" + query.lastError().text());
-            }
-        });
-
-        connect(btnCancel, &QPushButton::clicked, ajoutDialog, &QDialog::reject);
-        ajoutDialog->exec();
-        ajoutDialog->deleteLater();
-    }
-
-    void fournisseurs::on_pushButton_2_clicked()
-    {
-        int currentRow = ui->tableWidget->currentRow();
-
-        if (currentRow < 0) {
-            QMessageBox::warning(this, "Sélection requise",
-                               "Veuillez sélectionner un fournisseur à modifier.");
-            return;
-        }
-
-        QString id = ui->tableWidget->item(currentRow, 0)->text();
-        QString nom = ui->tableWidget->item(currentRow, 1)->text();
-        QString typeMatiere = ui->tableWidget->item(currentRow, 2)->text();
-        QString telephone = ui->tableWidget->item(currentRow, 3)->text();
-        QString adresse = ui->tableWidget->item(currentRow, 4)->text();
-        QString delai = ui->tableWidget->item(currentRow, 5)->text();
-        QString qualite = ui->tableWidget->item(currentRow, 6)->text();
-        QString statut = ui->tableWidget->item(currentRow, 7)->text();
-
-        QDialog *modifierDialog = new QDialog(this);
-        modifierDialog->setWindowTitle("Modifier fournisseur");
-        modifierDialog->setFixedSize(700, 850);
-        modifierDialog->setModal(true);
-
-        modifierDialog->setStyleSheet(
-            "QDialog {"
-            "   background-color: #f4ede6;"
-            "   border: 3px dashed #c9b2a2;"
-            "   border-radius: 20px;"
-            "}"
-            "QLabel#headerLabel {"
-            "   color: #6b3e26;"
-            "   font-size: 22px;"
-            "   font-weight: bold;"
-            "   margin-bottom: 15px;"
-            "}"
-            "QLabel { color: #3a2a20; font-weight: bold; font-size: 14px; }"
-            "QLineEdit, QComboBox, QDateEdit {"
-            "   background-color: #fffaf5;"
-            "   border: 1px solid #c9b2a2;"
-            "   border-radius: 10px;"
-            "   padding: 12px;"
-            "   color: #3a2a20;"
-            "   font-size: 14px;"
-            "   min-height: 20px;"
-            "}"
-            "QLineEdit:focus, QComboBox:focus, QDateEdit:focus { border: 2px solid #6b3e26; }"
-            "QPushButton {"
-            "   border-radius: 10px; padding: 15px; font-weight: bold; color: white;"
-            "   border-bottom: 3px solid rgba(0,0,0,0.2);"
-            "   font-size: 15px;"
-            "   min-width: 150px;"
-            "}"
-            "QPushButton#btnSave { background-color: #6f8f3d; }"
-            "QPushButton#btnCancel { background-color: #b3a398; color: #3a2a20; }"
-            "QPushButton:pressed { margin-top: 3px; border-bottom: 1px solid rgba(0,0,0,0.2); }"
-        );
-
-        QVBoxLayout *mainLayout = new QVBoxLayout(modifierDialog);
-        mainLayout->setContentsMargins(40, 40, 40, 40);
-        mainLayout->setSpacing(15);
-
-        QLabel *header = new QLabel("MODIFIER FOURNISSEUR");
-        header->setObjectName("headerLabel");
-        header->setAlignment(Qt::AlignCenter);
-        mainLayout->addWidget(header);
-
-        QLineEdit *idEdit = new QLineEdit();
-        idEdit->setText(id);
-        idEdit->setAlignment(Qt::AlignCenter);
-        idEdit->setReadOnly(true);
-        idEdit->setStyleSheet("background-color: #e6d8cc; padding: 12px; font-size: 14px;");
-
-        QLineEdit *nomEdit = new QLineEdit();
-        nomEdit->setText(nom);
-        nomEdit->setAlignment(Qt::AlignCenter);
-
-        QComboBox *typeCombo = new QComboBox();
-        typeCombo->addItems({"Cuir", "Tissu", "Métal", "Plastique", "Bois", "Verre"});
-        typeCombo->setCurrentText(typeMatiere);
-
-        QLineEdit *telephoneEdit = new QLineEdit();
-        telephoneEdit->setText(telephone);
-        telephoneEdit->setAlignment(Qt::AlignCenter);
-
-        QLineEdit *adresseEdit = new QLineEdit();
-        adresseEdit->setText(adresse);
-        adresseEdit->setAlignment(Qt::AlignCenter);
-
-        QDateEdit *delaiDate = new QDateEdit(QDate::fromString(delai, "dd/MM/yyyy"));
-        delaiDate->setDisplayFormat("dd/MM/yyyy");
-        delaiDate->setCalendarPopup(true);
-
-        QComboBox *qualiteCombo = new QComboBox();
-        qualiteCombo->addItems({"Qualité A", "Qualité B", "Qualité C"});
-        qualiteCombo->setCurrentText(qualite);
-
-        QComboBox *statutCombo = new QComboBox();
-        statutCombo->addItems({"Actif", "Inactif"});
-        statutCombo->setCurrentText(statut);
-
-        mainLayout->addWidget(new QLabel("🔑 Identifiant :"));
-        mainLayout->addWidget(idEdit);
-        mainLayout->addWidget(new QLabel("🏢 Nom du fournisseur :"));
-        mainLayout->addWidget(nomEdit);
-        mainLayout->addWidget(new QLabel("📦 Type de matière :"));
-        mainLayout->addWidget(typeCombo);
-        mainLayout->addWidget(new QLabel("📞 Téléphone :"));
-        mainLayout->addWidget(telephoneEdit);
-        mainLayout->addWidget(new QLabel("📍 Adresse :"));
-        mainLayout->addWidget(adresseEdit);
-        mainLayout->addWidget(new QLabel("📅 Délai de livraison :"));
-        mainLayout->addWidget(delaiDate);
-        mainLayout->addWidget(new QLabel("⭐ Qualité matière :"));
-        mainLayout->addWidget(qualiteCombo);
-        mainLayout->addWidget(new QLabel("⚡ Statut :"));
-        mainLayout->addWidget(statutCombo);
-
-        QHBoxLayout *btnLayout = new QHBoxLayout();
-        btnLayout->setSpacing(20);
-        QPushButton *btnSave = new QPushButton("💾 Mettre à jour");
-        btnSave->setObjectName("btnSave");
-        QPushButton *btnCancel = new QPushButton("❌ Annuler");
-        btnCancel->setObjectName("btnCancel");
-        btnLayout->addWidget(btnSave);
-        btnLayout->addWidget(btnCancel);
-        mainLayout->addLayout(btnLayout);
-
-        connect(btnSave, &QPushButton::clicked, [modifierDialog, currentRow, id, nomEdit, typeCombo,
-                                                  telephoneEdit, adresseEdit, delaiDate,
-                                                  qualiteCombo, statutCombo, this]() {
-            if (nomEdit->text().isEmpty() || telephoneEdit->text().isEmpty() ||
-                adresseEdit->text().isEmpty()) {
-                QMessageBox::warning(modifierDialog, "Champs manquants",
-                                   "Veuillez remplir tous les champs.");
-                return;
-            }
-
-            QString telephone = telephoneEdit->text();
-            bool phoneValid = true;
-            for (QChar c : telephone) {
-                if (!c.isDigit() && c != ' ' && c != '+' && c != '-') {
-                    phoneValid = false;
-                    break;
-                }
-            }
-
-            if (!phoneValid) {
-                QMessageBox::warning(modifierDialog, "Téléphone invalide",
-                                   "Veuillez entrer un numéro de téléphone valide.");
-                return;
-            }
-
-            QString delaiFormatted = delaiDate->date().toString("dd/MM/yyyy");
-
-            QSqlQuery query;
-            query.prepare("UPDATE FOURNISSEUR SET NOM = :nom, TYPE_MATIERE = :type, TELEPHONE = :telephone, "
-                          "ADRESSE = :adresse, DELAI_LIVRAISON = :delai, QUALITE = :qualite, STATUT = :statut "
-                          "WHERE ID_FOURNISSEUR = :id");
-            query.bindValue(":nom", nomEdit->text());
-            query.bindValue(":type", typeCombo->currentText());
-            query.bindValue(":telephone", telephoneEdit->text());
-            query.bindValue(":adresse", adresseEdit->text());
-            query.bindValue(":delai", delaiFormatted);
-            query.bindValue(":qualite", qualiteCombo->currentText());
-            query.bindValue(":statut", statutCombo->currentText());
-            query.bindValue(":id", id);
-
-            if (query.exec()) {
-                QMessageBox::information(modifierDialog, "Succès", "✅ Le fournisseur a été mis à jour avec succès!");
-                loadFournisseurs();
-                modifierDialog->accept();
-            } else {
-                QMessageBox::critical(modifierDialog, "Erreur", "Erreur lors de la mise à jour:\n" + query.lastError().text());
-            }
-        });
-
-        connect(btnCancel, &QPushButton::clicked, modifierDialog, &QDialog::reject);
-        modifierDialog->exec();
-        modifierDialog->deleteLater();
-    }
-
-    void fournisseurs::on_pushButton_3_clicked()
-    {
-        int currentRow = ui->tableWidget->currentRow();
-
-        if (currentRow < 0) {
-            QMessageBox::warning(this, "Sélection requise",
-                               "Veuillez sélectionner un fournisseur à supprimer.");
-            return;
-        }
-
-        QString id = ui->tableWidget->item(currentRow, 0)->text();
-        QString nom = ui->tableWidget->item(currentRow, 1)->text();
-
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question(this, "Confirmation de suppression",
-                                     QString("Voulez-vous vraiment supprimer le fournisseur '%1' - %2 ?")
-                                     .arg(id).arg(nom),
-                                     QMessageBox::Yes | QMessageBox::No);
-
-        if (reply == QMessageBox::Yes) {
-            QSqlQuery query;
-            query.prepare("DELETE FROM FOURNISSEUR WHERE ID_FOURNISSEUR = :id");
-            query.bindValue(":id", id);
-            
-            if (query.exec()) {
-                QMessageBox::information(this, "Succès", "✅ Fournisseur supprimé avec succès!");
-                loadFournisseurs();
-                qDebug() << "Fournisseur supprimé:" << id << "- Nom:" << nom;
-            } else {
-                QMessageBox::critical(this, "Erreur", "Erreur lors de la suppression:\n" + query.lastError().text());
-            }
-        }
-    }
-
-    void fournisseurs::on_pushButton_4_clicked()
-    {
-        ui->searchIdEdit->clear();
-        ui->searchNomEdit->clear();
-        loadFournisseurs();
-        QMessageBox::information(this, "Actualisation", "✅ Liste des fournisseurs actualisée !");
-    }
-
-    void fournisseurs::on_pushButton_7_clicked()
-    {
-        QString fileName = QFileDialog::getSaveFileName(this, "Exporter en Excel",
-                                                        "fournisseurs_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
-                                                        "Fichiers CSV (*.csv)");
-        if (fileName.isEmpty()) return;
-
-        QFile file(fileName);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::warning(this, "Erreur", "Impossible de créer le fichier.");
-            return;
-        }
-
-        QTextStream out(&file);
-    #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-        out.setEncoding(QStringConverter::Utf8);
-    #else
-        out.setCodec("UTF-8");
-    #endif
-        out.setGenerateByteOrderMark(true);
-
-        QStringList headers = {"ID", "Nom", "Type matière", "Téléphone",
-                               "Adresse", "Délai livraison", "Qualité", "Statut"};
-        for (int i = 0; i < headers.size(); ++i) {
-            if (i > 0) out << ";";
-            out << headers[i];
-        }
-        out << "\n";
-
-        int visibleRows = 0;
-        for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-            if (ui->tableWidget->isRowHidden(row)) continue;
-
-            for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
-                if (col > 0) out << ";";
-                QString cell = ui->tableWidget->item(row, col)->text();
-                if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
-                    cell.replace("\"", "\"\"");
-                    cell = "\"" + cell + "\"";
-                }
-                out << cell;
+}
+
+void fournisseurs::on_pushButton_7_clicked()
+{
+    QString path = QFileDialog::getSaveFileName(this, "Export", "fournisseurs.csv", "CSV (*.csv)");
+    if(path.isEmpty()) return;
+    QFile f(path);
+    if(f.open(QIODevice::WriteOnly)){
+        QTextStream out(&f);
+        out << "ID;Nom;Type;Tel;Addr;Delai;Qualite;Statut\n";
+        for(int r=0; r<model->rowCount(); r++){
+            for(int c=0; c<model->columnCount(); c++){
+                out << model->index(r,c).data().toString() << (c==7?"":";");
             }
             out << "\n";
-            visibleRows++;
         }
-
-        file.close();
-        QMessageBox::information(this, "Succès",
-                                 QString("✅ Fichier CSV exporté avec succès !\n%1 ligne(s) exportée(s).")
-                                 .arg(visibleRows));
     }
-    // Replace your current on_pushButton_9_clicked() with this:
+}
 
-    void fournisseurs::on_pushButton_9_clicked()
-    {
-        // 1. Count data
-        int actif = 0, inactif = 0;
-        int qualiteA = 0, qualiteB = 0, qualiteC = 0;
-
-        for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-            if (!ui->tableWidget->isRowHidden(row)) {
-                QString statut = ui->tableWidget->item(row, 7)->text(); // column 7 = Statut
-                QString qualite = ui->tableWidget->item(row, 6)->text(); // column 6 = Qualité
-
-                if (statut == "Actif") actif++;
-                else if (statut == "Inactif") inactif++;
-
-                if (qualite == "Qualité A") qualiteA++;
-                else if (qualite == "Qualité B") qualiteB++;
-                else if (qualite == "Qualité C") qualiteC++;
-            }
-        }
-
-        int totalStatut = actif + inactif;
-        int totalQualite = qualiteA + qualiteB + qualiteC;
-
-        if (totalStatut == 0 && totalQualite == 0) {
-            QMessageBox::information(this, "Statistiques", "Aucun fournisseur à afficher.");
-            return;
-        }
-
-        // 2. Create dialog with leather theme
-        QDialog *statsDialog = new QDialog(this);
-        statsDialog->setWindowTitle("Statistiques des fournisseurs");
-        statsDialog->resize(900, 650);
-        statsDialog->setStyleSheet(
-            "QDialog {"
-            "   background-color: #f1e7dc;"
-            "   border: 2px dashed #b08a6b;"
-            "   border-radius: 20px;"
-            "}"
-        );
-
-        QVBoxLayout *mainLayout = new QVBoxLayout(statsDialog);
-        mainLayout->setContentsMargins(20, 20, 20, 20);
-        mainLayout->setSpacing(20);
-
-        // ----- Header (tooled leather) -----
-        QFrame *headerFrame = new QFrame();
-        headerFrame->setStyleSheet(
-            "QFrame {"
-            "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b3e26, stop:1 #4a2717);"
-            "   border: 2px solid #b08a6b;"
-            "   border-radius: 15px;"
-            "   padding: 10px;"
-            "}"
-        );
-        QHBoxLayout *headerLayout = new QHBoxLayout(headerFrame);
-
-        QLabel *titleLabel = new QLabel("📊 STATISTIQUES DES FOURNISSEURS");
-        titleLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #fffaf5;");
-        headerLayout->addWidget(titleLabel);
-        headerLayout->addStretch();
-
-        // Total (we'll update per tab later, but a generic total can be shown)
-        QLabel *totalLabel = new QLabel(QString("Total fournisseurs: %1").arg(totalStatut));
-        totalLabel->setStyleSheet(
-            "font-size: 20px; font-weight: bold; color: #fffaf5;"
-            "background-color: #8b5a2b; padding: 8px 20px; border-radius: 30px;"
-            "border: 1px solid #c49a6c;"
-        );
-        headerLayout->addWidget(totalLabel);
-
-        mainLayout->addWidget(headerFrame);
-
-        // ----- Tab widget -----
-        QTabWidget *tabWidget = new QTabWidget();
-        tabWidget->setStyleSheet(
-            "QTabWidget::pane {"
-            "   border: 2px solid #b08a6b;"
-            "   border-radius: 15px;"
-            "   background-color: #fffaf5;"
-            "   padding: 10px;"
-            "}"
-            "QTabBar::tab {"
-            "   background-color: #e9dccf;"
-            "   border: 1px solid #b08a6b;"
-            "   border-radius: 10px;"
-            "   padding: 8px 16px;"
-            "   margin-right: 5px;"
-            "   font-weight: bold;"
-            "   color: #3a2a20;"
-            "}"
-            "QTabBar::tab:selected {"
-            "   background-color: #6b3e26;"
-            "   color: #fffaf5;"
-            "}"
-        );
-
-        // ----- Tab 1: Par statut -----
-        if (totalStatut > 0) {
-            QWidget *statutTab = new QWidget();
-            QVBoxLayout *statutLayout = new QVBoxLayout(statutTab);
-
-            QFrame *chartFrame = new QFrame();
-            chartFrame->setStyleSheet(
-                "QFrame {"
-                "   background-color: #fffaf5;"
-                "   border: none;"
-                "   padding: 10px;"
-                "}"
-            );
-            QHBoxLayout *chartLayout = new QHBoxLayout(chartFrame);
-            chartLayout->setSpacing(20);
-            chartLayout->setAlignment(Qt::AlignBottom);
-
-            int maxCount = qMax(actif, inactif);
-            maxCount = qMax(maxCount, 1);
-            const int maxBarHeight = 200;
-
-            struct StatusData { QString name; int count; QColor color; QString icon; };
-            QList<StatusData> statuses = {
-                {"Actif", actif, QColor(100, 200, 100), "✅"},
-                {"Inactif", inactif, QColor(200, 100, 100), "❌"}
-            };
-
-            for (const StatusData &sd : statuses) {
-                if (sd.count == 0) continue;
-                double percent = 100.0 * sd.count / totalStatut;
-                int barHeight = (sd.count * maxBarHeight) / maxCount;
-                if (barHeight < 10) barHeight = 10;
-
-                QWidget *container = new QWidget();
-                QVBoxLayout *barLayout = new QVBoxLayout(container);
-                barLayout->setSpacing(8);
-                barLayout->setAlignment(Qt::AlignHCenter);
-
-                QLabel *countLabel = new QLabel(QString::number(sd.count));
-                countLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #3a2a20;");
-                countLabel->setAlignment(Qt::AlignCenter);
-                barLayout->addWidget(countLabel);
-
-                QLabel *percentLabel = new QLabel(QString("%1%").arg(percent, 0, 'f', 1));
-                percentLabel->setStyleSheet("font-size: 14px; color: #5b2f1d; font-weight: bold;");
-                percentLabel->setAlignment(Qt::AlignCenter);
-                barLayout->addWidget(percentLabel);
-
-                QFrame *bar = new QFrame();
-                bar->setFixedWidth(80);
-                bar->setFixedHeight(barHeight);
-                bar->setStyleSheet(QString(R"(
-                    QFrame {
-                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                                    stop:0 %1,
-                                                    stop:1 %2);
-                        border: 2px solid #3a1f14;
-                        border-radius: 12px;
-                        border-bottom: 4px solid #2a150e;
-                    }
-                )").arg(sd.color.lighter(110).name()).arg(sd.color.name()));
-                barLayout->addWidget(bar, 0, Qt::AlignCenter);
-
-                QLabel *nameLabel = new QLabel(sd.icon + " " + sd.name);
-                nameLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #3a2a20;");
-                nameLabel->setAlignment(Qt::AlignCenter);
-                barLayout->addWidget(nameLabel);
-
-                barLayout->addStretch();
-                chartLayout->addWidget(container);
-            }
-
-            statutLayout->addWidget(chartFrame);
-            tabWidget->addTab(statutTab, "Par statut");
-        }
-
-        // ----- Tab 2: Par qualité -----
-        if (totalQualite > 0) {
-            QWidget *qualiteTab = new QWidget();
-            QVBoxLayout *qualiteLayout = new QVBoxLayout(qualiteTab);
-
-            QFrame *chartFrame = new QFrame();
-            chartFrame->setStyleSheet(
-                "QFrame {"
-                "   background-color: #fffaf5;"
-                "   border: none;"
-                "   padding: 10px;"
-                "}"
-            );
-            QHBoxLayout *chartLayout = new QHBoxLayout(chartFrame);
-            chartLayout->setSpacing(20);
-            chartLayout->setAlignment(Qt::AlignBottom);
-
-            int maxCount = qMax(qMax(qualiteA, qualiteB), qualiteC);
-            maxCount = qMax(maxCount, 1);
-            const int maxBarHeight = 200;
-
-            struct QualData { QString name; int count; QColor color; QString icon; };
-            QList<QualData> qualites = {
-                {"Qualité A", qualiteA, QColor(100, 150, 255), "⭐"},
-                {"Qualité B", qualiteB, QColor(255, 255, 100), "⭐"},
-                {"Qualité C", qualiteC, QColor(255, 100, 150), "⭐"}
-            };
-
-            for (const QualData &qd : qualites) {
-                if (qd.count == 0) continue;
-                double percent = 100.0 * qd.count / totalQualite;
-                int barHeight = (qd.count * maxBarHeight) / maxCount;
-                if (barHeight < 10) barHeight = 10;
-
-                QWidget *container = new QWidget();
-                QVBoxLayout *barLayout = new QVBoxLayout(container);
-                barLayout->setSpacing(8);
-                barLayout->setAlignment(Qt::AlignHCenter);
-
-                QLabel *countLabel = new QLabel(QString::number(qd.count));
-                countLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #3a2a20;");
-                countLabel->setAlignment(Qt::AlignCenter);
-                barLayout->addWidget(countLabel);
-
-                QLabel *percentLabel = new QLabel(QString("%1%").arg(percent, 0, 'f', 1));
-                percentLabel->setStyleSheet("font-size: 14px; color: #5b2f1d; font-weight: bold;");
-                percentLabel->setAlignment(Qt::AlignCenter);
-                barLayout->addWidget(percentLabel);
-
-                QFrame *bar = new QFrame();
-                bar->setFixedWidth(80);
-                bar->setFixedHeight(barHeight);
-                bar->setStyleSheet(QString(R"(
-                    QFrame {
-                        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                                    stop:0 %1,
-                                                    stop:1 %2);
-                        border: 2px solid #3a1f14;
-                        border-radius: 12px;
-                        border-bottom: 4px solid #2a150e;
-                    }
-                )").arg(qd.color.lighter(110).name()).arg(qd.color.name()));
-                barLayout->addWidget(bar, 0, Qt::AlignCenter);
-
-                QLabel *nameLabel = new QLabel(qd.icon + " " + qd.name);
-                nameLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #3a2a20;");
-                nameLabel->setAlignment(Qt::AlignCenter);
-                barLayout->addWidget(nameLabel);
-
-                barLayout->addStretch();
-                chartLayout->addWidget(container);
-            }
-
-            qualiteLayout->addWidget(chartFrame);
-            tabWidget->addTab(qualiteTab, "Par qualité");
-        }
-
-        mainLayout->addWidget(tabWidget);
-
-        // ----- Close button (leather patch) -----
-        QPushButton *closeButton = new QPushButton("Fermer");
-        closeButton->setCursor(Qt::PointingHandCursor);
-        closeButton->setStyleSheet(
-            "QPushButton {"
-            "   background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7a4a2e, stop:1 #5b2f1d);"
-            "   border: 2px solid #3a1f14;"
-            "   border-radius: 20px;"
-            "   padding: 12px 40px;"
-            "   font-weight: bold;"
-            "   font-size: 16px;"
-            "   color: #fffaf5;"
-            "   border-bottom: 4px solid #2a150e;"
-            "}"
-            "QPushButton:hover {"
-            "   background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8b5a3a, stop:1 #6b3e26);"
-            "}"
-            "QPushButton:pressed {"
-            "   margin-top: 2px;"
-            "   border-bottom: 2px solid #2a150e;"
-            "}"
-        );
-        connect(closeButton, &QPushButton::clicked, statsDialog, &QDialog::accept);
-        mainLayout->addWidget(closeButton, 0, Qt::AlignCenter);
-
-        statsDialog->exec();
-        delete statsDialog;
+void fournisseurs::on_pushButton_9_clicked()
+{
+    int act=0, inact=0;
+    QSqlQuery q("SELECT STATUT, COUNT(*) FROM FOURNISSEUR GROUP BY STATUT");
+    while(q.next()) {
+        if(q.value(0).toString() == "Actif") act = q.value(1).toInt();
+        else inact = q.value(1).toInt();
     }
+    int total = act + inact;
+    if(total == 0) return;
+
+    QDialog *d = new QDialog(this);
+    d->setWindowTitle("Stats");
+    d->resize(600,400);
+    QVBoxLayout *l = new QVBoxLayout(d);
+    
+    QHBoxLayout *h = new QHBoxLayout();
+    for(auto &s : {qMakePair(QString("Actif"), act), qMakePair(QString("Inactif"), inact)}){
+        QVBoxLayout *v = new QVBoxLayout();
+        QFrame *bar = new QFrame();
+        bar->setFixedWidth(100);
+        bar->setFixedHeight(s.second * 200 / total);
+        bar->setStyleSheet(QString("background: %1; border-radius: 5px;").arg(s.first=="Actif"?"#4caf50":"#f44336"));
+        v->addWidget(new QLabel(QString::number(s.second)), 0, Qt::AlignCenter);
+        v->addWidget(bar, 0, Qt::AlignCenter);
+        v->addWidget(new QLabel(s.first), 0, Qt::AlignCenter);
+        h->addLayout(v);
+    }
+    l->addLayout(h);
+    d->exec();
+}

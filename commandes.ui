@@ -108,7 +108,7 @@ QComboBox QAbstractItemView {
 /* =======================
    TABLE – LEATHER PANEL
 ======================= */
-QTableWidget {
+QTableView {
     background-color: #fffaf5;
     border: 2px solid #b08a6b;
     border-radius: 14px;
@@ -128,11 +128,11 @@ QHeaderView::section {
     letter-spacing: 0.5px;
 }
 
-QTableWidget::item {
+QTableView::item {
     padding: 8px;
 }
 
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #d8b59c;
     color: #2a1a12;
 }
@@ -222,7 +222,7 @@ QStatusBar {
      <number>0</number>
     </property>
     <widget class="QWidget" name="page">
-     <widget class="QTableWidget" name="tableWidget">
+     <widget class="QTableView" name="tableWidget">
       <property name="geometry">
        <rect>
         <x>0</x>
@@ -236,7 +236,7 @@ QStatusBar {
    TABLE – PERFECT ROUNDED LEATHER
 ======================= */
 
-QTableWidget {
+QTableView {
     background-color: #fffaf5;
     border: 2px solid #b08a6b;
     border-radius: 14px;
@@ -245,13 +245,13 @@ QTableWidget {
 }
 
 /* IMPORTANT: clip the viewport */
-QTableWidget::viewport {
+QTableView::viewport {
     background-color: #fffaf5;
     border-radius: 12px;
 }
 
 /* Remove internal borders */
-QTableWidget QTableCornerButton::section {
+QTableView QTableCornerButton::section {
     background-color: #6b3e26;
     border: none;
 }
@@ -283,13 +283,13 @@ QHeaderView::section:last {
 }
 
 /* Table items */
-QTableWidget::item {
+QTableView::item {
     padding: 8px;
     border-bottom: 1px solid #e0d2c5;
 }
 
 /* Selection */
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #d8b59c;
     color: #2a1a12;
 }

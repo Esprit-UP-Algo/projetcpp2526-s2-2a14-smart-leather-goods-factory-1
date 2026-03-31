@@ -31,6 +31,7 @@ pagemachine::pagemachine(QWidget *parent)
     , ui(new Ui::pagemachine)
 {
     ui->setupUi(this);
+    model = new CustomSqlModel(this);
     setupMachinesTable();
     loadMachines();
     setupSearch();
@@ -54,33 +55,35 @@ void pagemachine::filterTable()
     QString etatFilter = ui->searchIdEdit->text();
     QString refFilter = ui->searchNomEdit->text();
 
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        bool match = true;
+    QString sql = "SELECT ID_MACHINE, REF, NOM, TYPE, ETAT, CAPACITE, FREQUENCE, NIVEAU_DE_CHARGE FROM MACHINE WHERE 1=1";
+    
+    if (!etatFilter.isEmpty()) {
+        sql += " AND LOWER(ETAT) LIKE LOWER('%" + etatFilter + "%')";
+    }
+    if (!refFilter.isEmpty()) {
+        sql += " AND LOWER(REF) LIKE LOWER('%" + refFilter + "%')";
+    }
 
-        if (!etatFilter.isEmpty()) {
-            QString etat = ui->tableWidget->item(row, 4)->text();
-            if (!etat.contains(etatFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        if (match && !refFilter.isEmpty()) {
-            QString ref = ui->tableWidget->item(row, 1)->text();
-            if (!ref.contains(refFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        ui->tableWidget->setRowHidden(row, !match);
+    model->setQuery(sql);
+    
+    if (model->lastError().isValid()) {
+        qDebug() << "Erreur de filtrage: " << model->lastError().text();
     }
 }
 
 void pagemachine::setupMachinesTable()
 {
-    QStringList headers = {"ID Machine", "Référence", "Nom Machine", "Type Machine", "État Machine",
-                           "Capacité", "Fréquence", "Niveau de Charge"};
-    ui->tableWidget->setColumnCount(headers.size());
-    ui->tableWidget->setHorizontalHeaderLabels(headers);
+    ui->tableWidget->setModel(model);
+    
+    // Set headers through the model
+    model->setHeaderData(0, Qt::Horizontal, "ID Machine");
+    model->setHeaderData(1, Qt::Horizontal, "Référence");
+    model->setHeaderData(2, Qt::Horizontal, "Nom Machine");
+    model->setHeaderData(3, Qt::Horizontal, "Type Machine");
+    model->setHeaderData(4, Qt::Horizontal, "État Machine");
+    model->setHeaderData(5, Qt::Horizontal, "Capacité");
+    model->setHeaderData(6, Qt::Horizontal, "Fréquence");
+    model->setHeaderData(7, Qt::Horizontal, "Niveau de Charge");
 
     ui->tableWidget->setColumnWidth(0, 80);
     ui->tableWidget->setColumnWidth(1, 100);
@@ -99,99 +102,11 @@ void pagemachine::setupMachinesTable()
 
 void pagemachine::loadMachines()
 {
-    ui->tableWidget->setRowCount(0);
-
-    QSqlQuery query;
-    query.prepare("SELECT ID_MACHINE, REF, NOM, TYPE, ETAT, CAPACITE, FREQUENCE, NIVEAU_DE_CHARGE FROM MACHINE");
+    model->setQuery("SELECT ID_MACHINE, REF, NOM, TYPE, ETAT, CAPACITE, FREQUENCE, NIVEAU_DE_CHARGE FROM MACHINE");
     
-    if (query.exec()) {
-        while (query.next()) {
-            addMachineToTable(
-                query.value(0).toString(),
-                query.value(1).toString(),
-                query.value(2).toString(),
-                query.value(3).toString(),
-                query.value(4).toString(),
-                query.value(5).toString(),
-                query.value(6).toString(),
-                query.value(7).toString()
-            );
-        }
-    } else {
-        qDebug() << "Erreur de chargement des machines: " << query.lastError().text();
-        QMessageBox::warning(this, "Erreur Base de données", "Impossible de charger les machines depuis la base de données.");
-    }
-}
-
-void pagemachine::addMachineToTable(const QString &id, const QString &ref, const QString &nom,
-                                    const QString &type, const QString &etat,
-                                    const QString &capacite, const QString &frequence,
-                                    const QString &niveauCharge)
-{
-    int row = ui->tableWidget->rowCount();
-    ui->tableWidget->insertRow(row);
-
-    ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
-    ui->tableWidget->setItem(row, 1, new QTableWidgetItem(ref));
-    ui->tableWidget->setItem(row, 2, new QTableWidgetItem(nom));
-    ui->tableWidget->setItem(row, 3, new QTableWidgetItem(type));
-    ui->tableWidget->setItem(row, 4, new QTableWidgetItem(etat));
-    ui->tableWidget->setItem(row, 5, new QTableWidgetItem(capacite));
-    ui->tableWidget->setItem(row, 6, new QTableWidgetItem(frequence));
-    ui->tableWidget->setItem(row, 7, new QTableWidgetItem(niveauCharge + "%"));
-
-    updateRowColors(row);
-}
-
-void pagemachine::updateRowColors(int row)
-{
-    QTableWidgetItem *etatItem = ui->tableWidget->item(row, 4);
-    if (etatItem) {
-        QString etat = etatItem->text();
-        if (etat == "Fonctionnelle") {
-            etatItem->setBackground(QColor(200, 255, 200));
-            etatItem->setForeground(QColor(0, 100, 0));
-        } else if (etat == "En panne") {
-            etatItem->setBackground(QColor(255, 200, 200));
-            etatItem->setForeground(QColor(139, 0, 0));
-        } else if (etat == "Maintenance") {
-            etatItem->setBackground(QColor(255, 255, 200));
-            etatItem->setForeground(QColor(128, 128, 0));
-        } else if (etat == "Arrêtée") {
-            etatItem->setBackground(QColor(200, 200, 200));
-            etatItem->setForeground(QColor(70, 70, 70));
-        }
-    }
-
-    QTableWidgetItem *chargeItem = ui->tableWidget->item(row, 7);
-    if (chargeItem) {
-        QString chargeStr = chargeItem->text().replace("%", "");
-        int charge = chargeStr.toInt();
-        if (charge > 80) {
-            chargeItem->setBackground(QColor(255, 200, 200));
-        } else if (charge > 50) {
-            chargeItem->setBackground(QColor(255, 255, 200));
-        } else {
-            chargeItem->setBackground(QColor(200, 255, 200));
-        }
-    }
-}
-
-void pagemachine::updateMachineInTable(int row, const QString &ref, const QString &nom,
-                                       const QString &type, const QString &etat,
-                                       const QString &capacite, const QString &frequence,
-                                       const QString &niveauCharge)
-{
-    if (row >= 0 && row < ui->tableWidget->rowCount()) {
-        ui->tableWidget->item(row, 1)->setText(ref);
-        ui->tableWidget->item(row, 2)->setText(nom);
-        ui->tableWidget->item(row, 3)->setText(type);
-        ui->tableWidget->item(row, 4)->setText(etat);
-        ui->tableWidget->item(row, 5)->setText(capacite);
-        ui->tableWidget->item(row, 6)->setText(frequence);
-        ui->tableWidget->item(row, 7)->setText(niveauCharge + "%");
-
-        updateRowColors(row);
+    if (model->lastError().isValid()) {
+        qDebug() << "Erreur de chargement des machines: " << model->lastError().text();
+        QMessageBox::warning(this, "Erreur Base de données", "Impossible de charger les machines.");
     }
 }
 
@@ -288,8 +203,24 @@ void pagemachine::on_pushButton_clicked()
     mainLayout->addWidget(header);
 
     QLineEdit *idEdit = new QLineEdit();
-    idEdit->setPlaceholderText("ID machine (ex: M001)");
     idEdit->setAlignment(Qt::AlignCenter);
+    idEdit->setReadOnly(true);
+    idEdit->setStyleSheet("background-color: #e6d8cc; padding: 12px; font-size: 14px;");
+
+    QString newId = "M001";
+    QSqlQuery queryId("SELECT ID_MACHINE FROM MACHINE");
+    int maxNum = 0;
+    while (queryId.next()) {
+        QString currentId = queryId.value(0).toString();
+        if (currentId.startsWith("M", Qt::CaseInsensitive)) {
+            int num = currentId.mid(1).toInt();
+            if (num > maxNum) {
+                maxNum = num;
+            }
+        }
+    }
+    newId = QString("M%1").arg(maxNum + 1, 3, 10, QChar('0'));
+    idEdit->setText(newId);
 
     QLineEdit *refEdit = new QLineEdit();
     refEdit->setPlaceholderText("Référence");
@@ -346,16 +277,34 @@ void pagemachine::on_pushButton_clicked()
     btnLayout->addWidget(btnCancel);
     mainLayout->addLayout(btnLayout);
 
-    connect(btnSave, &QPushButton::clicked, [ajoutDialog, idEdit, refEdit, nomEdit, typeCombo,
-                                              etatCombo, capaciteEdit, frequenceEdit,
-                                              chargeSpinBox, this]() {
-        if (idEdit->text().isEmpty() || refEdit->text().isEmpty() || nomEdit->text().isEmpty() ||
-            capaciteEdit->text().isEmpty() || frequenceEdit->text().isEmpty()) {
-            QMessageBox::warning(ajoutDialog, "Champs manquants",
-                               "Veuillez remplir tous les champs obligatoires.");
-            return;
-        }
+    auto validateForm = [=]() {
+        bool allValid = true;
+        auto checkField = [&](QLineEdit* edit, bool condition) {
+            if (condition) {
+                edit->setStyleSheet("border: 2px solid #6f8f3d; background-color: #fafffa; padding: 12px; border-radius: 10px;");
+            } else {
+                edit->setStyleSheet("border: 2px solid #c0392b; background-color: #fff5f5; padding: 12px; border-radius: 10px;");
+                allValid = false;
+            }
+        };
 
+        checkField(refEdit, refEdit->text().trimmed().length() >= 2);
+        checkField(nomEdit, nomEdit->text().trimmed().length() >= 2);
+        bool okCap; int cap = capaciteEdit->text().toInt(&okCap);
+        checkField(capaciteEdit, okCap && cap > 0);
+        bool okFreq; int freq = frequenceEdit->text().toInt(&okFreq);
+        checkField(frequenceEdit, okFreq && freq > 0);
+
+        btnSave->setEnabled(allValid);
+    };
+
+    connect(refEdit, &QLineEdit::textChanged, validateForm);
+    connect(nomEdit, &QLineEdit::textChanged, validateForm);
+    connect(capaciteEdit, &QLineEdit::textChanged, validateForm);
+    connect(frequenceEdit, &QLineEdit::textChanged, validateForm);
+    validateForm();
+
+    connect(btnSave, &QPushButton::clicked, [=]() {
         QSqlQuery query;
         query.prepare("INSERT INTO MACHINE (ID_MACHINE, REF, NOM, TYPE, ETAT, CAPACITE, FREQUENCE, NIVEAU_DE_CHARGE) "
                       "VALUES (:id, :ref, :nom, :type, :etat, :capacite, :frequence, :charge)");
@@ -370,19 +319,10 @@ void pagemachine::on_pushButton_clicked()
 
         if (query.exec()) {
             QMessageBox::information(ajoutDialog, "Succès", "✅ La machine a été ajoutée avec succès!");
-            QString etatMachine = etatCombo->currentText();
-            if (etatMachine == "En panne") {
-                Smtp* smtp = new Smtp("Dkhileya5@gmail.com", "fstqthkaprwianwt", "smtp.gmail.com", 465);
-                QString subject = "Alert: Machine ajoutee en panne";
-                QString body = "<html><body><h2>Alerte: Machine en panne</h2>"
-                               "<p>La machine <b>" + nomEdit->text() + "</b> (Ref: " + refEdit->text() + ") "
-                               "a ete declaree en panne des son ajout.</p></body></html>";
-                smtp->sendMail("Dkhileya5@gmail.com", "eyadkhil@aiesec.net", subject, body);
-            }
-            loadMachines(); // Refresh the table
+            loadMachines();
             ajoutDialog->accept();
         } else {
-            QMessageBox::critical(ajoutDialog, "Erreur", "Erreur lors de l'ajout :\n" + query.lastError().text());
+            QMessageBox::critical(ajoutDialog, "Erreur", query.lastError().text());
         }
     });
 
@@ -393,7 +333,7 @@ void pagemachine::on_pushButton_clicked()
 
 void pagemachine::on_pushButton_2_clicked()
 {
-    int currentRow = ui->tableWidget->currentRow();
+    int currentRow = ui->tableWidget->currentIndex().row();
 
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection requise",
@@ -401,14 +341,14 @@ void pagemachine::on_pushButton_2_clicked()
         return;
     }
 
-    QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString ref = ui->tableWidget->item(currentRow, 1)->text();
-    QString nom = ui->tableWidget->item(currentRow, 2)->text();
-    QString type = ui->tableWidget->item(currentRow, 3)->text();
-    QString etat = ui->tableWidget->item(currentRow, 4)->text();
-    QString capacite = ui->tableWidget->item(currentRow, 5)->text();
-    QString frequence = ui->tableWidget->item(currentRow, 6)->text();
-    QString niveauCharge = ui->tableWidget->item(currentRow, 7)->text().replace("%", "");
+    QString id = model->index(currentRow, 0).data().toString();
+    QString ref = model->index(currentRow, 1).data().toString();
+    QString nom = model->index(currentRow, 2).data().toString();
+    QString type = model->index(currentRow, 3).data().toString();
+    QString etat = model->index(currentRow, 4).data().toString();
+    QString capacite = model->index(currentRow, 5).data().toString();
+    QString frequence = model->index(currentRow, 6).data().toString();
+    QString niveauCharge = model->index(currentRow, 7).data().toString().replace("%", "");
 
     QDialog *modifierDialog = new QDialog(this);
     modifierDialog->setWindowTitle("Modifier machine");
@@ -513,23 +453,41 @@ void pagemachine::on_pushButton_2_clicked()
 
     QHBoxLayout *btnLayout = new QHBoxLayout();
     btnLayout->setSpacing(20);
-    QPushButton *btnSave = new QPushButton("💾 Mettre à jour");
-    btnSave->setObjectName("btnSave");
+    QPushButton *btnUpdate = new QPushButton("💾 Mettre à jour");
+    btnUpdate->setObjectName("btnSave");
     QPushButton *btnCancel = new QPushButton("❌ Annuler");
     btnCancel->setObjectName("btnCancel");
-    btnLayout->addWidget(btnSave);
+    btnLayout->addWidget(btnUpdate);
     btnLayout->addWidget(btnCancel);
     mainLayout->addLayout(btnLayout);
 
-    connect(btnSave, &QPushButton::clicked, [modifierDialog, id, refEdit, nomEdit, typeCombo,
-                                              etatCombo, capaciteEdit, frequenceEdit,
-                                              chargeSpinBox, this]() {
-        if (refEdit->text().isEmpty() || nomEdit->text().isEmpty() || capaciteEdit->text().isEmpty() || frequenceEdit->text().isEmpty()) {
-            QMessageBox::warning(modifierDialog, "Champs manquants",
-                               "Veuillez remplir tous les champs.");
-            return;
-        }
+    auto validateForm = [=]() {
+        bool allValid = true;
+        auto checkField = [&](QLineEdit* edit, bool condition) {
+            if (condition) {
+                edit->setStyleSheet("border: 2px solid #6f8f3d; background-color: #fafffa; padding: 12px; border-radius: 10px;");
+            } else {
+                edit->setStyleSheet("border: 2px solid #c0392b; background-color: #fff5f5; padding: 12px; border-radius: 10px;");
+                allValid = false;
+            }
+        };
+        checkField(refEdit, refEdit->text().trimmed().length() >= 2);
+        checkField(nomEdit, nomEdit->text().trimmed().length() >= 2);
+        bool okCap; int cap = capaciteEdit->text().toInt(&okCap);
+        checkField(capaciteEdit, okCap && cap > 0);
+        bool okFreq; int freq = frequenceEdit->text().toInt(&okFreq);
+        checkField(frequenceEdit, okFreq && freq > 0);
 
+        btnUpdate->setEnabled(allValid);
+    };
+
+    connect(refEdit, &QLineEdit::textChanged, validateForm);
+    connect(nomEdit, &QLineEdit::textChanged, validateForm);
+    connect(capaciteEdit, &QLineEdit::textChanged, validateForm);
+    connect(frequenceEdit, &QLineEdit::textChanged, validateForm);
+    validateForm();
+
+    connect(btnUpdate, &QPushButton::clicked, [=]() {
         QSqlQuery query;
         query.prepare("UPDATE MACHINE SET REF = :ref, NOM = :nom, TYPE = :type, ETAT = :etat, "
                       "CAPACITE = :capacite, FREQUENCE = :frequence, NIVEAU_DE_CHARGE = :charge "
@@ -545,15 +503,6 @@ void pagemachine::on_pushButton_2_clicked()
 
         if (query.exec()) {
             QMessageBox::information(modifierDialog, "Succès", "✅ La machine a été mise à jour avec succès!");
-            QString etatMachine = etatCombo->currentText();
-            if (etatMachine == "En panne") {
-                Smtp* smtp = new Smtp("Dkhileya5@gmail.com", "fstqthkaprwianwt", "smtp.gmail.com", 465);
-                QString subject = "Alerte Panne Machine";
-                QString body = "<html><body><h2>Alerte: Machine en panne</h2>"
-                               "<p>La machine <b>" + nomEdit->text() + "</b> (Ref: " + refEdit->text() + ") "
-                               "vient d'etre declaree en panne suite a une modification.</p></body></html>";
-                smtp->sendMail("Dkhileya5@gmail.com", "eyadkhil@aiesec.net", subject, body);
-            }
             loadMachines();
             modifierDialog->accept();
         } else {
@@ -568,7 +517,7 @@ void pagemachine::on_pushButton_2_clicked()
 
 void pagemachine::on_pushButton_3_clicked()
 {
-    int currentRow = ui->tableWidget->currentRow();
+    int currentRow = ui->tableWidget->currentIndex().row();
 
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection requise",
@@ -576,8 +525,8 @@ void pagemachine::on_pushButton_3_clicked()
         return;
     }
 
-    QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString nom = ui->tableWidget->item(currentRow, 1)->text();
+    QString id = model->index(currentRow, 0).data().toString();
+    QString nom = model->index(currentRow, 2).data().toString();
 
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "Confirmation de suppression",
@@ -610,18 +559,18 @@ void pagemachine::on_pushButton_4_clicked()
 
 void pagemachine::on_pushButton_7_clicked()
 {
-    int currentRow = ui->tableWidget->currentRow();
+    int currentRow = ui->tableWidget->currentIndex().row();
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection requise",
                            "Veuillez sélectionner une machine dans le tableau pour générer la demande de maintenance.");
         return;
     }
 
-    QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString ref = ui->tableWidget->item(currentRow, 1)->text();
-    QString nom = ui->tableWidget->item(currentRow, 2)->text();
-    QString type = ui->tableWidget->item(currentRow, 3)->text();
-    QString etat = ui->tableWidget->item(currentRow, 4)->text();
+    QString id = model->index(currentRow, 0).data().toString();
+    QString ref = model->index(currentRow, 1).data().toString();
+    QString nom = model->index(currentRow, 2).data().toString();
+    QString type = model->index(currentRow, 3).data().toString();
+    QString etat = model->index(currentRow, 4).data().toString();
 
     QString fileName = QFileDialog::getSaveFileName(this, "Exporter Demande de Maintenance",
                                                     "Demande_Maintenance_" + ref + ".pdf",
@@ -661,15 +610,15 @@ void pagemachine::on_pushButton_9_clicked()
 {
     int fonctionnelle = 0, maintenance = 0, panne = 0, arretee = 0;
 
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (!ui->tableWidget->isRowHidden(row)) {
-            QString etat = ui->tableWidget->item(row, 4)->text();
-
-            if (etat == "Fonctionnelle") fonctionnelle++;
-            else if (etat == "Maintenance") maintenance++;
-            else if (etat == "En panne") panne++;
-            else if (etat == "Arrêtée") arretee++;
-        }
+    QSqlQuery q;
+    q.exec("SELECT ETAT, COUNT(*) FROM MACHINE GROUP BY ETAT");
+    while(q.next()){
+        QString e = q.value(0).toString();
+        int count = q.value(1).toInt();
+        if (e == "Fonctionnelle") fonctionnelle = count;
+        else if (e == "Maintenance") maintenance = count;
+        else if (e == "En panne") panne = count;
+        else if (e == "Arrêtée") arretee = count;
     }
 
     int totalEtat = fonctionnelle + maintenance + panne + arretee;

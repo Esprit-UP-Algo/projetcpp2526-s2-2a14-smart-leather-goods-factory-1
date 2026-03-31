@@ -29,6 +29,7 @@ products::products(QWidget *parent)
     , ui(new Ui::products)
 {
     ui->setupUi(this);
+    model = new CustomProductModel(this);
     setupProductsTable();
     loadProducts();
     setupSearch();
@@ -50,41 +51,42 @@ void products::filterTable()
     QString idFilter = ui->searchIdEdit->text();
     QString nameFilter = ui->searchNameEdit->text();
 
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        bool match = true;
+    QString sql = "SELECT ID_PRODUIT, NOM, CATEGORIE, PRIX, QUANTITE_STOCK, STATUT, TO_CHAR(DATE_CREATION, 'DD/MM/YYYY') FROM PRODUIT WHERE 1=1";
+    
+    if (!idFilter.isEmpty()) {
+        sql += " AND LOWER(ID_PRODUIT) LIKE LOWER('%" + idFilter + "%')";
+    }
+    if (!nameFilter.isEmpty()) {
+        sql += " AND LOWER(NOM) LIKE LOWER('%" + nameFilter + "%')";
+    }
 
-        if (!idFilter.isEmpty()) {
-            QString id = ui->tableWidget->item(row, 0)->text();
-            if (!id.contains(idFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        if (match && !nameFilter.isEmpty()) {
-            QString name = ui->tableWidget->item(row, 1)->text();
-            if (!name.contains(nameFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        ui->tableWidget->setRowHidden(row, !match);
+    model->setQuery(sql);
+    
+    if (model->lastError().isValid()) {
+        qDebug() << "Erreur de filtrage:" << model->lastError().text();
     }
 }
 
 void products::setupProductsTable()
 {
-    QStringList headers = {"ID", "Nom", "Catégorie", "Prix (€)",
-                          "Stock", "Statut", "Date création"};
-    ui->tableWidget->setColumnCount(headers.size());
-    ui->tableWidget->setHorizontalHeaderLabels(headers);
+    ui->tableWidget->setModel(model);
+    
+    // Set headers through the model
+    model->setHeaderData(0, Qt::Horizontal, "ID");
+    model->setHeaderData(1, Qt::Horizontal, "Nom");
+    model->setHeaderData(2, Qt::Horizontal, "Catégorie");
+    model->setHeaderData(3, Qt::Horizontal, "Prix");
+    model->setHeaderData(4, Qt::Horizontal, "Stock");
+    model->setHeaderData(5, Qt::Horizontal, "Statut");
+    model->setHeaderData(6, Qt::Horizontal, "Date création");
 
     ui->tableWidget->setColumnWidth(0, 80);
     ui->tableWidget->setColumnWidth(1, 150);
     ui->tableWidget->setColumnWidth(2, 120);
-    ui->tableWidget->setColumnWidth(3, 130);
-    ui->tableWidget->setColumnWidth(4, 130);
-    ui->tableWidget->setColumnWidth(5, 100);
-    ui->tableWidget->setColumnWidth(6, 100);
+    ui->tableWidget->setColumnWidth(3, 110);
+    ui->tableWidget->setColumnWidth(4, 110);
+    ui->tableWidget->setColumnWidth(5, 120);
+    ui->tableWidget->setColumnWidth(6, 110);
 
     ui->tableWidget->setSortingEnabled(true);
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -94,82 +96,11 @@ void products::setupProductsTable()
 
 void products::loadProducts()
 {
-    ui->tableWidget->setRowCount(0);
-
-    QSqlQuery query;
-    query.prepare("SELECT ID_PRODUIT, NOM, CATEGORIE, PRIX, QUANTITE_STOCK, STATUT, TO_CHAR(DATE_CREATION, 'DD/MM/YYYY') FROM PRODUIT");
+    model->setQuery("SELECT ID_PRODUIT, NOM, CATEGORIE, PRIX, QUANTITE_STOCK, STATUT, TO_CHAR(DATE_CREATION, 'DD/MM/YYYY') FROM PRODUIT");
     
-    if (query.exec()) {
-        while (query.next()) {
-            QDate creationDate = QDate::fromString(query.value(6).toString(), "dd/MM/yyyy");
-            
-            addProductToTable(
-                query.value(0).toString(),
-                query.value(1).toString(),
-                query.value(2).toString(),
-                query.value(3).toString(),
-                query.value(4).toString(),
-                query.value(5).toString(),
-                creationDate
-            );
-        }
-    } else {
-        qDebug() << "Erreur de chargement des produits:" << query.lastError().text();
-        QMessageBox::warning(this, "Erreur Base de données", "Impossible de charger les produits:\n" + query.lastError().text());
-    }
-}
-
-void products::addProductToTable(const QString &id, const QString &name,
-                                 const QString &category, const QString &price,
-                                 const QString &stock, const QString &status,
-                                 const QDate &creationDate)
-{
-    int row = ui->tableWidget->rowCount();
-    ui->tableWidget->insertRow(row);
-
-    ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
-    ui->tableWidget->setItem(row, 1, new QTableWidgetItem(name));
-    ui->tableWidget->setItem(row, 2, new QTableWidgetItem(category));
-    ui->tableWidget->setItem(row, 3, new QTableWidgetItem(price + " €"));
-    ui->tableWidget->setItem(row, 4, new QTableWidgetItem(stock));
-    ui->tableWidget->setItem(row, 5, new QTableWidgetItem(status));
-    ui->tableWidget->setItem(row, 6, new QTableWidgetItem(creationDate.toString("dd/MM/yyyy")));
-
-    updateRowColors(row);
-}
-
-void products::updateRowColors(int row)
-{
-    QTableWidgetItem *statusItem = ui->tableWidget->item(row, 5);
-    if (statusItem) {
-        QString status = statusItem->text();
-        if (status == "actif") {
-            statusItem->setBackground(QColor(200, 255, 200));
-            statusItem->setForeground(QColor(0, 100, 0));
-        } else if (status == "arrété") {
-            statusItem->setBackground(QColor(255, 200, 200));
-            statusItem->setForeground(QColor(139, 0, 0));
-        } else if (status == "En attente") {
-            statusItem->setBackground(QColor(255, 255, 200));
-            statusItem->setForeground(QColor(128, 128, 0));
-        }
-    }
-}
-
-void products::updateProductInTable(int row, const QString &name,
-                                    const QString &category, const QString &price,
-                                    const QString &stock, const QString &status,
-                                    const QDate &creationDate)
-{
-    if (row >= 0 && row < ui->tableWidget->rowCount()) {
-        ui->tableWidget->item(row, 1)->setText(name);
-        ui->tableWidget->item(row, 2)->setText(category);
-        ui->tableWidget->item(row, 3)->setText(price + " €");
-        ui->tableWidget->item(row, 4)->setText(stock);
-        ui->tableWidget->item(row, 5)->setText(status);
-        ui->tableWidget->item(row, 6)->setText(creationDate.toString("dd/MM/yyyy"));
-
-        updateRowColors(row);
+    if (model->lastError().isValid()) {
+        qDebug() << "Erreur de chargement des produits:" << model->lastError().text();
+        QMessageBox::warning(this, "Erreur Base de données", "Impossible de charger les produits.");
     }
 }
 
@@ -230,54 +161,21 @@ void products::on_pushButton_clicked()
     ajoutDialog->setModal(true);
 
     ajoutDialog->setStyleSheet(R"(
-        QDialog {
-            background-color: #f4ede6;
-            border: 3px dashed #c9b2a2;
-            border-radius: 20px;
-        }
-        QLabel#headerLabel {
-            color: #6b3e26;
-            font-size: 22px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        QLabel {
-            color: #3a2a20;
-            font-weight: bold;
-            font-size: 14px;
-        }
+        QDialog { background-color: #f4ede6; border: 3px dashed #c9b2a2; border-radius: 20px; }
+        QLabel#headerLabel { color: #6b3e26; font-size: 22px; font-weight: bold; margin-bottom: 15px; }
+        QLabel { color: #3a2a20; font-weight: bold; font-size: 14px; }
         QLineEdit, QDateTimeEdit, QComboBox {
-            background-color: #fffaf5;
-            border: 1px solid #c9b2a2;
-            border-radius: 10px;
-            padding: 12px;
-            color: #3a2a20;
-            font-size: 14px;
-            min-height: 20px;
+            background-color: #fffaf5; border: 1px solid #c9b2a2; border-radius: 10px;
+            padding: 12px; color: #3a2a20; font-size: 14px; min-height: 20px;
         }
-        QLineEdit:focus, QDateTimeEdit:focus, QComboBox:focus {
-            border: 2px solid #6b3e26;
-        }
+        QLineEdit:focus, QDateTimeEdit:focus, QComboBox:focus { border: 2px solid #6b3e26; }
         QPushButton {
-            border-radius: 10px;
-            padding: 15px;
-            font-weight: bold;
-            color: white;
-            border-bottom: 3px solid rgba(0,0,0,0.2);
-            font-size: 15px;
-            min-width: 150px;
+            border-radius: 10px; padding: 15px; font-weight: bold; color: white;
+            border-bottom: 3px solid rgba(0,0,0,0.2); font-size: 15px; min-width: 150px;
         }
-        QPushButton#btnSave {
-            background-color: #6f8f3d;
-        }
-        QPushButton#btnCancel {
-            background-color: #b3a398;
-            color: #3a2a20;
-        }
-        QPushButton:pressed {
-            margin-top: 3px;
-            border-bottom: 1px solid rgba(0,0,0,0.2);
-        }
+        QPushButton#btnSave { background-color: #6f8f3d; }
+        QPushButton#btnCancel { background-color: #b3a398; color: #3a2a20; }
+        QPushButton:pressed { margin-top: 3px; border-bottom: 1px solid rgba(0,0,0,0.2); }
     )");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(ajoutDialog);
@@ -289,9 +187,22 @@ void products::on_pushButton_clicked()
     header->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(header);
 
+    // Auto-generate ID
+    QString nextId = "P001";
+    QSqlQuery idQuery("SELECT MAX(ID_PRODUIT) FROM PRODUIT");
+    if (idQuery.next() && !idQuery.value(0).isNull()) {
+        QString lastId = idQuery.value(0).toString();
+        if (lastId.startsWith("P")) {
+            int num = lastId.mid(1).toInt() + 1;
+            nextId = QString("P%1").arg(num, 3, 10, QChar('0'));
+        }
+    }
+
     QLineEdit *idEdit = new QLineEdit();
-    idEdit->setPlaceholderText("ID produit (ex: P001)");
+    idEdit->setText(nextId);
+    idEdit->setReadOnly(true);
     idEdit->setAlignment(Qt::AlignCenter);
+    idEdit->setStyleSheet("background-color: #e6d8cc; color: #5b2f1d; font-weight: bold;");
 
     QLineEdit *nameEdit = new QLineEdit();
     nameEdit->setPlaceholderText("Nom du produit");
@@ -302,7 +213,7 @@ void products::on_pushButton_clicked()
     categoryEdit->setAlignment(Qt::AlignCenter);
 
     QLineEdit *priceEdit = new QLineEdit();
-    priceEdit->setPlaceholderText("Prix (€)");
+    priceEdit->setPlaceholderText("Prix (ex: 29.99)");
     priceEdit->setAlignment(Qt::AlignCenter);
 
     QLineEdit *stockEdit = new QLineEdit();
@@ -310,19 +221,19 @@ void products::on_pushButton_clicked()
     stockEdit->setAlignment(Qt::AlignCenter);
 
     QComboBox *statusCombo = new QComboBox();
-    statusCombo->addItems({"En attente", "actif", "arrété"});
+    statusCombo->addItems({"Actif", "Arrêté", "En attente"});
 
     QDateEdit *dateCreationEdit = new QDateEdit(QDate::currentDate());
     dateCreationEdit->setDisplayFormat("dd/MM/yyyy");
     dateCreationEdit->setCalendarPopup(true);
 
-    mainLayout->addWidget(new QLabel("🔑 Identifiant :"));
+    mainLayout->addWidget(new QLabel("🔑 Identifiant Automatique :"));
     mainLayout->addWidget(idEdit);
     mainLayout->addWidget(new QLabel("📝 Nom :"));
     mainLayout->addWidget(nameEdit);
     mainLayout->addWidget(new QLabel("🏷️ Catégorie :"));
     mainLayout->addWidget(categoryEdit);
-    mainLayout->addWidget(new QLabel("💰 Prix :"));
+    mainLayout->addWidget(new QLabel("💰 Prix (€) :"));
     mainLayout->addWidget(priceEdit);
     mainLayout->addWidget(new QLabel("📦 Stock :"));
     mainLayout->addWidget(stockEdit);
@@ -341,50 +252,51 @@ void products::on_pushButton_clicked()
     btnLayout->addWidget(btnCancel);
     mainLayout->addLayout(btnLayout);
 
+    auto validateForm = [=]() {
+        bool allValid = true;
+        auto check = [&](QLineEdit* e, bool cond) {
+            if (cond) e->setStyleSheet("border: 2px solid #6f8f3d; background-color: #fafffa; padding: 12px; border-radius: 10px;");
+            else { e->setStyleSheet("border: 2px solid #c0392b; background-color: #fff5f5; padding: 12px; border-radius: 10px;"); allValid = false; }
+        };
+
+        check(nameEdit, nameEdit->text().trimmed().length() >= 2);
+        check(categoryEdit, categoryEdit->text().trimmed().length() >= 2);
+
+        bool okP; double p = priceEdit->text().toDouble(&okP);
+        check(priceEdit, okP && p > 0);
+
+        bool okS; int s = stockEdit->text().toInt(&okS);
+        check(stockEdit, okS && s >= 0);
+
+        btnSave->setEnabled(allValid);
+    };
+
+    connect(nameEdit, &QLineEdit::textChanged, validateForm);
+    connect(categoryEdit, &QLineEdit::textChanged, validateForm);
+    connect(priceEdit, &QLineEdit::textChanged, validateForm);
+    connect(stockEdit, &QLineEdit::textChanged, validateForm);
+    validateForm();
+
     connect(btnSave, &QPushButton::clicked, [ajoutDialog, idEdit, nameEdit, categoryEdit,
-                                              priceEdit, stockEdit, statusCombo,
-                                              dateCreationEdit, this]() {
-        if (idEdit->text().isEmpty() || nameEdit->text().isEmpty() ||
-            categoryEdit->text().isEmpty() || priceEdit->text().isEmpty() || stockEdit->text().isEmpty()) {
-            QMessageBox::warning(ajoutDialog, "Champs manquants",
-                               "Veuillez remplir tous les champs obligatoires.");
-            return;
-        }
-
-        bool ok;
-        double price = priceEdit->text().toDouble(&ok);
-        if (!ok || price <= 0) {
-            QMessageBox::warning(ajoutDialog, "Prix invalide",
-                               "Veuillez entrer un prix valide (nombre positif).");
-            return;
-        }
-        
-        int stock = stockEdit->text().toInt(&ok);
-        if (!ok || stock < 0) {
-            QMessageBox::warning(ajoutDialog, "Stock invalide",
-                               "Veuillez entrer un stock valide (nombre entier positif ou nul).");
-            return;
-        }
-
-        QString formattedPrice = QString::number(price, 'f', 2);
-        
+                                               priceEdit, stockEdit, statusCombo,
+                                               dateCreationEdit, this]() {
         QSqlQuery query;
         query.prepare("INSERT INTO PRODUIT (ID_PRODUIT, NOM, CATEGORIE, PRIX, QUANTITE_STOCK, STATUT, DATE_CREATION) "
-                      "VALUES (:id, :nom, :categorie, :prix, :stock, :statut, TO_DATE(:date_creation, 'DD/MM/YYYY'))");
+                      "VALUES (:id, :nom, :categorie, :prix, :stock, :statut, TO_DATE(:date, 'DD/MM/YYYY'))");
         query.bindValue(":id", idEdit->text());
         query.bindValue(":nom", nameEdit->text());
         query.bindValue(":categorie", categoryEdit->text());
-        query.bindValue(":prix", formattedPrice);
-        query.bindValue(":stock", stock);
+        query.bindValue(":prix", priceEdit->text().toDouble());
+        query.bindValue(":stock", stockEdit->text().toInt());
         query.bindValue(":statut", statusCombo->currentText());
-        query.bindValue(":date_creation", dateCreationEdit->date().toString("dd/MM/yyyy"));
+        query.bindValue(":date", dateCreationEdit->date().toString("dd/MM/yyyy"));
 
         if (query.exec()) {
-            QMessageBox::information(ajoutDialog, "Succès", "✅ Le produit a été ajouté avec succès!");
+            QMessageBox::information(ajoutDialog, "Succès", "✅ Produit ajouté avec succès!");
             loadProducts();
             ajoutDialog->accept();
         } else {
-            QMessageBox::critical(ajoutDialog, "Erreur", "Erreur lors de l'ajout :\n" + query.lastError().text());
+            QMessageBox::critical(ajoutDialog, "Erreur Oracle", query.lastError().text());
         }
     });
 
@@ -395,7 +307,7 @@ void products::on_pushButton_clicked()
 
 void products::on_pushButton_2_clicked()
 {
-    int currentRow = ui->tableWidget->currentRow();
+    int currentRow = ui->tableWidget->currentIndex().row();
 
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection requise",
@@ -403,13 +315,13 @@ void products::on_pushButton_2_clicked()
         return;
     }
 
-    QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString name = ui->tableWidget->item(currentRow, 1)->text();
-    QString category = ui->tableWidget->item(currentRow, 2)->text();
-    QString price = ui->tableWidget->item(currentRow, 3)->text().replace(" €", "");
-    QString stock = ui->tableWidget->item(currentRow, 4)->text();
-    QString status = ui->tableWidget->item(currentRow, 5)->text();
-    QDate creationDate = QDate::fromString(ui->tableWidget->item(currentRow, 6)->text(), "dd/MM/yyyy");
+    QString id = model->index(currentRow, 0).data().toString();
+    QString name = model->index(currentRow, 1).data().toString();
+    QString category = model->index(currentRow, 2).data().toString();
+    QString price = model->index(currentRow, 3).data().toString().replace(" €", "");
+    QString stock = model->index(currentRow, 4).data().toString();
+    QString status = model->index(currentRow, 5).data().toString();
+    QDate creationDate = QDate::fromString(model->index(currentRow, 6).data().toString(), "dd/MM/yyyy");
 
     QDialog *modifierDialog = new QDialog(this);
     modifierDialog->setWindowTitle("Modifier produit");
@@ -417,54 +329,21 @@ void products::on_pushButton_2_clicked()
     modifierDialog->setModal(true);
 
     modifierDialog->setStyleSheet(R"(
-        QDialog {
-            background-color: #f4ede6;
-            border: 3px dashed #c9b2a2;
-            border-radius: 20px;
-        }
-        QLabel#headerLabel {
-            color: #6b3e26;
-            font-size: 22px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        QLabel {
-            color: #3a2a20;
-            font-weight: bold;
-            font-size: 14px;
-        }
+        QDialog { background-color: #f4ede6; border: 3px dashed #c9b2a2; border-radius: 20px; }
+        QLabel#headerLabel { color: #6b3e26; font-size: 22px; font-weight: bold; margin-bottom: 15px; }
+        QLabel { color: #3a2a20; font-weight: bold; font-size: 14px; }
         QLineEdit, QDateTimeEdit, QComboBox {
-            background-color: #fffaf5;
-            border: 1px solid #c9b2a2;
-            border-radius: 10px;
-            padding: 12px;
-            color: #3a2a20;
-            font-size: 14px;
-            min-height: 20px;
+            background-color: #fffaf5; border: 1px solid #c9b2a2; border-radius: 10px;
+            padding: 12px; color: #3a2a20; font-size: 14px; min-height: 20px;
         }
-        QLineEdit:focus, QDateTimeEdit:focus, QComboBox:focus {
-            border: 2px solid #6b3e26;
-        }
+        QLineEdit:focus, QDateTimeEdit:focus, QComboBox:focus { border: 2px solid #6b3e26; }
         QPushButton {
-            border-radius: 10px;
-            padding: 15px;
-            font-weight: bold;
-            color: white;
-            border-bottom: 3px solid rgba(0,0,0,0.2);
-            font-size: 15px;
-            min-width: 150px;
+            border-radius: 10px; padding: 15px; font-weight: bold; color: white;
+            border-bottom: 3px solid rgba(0,0,0,0.2); font-size: 15px; min-width: 150px;
         }
-        QPushButton#btnSave {
-            background-color: #6f8f3d;
-        }
-        QPushButton#btnCancel {
-            background-color: #b3a398;
-            color: #3a2a20;
-        }
-        QPushButton:pressed {
-            margin-top: 3px;
-            border-bottom: 1px solid rgba(0,0,0,0.2);
-        }
+        QPushButton#btnSave { background-color: #6f8f3d; }
+        QPushButton#btnCancel { background-color: #b3a398; color: #3a2a20; }
+        QPushButton:pressed { margin-top: 3px; border-bottom: 1px solid rgba(0,0,0,0.2); }
     )");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(modifierDialog);
@@ -478,9 +357,9 @@ void products::on_pushButton_2_clicked()
 
     QLineEdit *idEdit = new QLineEdit();
     idEdit->setText(id);
-    idEdit->setAlignment(Qt::AlignCenter);
     idEdit->setReadOnly(true);
-    idEdit->setStyleSheet("background-color: #e6d8cc; padding: 12px; font-size: 14px;");
+    idEdit->setAlignment(Qt::AlignCenter);
+    idEdit->setStyleSheet("background-color: #e6d8cc;");
 
     QLineEdit *nameEdit = new QLineEdit();
     nameEdit->setText(name);
@@ -499,7 +378,7 @@ void products::on_pushButton_2_clicked()
     stockEdit->setAlignment(Qt::AlignCenter);
 
     QComboBox *statusCombo = new QComboBox();
-    statusCombo->addItems({"En attente", "actif", "arrété"});
+    statusCombo->addItems({"Actif", "Arrêté", "En attente"});
     statusCombo->setCurrentText(status);
 
     QDateEdit *dateCreationEdit = new QDateEdit(creationDate);
@@ -512,7 +391,7 @@ void products::on_pushButton_2_clicked()
     mainLayout->addWidget(nameEdit);
     mainLayout->addWidget(new QLabel("🏷️ Catégorie :"));
     mainLayout->addWidget(categoryEdit);
-    mainLayout->addWidget(new QLabel("💰 Prix :"));
+    mainLayout->addWidget(new QLabel("💰 Prix (€) :"));
     mainLayout->addWidget(priceEdit);
     mainLayout->addWidget(new QLabel("📦 Stock :"));
     mainLayout->addWidget(stockEdit);
@@ -531,62 +410,58 @@ void products::on_pushButton_2_clicked()
     btnLayout->addWidget(btnCancel);
     mainLayout->addLayout(btnLayout);
 
-    connect(btnSave, &QPushButton::clicked, [modifierDialog, currentRow, id, nameEdit, categoryEdit,
-                                              priceEdit, stockEdit, statusCombo,
-                                              dateCreationEdit, this]() {
-        if (nameEdit->text().isEmpty() || categoryEdit->text().isEmpty() ||
-            priceEdit->text().isEmpty() || stockEdit->text().isEmpty()) {
-            QMessageBox::warning(modifierDialog, "Champs manquants",
-                               "Veuillez remplir tous les champs.");
-            return;
-        }
+    auto validateForm = [=]() {
+        bool allValid = true;
+        auto check = [&](QLineEdit* e, bool cond) {
+            if (cond) e->setStyleSheet("border: 2px solid #6f8f3d; background-color: #fafffa; padding: 12px; border-radius: 10px;");
+            else { e->setStyleSheet("border: 2px solid #c0392b; background-color: #fff5f5; padding: 12px; border-radius: 10px;"); allValid = false; }
+        };
+        check(nameEdit, nameEdit->text().trimmed().length() >= 2);
+        check(categoryEdit, categoryEdit->text().trimmed().length() >= 2);
+        bool okP; double p = priceEdit->text().toDouble(&okP);
+        check(priceEdit, okP && p > 0);
+        bool okS; int s = stockEdit->text().toInt(&okS);
+        check(stockEdit, okS && s >= 0);
+        btnSave->setEnabled(allValid);
+    };
 
-        bool ok;
-        double parsedPrice = priceEdit->text().toDouble(&ok);
-        if (!ok || parsedPrice <= 0) {
-            QMessageBox::warning(modifierDialog, "Prix invalide",
-                               "Veuillez entrer un prix valide (nombre positif).");
-            return;
-        }
-        
-        int parsedStock = stockEdit->text().toInt(&ok);
-        if (!ok || parsedStock < 0) {
-            QMessageBox::warning(modifierDialog, "Stock invalide",
-                               "Veuillez entrer un stock valide (nombre entier positif ou nul).");
-            return;
-        }
+    connect(nameEdit, &QLineEdit::textChanged, validateForm);
+    connect(categoryEdit, &QLineEdit::textChanged, validateForm);
+    connect(priceEdit, &QLineEdit::textChanged, validateForm);
+    connect(stockEdit, &QLineEdit::textChanged, validateForm);
+    validateForm();
 
-        QString formattedPrice = QString::number(parsedPrice, 'f', 2);
-
+    connect(btnSave, &QPushButton::clicked, [modifierDialog, id, nameEdit, categoryEdit,
+                                               priceEdit, stockEdit, statusCombo,
+                                               dateCreationEdit, this]() {
         QSqlQuery query;
         query.prepare("UPDATE PRODUIT SET NOM = :nom, CATEGORIE = :categorie, PRIX = :prix, "
-                      "QUANTITE_STOCK = :stock, STATUT = :statut, DATE_CREATION = TO_DATE(:date_creation, 'DD/MM/YYYY') "
+                      "QUANTITE_STOCK = :stock, STATUT = :statut, DATE_CREATION = TO_DATE(:date, 'DD/MM/YYYY') "
                       "WHERE ID_PRODUIT = :id");
         query.bindValue(":nom", nameEdit->text());
         query.bindValue(":categorie", categoryEdit->text());
-        query.bindValue(":prix", formattedPrice);
-        query.bindValue(":stock", parsedStock);
+        query.bindValue(":prix", priceEdit->text().toDouble());
+        query.bindValue(":stock", stockEdit->text().toInt());
         query.bindValue(":statut", statusCombo->currentText());
-        query.bindValue(":date_creation", dateCreationEdit->date().toString("dd/MM/yyyy"));
+        query.bindValue(":date", dateCreationEdit->date().toString("dd/MM/yyyy"));
         query.bindValue(":id", id);
         
         if (query.exec()) {
-            QMessageBox::information(modifierDialog, "Succès", "✅ Le produit a été mis à jour avec succès!");
+            QMessageBox::information(modifierDialog, "Succès", "✅ Produit mis à jour!");
             loadProducts();
             modifierDialog->accept();
         } else {
-            QMessageBox::critical(modifierDialog, "Erreur", "Erreur lors de la mise à jour:\n" + query.lastError().text());
+            QMessageBox::critical(modifierDialog, "Erreur Oracle", query.lastError().text());
         }
     });
 
     connect(btnCancel, &QPushButton::clicked, modifierDialog, &QDialog::reject);
     modifierDialog->exec();
-    modifierDialog->deleteLater();
 }
 
 void products::on_pushButton_3_clicked()
 {
-    int currentRow = ui->tableWidget->currentRow();
+    int currentRow = ui->tableWidget->currentIndex().row();
 
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection requise",
@@ -594,8 +469,8 @@ void products::on_pushButton_3_clicked()
         return;
     }
 
-    QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString productName = ui->tableWidget->item(currentRow, 1)->text();
+    QString id = model->index(currentRow, 0).data().toString();
+    QString productName = model->index(currentRow, 1).data().toString();
 
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "Confirmation de suppression",
@@ -611,9 +486,9 @@ void products::on_pushButton_3_clicked()
         if (query.exec()) {
             QMessageBox::information(this, "Succès", "✅ Produit supprimé avec succès!");
             loadProducts();
-            qDebug() << "Produit supprimé:" << id << "- Nom:" << productName;
+            qDebug() << "Produit supprimé:" << id;
         } else {
-            QMessageBox::critical(this, "Erreur", "Erreur lors de la suppression:\n" + query.lastError().text());
+            QMessageBox::critical(this, "Erreur Oracle", query.lastError().text());
         }
     }
 }
@@ -628,8 +503,8 @@ void products::on_pushButton_4_clicked()
 
 void products::on_pushButton_7_clicked()
 {
-    QString fileName = QFileDialog::getSaveFileName(this, "Exporter en Excel",
-                                                    "produits_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
+    QString fileName = QFileDialog::getSaveFileName(this, "Exporter Produits",
+                                                    "Produits_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
                                                     "Fichiers CSV (*.csv)");
     if (fileName.isEmpty()) return;
 
@@ -640,199 +515,88 @@ void products::on_pushButton_7_clicked()
     }
 
     QTextStream out(&file);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    out.setEncoding(QStringConverter::Utf8);
-#else
-    out.setCodec("UTF-8");
-#endif
     out.setGenerateByteOrderMark(true);
 
-    QStringList headers = {"ID", "Nom", "Catégorie", "Date commande",
-                           "Date livraison", "Statut", "Prix"};
-    for (int i = 0; i < headers.size(); ++i) {
-        if (i > 0) out << ";";
-        out << headers[i];
-    }
-    out << "\n";
+    // CSV Header
+    QStringList headers = {"ID", "Nom", "Catégorie", "Prix", "Stock", "Statut", "Date Création"};
+    out << headers.join(";") << "\n";
 
-    int visibleRows = 0;
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (ui->tableWidget->isRowHidden(row)) continue;
-
-        for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
-            if (col > 0) out << ";";
-            QString cell = ui->tableWidget->item(row, col)->text();
-            if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
-                cell.replace("\"", "\"\"");
-                cell = "\"" + cell + "\"";
-            }
-            out << cell;
+    // Table Data
+    for (int row = 0; row < model->rowCount(); ++row) {
+        QStringList line;
+        for (int col = 0; col < model->columnCount(); ++col) {
+            line << model->index(row, col).data().toString();
         }
-        out << "\n";
-        visibleRows++;
+        out << line.join(";") << "\n";
     }
 
     file.close();
-    QMessageBox::information(this, "Succès",
-                             QString("✅ Fichier CSV exporté avec succès !\n%1 ligne(s) exportée(s).")
-                             .arg(visibleRows));
+    QMessageBox::information(this, "Succès", "✅ Fichier CSV exporté avec succès !");
 }
 void products::on_pushButton_9_clicked()
 {
     int actif = 0, arrete = 0, attente = 0;
 
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (!ui->tableWidget->isRowHidden(row)) {
-            QString status = ui->tableWidget->item(row, 5)->text();
-            if (status == "actif") actif++;
-            else if (status == "arrété") arrete++;
-            else if (status == "En attente") attente++;
-        }
+    QSqlQuery q("SELECT STATUT, COUNT(*) FROM PRODUIT GROUP BY STATUT");
+    while(q.next()){
+        QString s = q.value(0).toString();
+        int count = q.value(1).toInt();
+        if (s == "Actif") actif = count;
+        else if (s == "Arrêté") arrete = count;
+        else if (s == "En attente") attente = count;
     }
 
     int total = actif + arrete + attente;
     if (total == 0) {
-        QMessageBox::information(this, "Statistiques", "Aucun produit à afficher.");
+        QMessageBox::information(this, "Statistiques", "Aucun produit en base.");
         return;
     }
 
     QDialog *statsDialog = new QDialog(this);
-    statsDialog->setWindowTitle("Statistiques des produits");
+    statsDialog->setWindowTitle("Statistiques des Produits");
     statsDialog->resize(800, 600);
-    statsDialog->setStyleSheet(
-        "QDialog {"
-        "   background-color: #f1e7dc;"
-        "   border: 2px dashed #b08a6b;"
-        "   border-radius: 20px;"
-        "}"
-    );
+    statsDialog->setStyleSheet("QDialog { background-color: #f1e7dc; border: 2px dashed #b08a6b; border-radius: 20px; }");
 
     QVBoxLayout *mainLayout = new QVBoxLayout(statsDialog);
     mainLayout->setContentsMargins(20, 20, 20, 20);
-    mainLayout->setSpacing(20);
 
-    QFrame *headerFrame = new QFrame();
-    headerFrame->setStyleSheet(
-        "QFrame {"
-        "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b3e26, stop:1 #4a2717);"
-        "   border: 2px solid #b08a6b;"
-        "   border-radius: 15px;"
-        "   padding: 10px;"
-        "}"
-    );
-    QHBoxLayout *headerLayout = new QHBoxLayout(headerFrame);
+    QLabel *header = new QLabel(QString("📊 STATISTIQUES PRODUITS (TOTAL: %1)").arg(total));
+    header->setStyleSheet("font-size: 20px; font-weight: bold; color: #5b2f1d; margin-bottom: 20px;");
+    header->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(header);
 
-    QLabel *titleLabel = new QLabel("📊 STATISTIQUES DES PRODUITS");
-    titleLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #fffaf5;");
-    headerLayout->addWidget(titleLabel);
-    headerLayout->addStretch();
+    QHBoxLayout *chartLayout = new QHBoxLayout();
+    chartLayout->setAlignment(Qt::AlignBottom | Qt::AlignHCenter);
 
-    QLabel *totalLabel = new QLabel(QString("Total: %1").arg(total));
-    totalLabel->setStyleSheet(
-        "font-size: 20px; font-weight: bold; color: #fffaf5;"
-        "background-color: #8b5a2b; padding: 8px 20px; border-radius: 30px;"
-        "border: 1px solid #c49a6c;"
-    );
-    headerLayout->addWidget(totalLabel);
+    struct Stat { QString label; int val; QColor color; };
+    QList<Stat> stats = { {"Actif", actif, QColor(100, 200, 100)}, {"Arrêté", arrete, QColor(200, 100, 100)}, {"Attente", attente, QColor(255, 255, 100)} };
 
-    mainLayout->addWidget(headerFrame);
-
-    QFrame *chartFrame = new QFrame();
-    chartFrame->setStyleSheet(
-        "QFrame {"
-        "   background-color: #fffaf5;"
-        "   border: 2px solid #b08a6b;"
-        "   border-radius: 20px;"
-        "   padding: 20px;"
-        "}"
-    );
-    QHBoxLayout *chartLayout = new QHBoxLayout(chartFrame);
-    chartLayout->setSpacing(20);
-    chartLayout->setAlignment(Qt::AlignBottom);
-
-    int maxCount = qMax(qMax(actif, arrete), attente);
-    maxCount = qMax(maxCount, 1);
-    const int maxBarHeight = 200;
-
-    struct StatusData { QString name; int count; QColor color; QString icon; };
-    QList<StatusData> statuses = {
-        {"Actif", actif, QColor(100, 200, 100), "✅"},
-        {"Arrêté", arrete, QColor(200, 100, 100), "⛔"},
-        {"En attente", attente, QColor(255, 255, 100), "⏳"}
-    };
-
-    for (const StatusData &sd : statuses) {
-        if (sd.count == 0) continue;
-        double percent = 100.0 * sd.count / total;
-        int barHeight = (sd.count * maxBarHeight) / maxCount;
-        if (barHeight < 10) barHeight = 10;
-
-        QWidget *container = new QWidget();
-        QVBoxLayout *barLayout = new QVBoxLayout(container);
-        barLayout->setSpacing(8);
-        barLayout->setAlignment(Qt::AlignHCenter);
-
-        QLabel *countLabel = new QLabel(QString::number(sd.count));
-        countLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #3a2a20;");
-        countLabel->setAlignment(Qt::AlignCenter);
-        barLayout->addWidget(countLabel);
-
-        QLabel *percentLabel = new QLabel(QString("%1%").arg(percent, 0, 'f', 1));
-        percentLabel->setStyleSheet("font-size: 14px; color: #5b2f1d; font-weight: bold;");
-        percentLabel->setAlignment(Qt::AlignCenter);
-        barLayout->addWidget(percentLabel);
-
+    for (const auto &s : stats) {
+        if (s.val == 0) continue;
+        QVBoxLayout *barCol = new QVBoxLayout();
+        QLabel *lVal = new QLabel(QString::number(s.val));
+        lVal->setAlignment(Qt::AlignCenter);
+        
         QFrame *bar = new QFrame();
         bar->setFixedWidth(80);
-        bar->setFixedHeight(barHeight);
-        bar->setStyleSheet(QString(R"(
-            QFrame {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                            stop:0 %1,
-                                            stop:1 %2);
-                border: 2px solid #3a1f14;
-                border-radius: 12px;
-                border-bottom: 4px solid #2a150e;
-            }
-        )").arg(sd.color.lighter(110).name()).arg(sd.color.name()));
-        barLayout->addWidget(bar, 0, Qt::AlignCenter);
+        bar->setFixedHeight(qMax(20, s.val * 300 / (total == 0 ? 1 : qMax(1, qMax(qMax(actif, arrete), attente)))));
+        bar->setStyleSheet(QString("background-color: %1; border: 2px solid #3a1f14; border-radius: 10px;").arg(s.color.name()));
+        
+        QLabel *lName = new QLabel(s.label);
+        lName->setAlignment(Qt::AlignCenter);
+        lName->setStyleSheet("font-weight: bold;");
 
-        QLabel *nameLabel = new QLabel(sd.icon + " " + sd.name);
-        nameLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #3a2a20;");
-        nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setWordWrap(true);
-        barLayout->addWidget(nameLabel);
-
-        barLayout->addStretch();
-        chartLayout->addWidget(container);
+        barCol->addWidget(lVal);
+        barCol->addWidget(bar);
+        barCol->addWidget(lName);
+        chartLayout->addLayout(barCol);
     }
+    mainLayout->addLayout(chartLayout);
 
-    mainLayout->addWidget(chartFrame);
-
-    QPushButton *closeButton = new QPushButton("Fermer");
-    closeButton->setCursor(Qt::PointingHandCursor);
-    closeButton->setStyleSheet(
-        "QPushButton {"
-        "   background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7a4a2e, stop:1 #5b2f1d);"
-        "   border: 2px solid #3a1f14;"
-        "   border-radius: 20px;"
-        "   padding: 12px 40px;"
-        "   font-weight: bold;"
-        "   font-size: 16px;"
-        "   color: #fffaf5;"
-        "   border-bottom: 4px solid #2a150e;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8b5a3a, stop:1 #6b3e26);"
-        "}"
-        "QPushButton:pressed {"
-        "   margin-top: 2px;"
-        "   border-bottom: 2px solid #2a150e;"
-        "}"
-    );
-    connect(closeButton, &QPushButton::clicked, statsDialog, &QDialog::accept);
-    mainLayout->addWidget(closeButton, 0, Qt::AlignCenter);
+    QPushButton *close = new QPushButton("Fermer");
+    close->setStyleSheet("background-color: #7a4a2e; color: white; padding: 10px; border-radius: 10px;");
+    connect(close, &QPushButton::clicked, statsDialog, &QDialog::accept);
+    mainLayout->addWidget(close, 0, Qt::AlignCenter);
 
     statsDialog->exec();
-    delete statsDialog;
 }

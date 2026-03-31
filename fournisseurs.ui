@@ -108,7 +108,7 @@ QComboBox QAbstractItemView {
 /* =======================
    TABLE – LEATHER PANEL
 ======================= */
-QTableWidget {
+QTableView {
     background-color: #fffaf5;
     border: 2px solid #b08a6b;
     border-radius: 14px;
@@ -128,11 +128,11 @@ QHeaderView::section {
     letter-spacing: 0.5px;
 }
 
-QTableWidget::item {
+QTableView::item {
     padding: 8px;
 }
 
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #d8b59c;
     color: #2a1a12;
 }
@@ -299,7 +299,7 @@ QComboBox::drop-down {
 }
 
 /* ===== TABLE ===== */
-QTableWidget {
+QTableView {
     background-color: #ffffff;
     border: 1px solid #c7b299;
     gridline-color: #e0d6c9;
@@ -313,7 +313,7 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #d8c2aa;
     color: black;
 }
@@ -419,7 +419,7 @@ QComboBox::drop-down {
 }
 
 /* ===== TABLE ===== */
-QTableWidget {
+QTableView {
     background-color: #ffffff;
     border: 1px solid #c7b299;
     gridline-color: #e0d6c9;
@@ -433,7 +433,7 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #d8c2aa;
     color: black;
 }
@@ -562,7 +562,7 @@ QComboBox::drop-down {
 }
 
 /* ===== TABLE ===== */
-QTableWidget {
+QTableView {
     background-color: #ffffff;
     border: 1px solid #c7b299;
     gridline-color: #e0d6c9;
@@ -576,7 +576,7 @@ QHeaderView::section {
     font-weight: bold;
 }
 
-QTableWidget::item:selected {
+QTableView::item:selected {
     background-color: #d8c2aa;
     color: black;
 }
@@ -678,7 +678,7 @@ QStatusBar {
     <string>Actualiser</string>
    </property>
   </widget>
-  <widget class="QTableWidget" name="tableWidget">
+  <widget class="QTableView" name="tableWidget">
    <property name="geometry">
     <rect>
      <x>310</x>
