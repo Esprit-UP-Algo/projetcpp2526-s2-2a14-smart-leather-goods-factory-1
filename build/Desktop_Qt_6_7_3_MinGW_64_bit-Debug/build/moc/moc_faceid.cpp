@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../../../../faceid.h"
+#include "../../../../../projetcpp2526-s2-2a14-smart-leather-goods-factory-1-gestion-employe/faceid.h"
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>

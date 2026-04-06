@@ -3779,24 +3779,32 @@ build/obj/fournisseurs.o: ../../fournisseurs.cpp ../../fournisseurs.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qdatetime.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcalendar.h \
 		build/ui/ui_fournisseurs.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
@@ -3831,7 +3839,6 @@ build/obj/fournisseurs.o: ../../fournisseurs.cpp ../../fournisseurs.h \
 		../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		../../login.h \
 		../../faceid.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QProcess \
@@ -4043,6 +4050,30 @@ build/obj/login.o: ../../login.cpp ../../login.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		build/ui/ui_login.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QFrame \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qframe.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHBoxLayout \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayoutitem.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgridlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QWidget \
 		../../commandes.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMainWindow \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmainwindow.h \
@@ -4052,7 +4083,6 @@ build/obj/login.o: ../../login.cpp ../../login.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtableview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractscrollarea.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qframe.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractitemmodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qitemselectionmodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
@@ -4068,21 +4098,9 @@ build/obj/login.o: ../../login.cpp ../../login.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QDate \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qdatetime.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcalendar.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayoutitem.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgridlayout.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QFormLayout \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qformlayout.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLayout \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDateEdit \
@@ -4094,12 +4112,6 @@ build/obj/login.o: ../../login.cpp ../../login.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QDebug \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QRegularExpression \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/QRegularExpressionValidator \
@@ -4537,16 +4549,38 @@ build/obj/commandes.o: ../../commandes.cpp ../../commandes.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qdatetime.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcalendar.h \
 		build/ui/ui_commandes.h \
-		../../ajout.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialog.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMenuBar \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmenubar.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmenu.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QStackedWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstackedwidget.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QStatusBar \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstatusbar.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QWidget \
+		../../ajout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialog.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDateTimeEdit \
@@ -4562,7 +4596,6 @@ build/obj/commandes.o: ../../commandes.cpp ../../commandes.h \
 		../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		../../fournisseurs.h \
 		../../products.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QDateTime \
@@ -4809,24 +4842,32 @@ build/obj/matieres.o: ../../matieres.cpp ../../matieres.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qdatetime.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcalendar.h \
 		build/ui/ui_matieres.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
@@ -4859,7 +4900,6 @@ build/obj/matieres.o: ../../matieres.cpp ../../matieres.h \
 		../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		../../login.h \
 		../../faceid.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QProcess \
@@ -5293,26 +5333,32 @@ build/obj/pagechat.o: ../../pagechat.cpp ../../pagechat.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qtimer.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qbasictimer.h \
 		build/ui/ui_pagechat.h \
-		../../pageemployee.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialog.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/QSqlQuery \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlquery.h \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/qtsqlglobal.h \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/qtsql-config.h \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/qtsqlexports.h \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqldatabase.h \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/QSqlError \
-		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlerror.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QListWidgetItem \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qframe.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHBoxLayout \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayoutitem.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgridlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QListWidget \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlistwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlistview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractscrollarea.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qframe.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractitemmodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qitemselectionmodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
@@ -5326,6 +5372,23 @@ build/obj/pagechat.o: ../../pagechat.cpp ../../pagechat.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabbar.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qrubberband.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		../../pageemployee.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDialog \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialog.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/QSqlQuery \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlquery.h \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/qtsqlglobal.h \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/qtsql-config.h \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/qtsqlexports.h \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqldatabase.h \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/QSqlError \
+		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlerror.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QListWidgetItem \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QDebug \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
@@ -5525,6 +5588,50 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		build/ui/ui_pageemployee.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qframe.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHBoxLayout \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayoutitem.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgridlayout.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemview.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractscrollarea.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractitemmodel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/qitemselectionmodel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstyleoption.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractspinbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qvalidator.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/qregularexpression.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qslider.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractslider.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstyle.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabbar.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabwidget.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qrubberband.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtablewidget.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtableview.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QWidget \
 		C:/Qt/6.7.3/mingw_64/include/QtSql/QtSql \
 		C:/Qt/6.7.3/mingw_64/include/QtSql/QtSqlDepends \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QtCore \
@@ -5537,7 +5644,6 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/q23functional.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractanimation.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstracteventdispatcher.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractitemmodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractnativeeventfilter.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qabstractproxymodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qanimationgroup.h \
@@ -5555,7 +5661,6 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcborvalue.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qdatetime.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcborcommon.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/qregularexpression.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/quuid.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcbormap.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcborstream.h \
@@ -5580,7 +5685,6 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qfuturesynchronizer.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qfuturewatcher.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qidentityproxymodel.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/qitemselectionmodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qjsonarray.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qjsonvalue.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qjsondocument.h \
@@ -5669,20 +5773,7 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlquerymodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlrelationaldelegate.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstyleditemdelegate.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemdelegate.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstyleoption.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractspinbox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qvalidator.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qslider.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractslider.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstyle.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabbar.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabwidget.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qrubberband.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qframe.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlistview.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractitemview.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractscrollarea.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqlrelationaltablemodel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtSql/qsqltablemodel.h \
@@ -5695,30 +5786,8 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qfiledialog.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QTextStream \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayoutitem.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgridlayout.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHBoxLayout \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDateEdit \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdatetimeedit.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/QPdfWriter \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpdfwriter.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpagedpaintdevice.h \
@@ -5770,8 +5839,6 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMainWindow \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmainwindow.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidgetItem \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtablewidget.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtableview.h \
 		../../login.h \
 		../../faceid.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QProgressDialog \
@@ -5782,7 +5849,6 @@ build/obj/pageemployee.o: ../../pageemployee.cpp ../../pageemployee.h \
 		../../matieres.h \
 		../../pagemachine.h \
 		../../pagechat.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QWidget \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QTimer
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o build\obj\pageemployee.o ..\..\pageemployee.cpp
 
@@ -5994,24 +6060,32 @@ build/obj/pagemachine.o: ../../pagemachine.cpp ../../pagemachine.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qtabwidget.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qrubberband.h \
 		build/ui/ui_pagemachine.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
@@ -6053,7 +6127,6 @@ build/obj/pagemachine.o: ../../pagemachine.cpp ../../pagemachine.h \
 		../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		../../fournisseurs.h \
 		../../products.h \
 		../../matieres.h
@@ -6270,27 +6343,38 @@ build/obj/products.o: ../../products.cpp ../../products.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qdatetime.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qcalendar.h \
 		build/ui/ui_products.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QApplication \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qapplication.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QGroupBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qgroupbox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QHeaderView \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qheaderview.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
+		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLineEdit \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlineedit.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextcursor.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextdocument.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextformat.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qpen.h \
 		C:/Qt/6.7.3/mingw_64/include/QtGui/qtextoption.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QStackedWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qstackedwidget.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QTableWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QWidget \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QMessageBox \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qmessagebox.h \
+		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdialogbuttonbox.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QDateTimeEdit \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qdatetimeedit.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qtimezone.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QComboBox \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qcombobox.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QLabel \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlabel.h \
-		C:/Qt/6.7.3/mingw_64/include/QtGui/qpicture.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QPushButton \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qpushbutton.h \
-		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qabstractbutton.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/QVBoxLayout \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qboxlayout.h \
 		C:/Qt/6.7.3/mingw_64/include/QtWidgets/qlayout.h \
@@ -6324,7 +6408,6 @@ build/obj/products.o: ../../products.cpp ../../products.h \
 		../../pageemployee.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariantList \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/qvariantlist.h \
-		C:/Qt/6.7.3/mingw_64/include/QtCore/QVariant \
 		../../login.h \
 		../../faceid.h \
 		C:/Qt/6.7.3/mingw_64/include/QtCore/QProcess \

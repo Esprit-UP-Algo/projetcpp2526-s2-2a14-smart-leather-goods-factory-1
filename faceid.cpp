@@ -34,8 +34,6 @@ void FaceID::startFaceRecognition()
     QString program = "C:/Users/AZERTY/Desktop/qt/venv311/Scripts/python.exe";
     QString scriptPath = "C:/Users/AZERTY/Desktop/qt/facial_recognition.py";
 
-
-
     QStringList arguments;
     arguments << scriptPath;
 
@@ -44,11 +42,6 @@ void FaceID::startFaceRecognition()
     // Nettoyer les variables Python polluées par Qt / MinGW
     env.remove("PYTHONHOME");
     env.remove("PYTHONPATH");
-
-    // Optionnel: forcer un PATH propre
-    QString pythonDir = "C:/Users/AZERTY/AppData/Local/Python/bin/";
-    QString currentPath = env.value("PATH");
-    env.insert("PATH", pythonDir + ";" + currentPath);
 
     process->setProcessEnvironment(env);
 

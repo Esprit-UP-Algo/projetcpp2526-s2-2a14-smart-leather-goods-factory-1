@@ -6,7 +6,7 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#include "../../../../qcustomplot.h"
+#include "../../../../../projetcpp2526-s2-2a14-smart-leather-goods-factory-1-gestion-employe/qcustomplot.h"
 #include <QtGui/qtextcursor.h>
 #include <QtGui/qscreen.h>
 #include <QtCore/qmetatype.h>

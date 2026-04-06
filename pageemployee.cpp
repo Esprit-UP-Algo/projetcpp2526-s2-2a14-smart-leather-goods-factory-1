@@ -89,9 +89,8 @@ void pageemployee::on_btnSaveFacePhoto_clicked()
         return;
     }
 
-    QString saveDir = "C:/Users/AZERTY/Desktop/qtdatabase_faces";
+    QString saveDir = "C:/Users/AZERTY/Desktop/qt/database_faces";
     QDir().mkpath(saveDir);
-
 
     QString scriptPath = "C:/Users/AZERTY/Desktop/qt/capture_face.py";
 
@@ -101,17 +100,13 @@ void pageemployee::on_btnSaveFacePhoto_clicked()
     env.remove("PYTHONHOME");
     env.remove("PYTHONPATH");
 
-    QString pythonDir = "C:/Users/AZERTY/AppData/Local/Python/bin/Python312";
-    QString currentPath = env.value("PATH");
-    env.insert("PATH", pythonDir + ";" + currentPath);
-
     proc->setProcessEnvironment(env);
 
     QString program = "C:/Users/AZERTY/Desktop/qt/venv311/Scripts/python.exe";
     QStringList arguments;
     arguments << scriptPath << cin;
 
-    QMessageBox::information(this, "Face ID", "La caméra va s'ouvrir./nAppuyez sur S pour enregistrer la photo.");
+    QMessageBox::information(this, "Face ID", "La caméra va s'ouvrir.\nAppuyez sur S pour enregistrer la photo.");
 
     proc->start(program, arguments);
 
@@ -143,8 +138,6 @@ void pageemployee::on_btnSaveFacePhoto_clicked()
                 proc->deleteLater();
             });
 }
-
-
 
 /* =========================
    Setup tableWidget
