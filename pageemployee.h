@@ -52,6 +52,7 @@ private:
     int currentEmployeeId() const;
 
     QString getCinEmployeConnecte() const;
+    QString displayNameEmployeConnecte() const;
 
 };
 

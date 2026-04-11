@@ -95,7 +95,25 @@ void FaceID::onReadyReadStandardOutput()
     }
 
     if (output.contains("UNKNOWN")) {
-        QMessageBox::information(nullptr, "Reconnaissance faciale", "Aucun visage reconnu.");
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Reconnaissance faciale");
+        msgBox.setText("Aucun visage reconnu.");
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "}"
+            "QMessageBox QLabel {"
+            "  color: #2c1f15;"
+            "}"
+            "QMessageBox QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: black;"
+            "  border-radius: 6px;"
+            "  min-width: 80px;"
+            "}"
+            );
+        msgBox.exec();
         emit faceRejected();
         return;
     }

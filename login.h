@@ -34,7 +34,7 @@ private:
     bool cinExiste(const QString &cin);
     QProgressDialog *loadingDialog;
 
-
+    void redirigerSelonRole(int idEmp);
 };
 
 #endif // LOGIN_H

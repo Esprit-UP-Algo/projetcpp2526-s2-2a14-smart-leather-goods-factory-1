@@ -79,6 +79,28 @@ QString pageemployee::getCinEmployeConnecte() const
     return QString();
 }
 
+QString pageemployee::displayNameEmployeConnecte() const
+{
+    QSqlQuery q;
+    q.prepare("SELECT NOM, PRENOM FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", m_idEmployeConnecte);
+
+    if (!q.exec()) {
+        qDebug() << "displayNameEmployeConnecte error =" << q.lastError().text();
+        return QStringLiteral("Employe %1").arg(m_idEmployeConnecte);
+    }
+
+    if (!q.next())
+        return QStringLiteral("Employe %1").arg(m_idEmployeConnecte);
+
+    const QString nom = q.value(0).toString().trimmed();
+    const QString prenom = q.value(1).toString().trimmed();
+    QString disp = (prenom + QLatin1Char(' ') + nom).trimmed();
+    if (disp.isEmpty())
+        disp = QStringLiteral("Employe %1").arg(m_idEmployeConnecte);
+    return disp;
+}
+
 
 void pageemployee::on_btnSaveFacePhoto_clicked()
 {
@@ -497,13 +519,12 @@ void pageemployee::on_pushButton_2_clicked()
     // ===== ComboBox =====
     QComboBox *posteCombo = new QComboBox();
     posteCombo->addItems({
-        "Responsable Stock",
-        "Service Achat",
-        "Service Technique",
-        "Service Client",
-        "Commercial",
-        "Comptable",
-        "Directeur"
+        "Produits",
+        "Fournisseurs",
+        "Machines",
+        "Commandes",
+        "Matieres",
+        "Employe"
     });
 
     QComboBox *niveauCombo = new QComboBox();
@@ -1110,7 +1131,7 @@ void pageemployee::on_pushButton_23_clicked()
 void pageemployee::on_pushButton_4_clicked()
 {
     qDebug() << "before opening chat, m_idEmployeConnecte =" << m_idEmployeConnecte;
-    pagechat *chat = new pagechat(m_idEmployeConnecte, this, nullptr);
+    pagechat *chat = new pagechat(m_idEmployeConnecte, displayNameEmployeConnecte(), this, nullptr);
     chat->show();
     this->hide();
 }

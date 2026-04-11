@@ -3,6 +3,10 @@
 #include "ui_login.h"
 #include "commandes.h"
 #include "faceid.h"
+#include "products.h"
+#include "fournisseurs.h"
+#include "pagemachine.h"
+#include "matieres.h"
 
 #include <QDialog>
 #include <QVBoxLayout>
@@ -32,6 +36,58 @@ static bool emailValide(const QString &email)
 {
     QRegularExpression rx(R"(^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$)");
     return rx.match(email.trimmed()).hasMatch();
+}
+
+void login::redirigerSelonRole(int idEmp)
+{
+    QSqlQuery query;
+    query.prepare("SELECT NOM, POSTE FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    query.bindValue(":id", idEmp);
+
+    if (!query.exec()) {
+        QMessageBox::critical(this, "Erreur SQL",
+                              "Erreur récupération rôle :\n" + query.lastError().text());
+        return;
+    }
+
+    if (!query.next()) {
+        QMessageBox::warning(this, "Erreur", "Employé introuvable.");
+        return;
+    }
+
+    QString nom = query.value(0).toString().trimmed();
+    QString role = query.value(1).toString().trimmed();
+
+    qDebug() << "ROLE FROM DB =" << role;
+
+    QWidget *fenetre = nullptr;
+
+    if (role == "Produits") {
+        fenetre = new products(idEmp);
+    }
+    else if (role == "Fournisseurs") {
+        fenetre = new fournisseurs(idEmp);
+    }
+    else if (role == "Machines") {
+        fenetre = new pagemachine(idEmp);
+    }
+    else if (role == "Commandes") {
+        fenetre = new commandes(idEmp);
+    }
+    else if (role == "Matieres") {
+        fenetre = new Matieres(idEmp);
+    }
+    else if (role == "Employe") {
+        fenetre = new pageemployee(idEmp);
+    }
+    else {
+        QMessageBox::warning(this, "Rôle inconnu",
+                             "Role non reconnu: " + role);
+        return;
+    }
+
+    fenetre->show();
+    this->hide();
 }
 
 static bool passwordValide(const QString &password)
@@ -127,7 +183,25 @@ login::login(QWidget *parent)
         loadingDialog->hide();
         ui->btnFaceId->setEnabled(true);
 
-        QMessageBox::warning(this, "Face ID", "Reconnaissance échouée.");
+        QMessageBox msgBox(this); // ou nullptr si tu veux sans parent
+msgBox.setIcon(QMessageBox::Warning);
+msgBox.setWindowTitle("Face ID");
+msgBox.setText("Reconnaissance échouée.");
+msgBox.setStyleSheet(
+    "QMessageBox {"
+    "  background-color: #f7efe7;"
+    "  color: #2c1f15;"
+    "}"
+    "QMessageBox QLabel {"
+    "  color: #2c1f15;"
+    "}"
+    "QMessageBox QPushButton {"
+    "  background-color: #d8b39d;"
+    "  color: black;"
+    "  border-radius: 8px;"
+    "}"
+);
+msgBox.exec();
     });
 
     QSqlQuery test;
@@ -224,15 +298,14 @@ bool login::verifierLoginFaceId(const QString &cin)
             "Face ID reconnu\nBienvenue " + nom
             );
 
-        pageemployee *fen = new pageemployee(idEmp);
-        fen->show();
-        this->hide();
+        redirigerSelonRole(idEmp);
 
         return true;
     }
 
     return false;
 }
+
 
 bool login::verifierLogin(const QString &email, const QString &password)
 {
@@ -266,9 +339,7 @@ bool login::verifierLogin(const QString &email, const QString &password)
         qDebug() << "Password trouvé en DB =" << passwordDB;
 
         if (passwordDB.trimmed() == password.trimmed()) {
-            pageemployee *fen = new pageemployee(idEmp);
-            fen->show();
-            this->hide();
+            redirigerSelonRole(idEmp);
             return true;
         }
     } else {
@@ -277,6 +348,7 @@ bool login::verifierLogin(const QString &email, const QString &password)
 
     return false;
 }
+
 
 bool login::emailExiste(const QString &email)
 {
@@ -328,30 +400,140 @@ void login::on_btnLogin_clicked()
     qDebug() << "User           =" << QSqlDatabase::database().userName();
 
     if (email.isEmpty() || mdp.isEmpty()) {
-        QMessageBox::warning(this, "Champs manquants",
-                             "Veuillez saisir votre email et votre mot de passe.");
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Champs manquants");
+        msgBox.setText("Veuillez saisir votre email et votre mot de passe.");
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "  font-size: 14px;"
+            "  font-family: Segoe UI;"
+            "}"
+            "QLabel {"
+            "  color: #2c1f15;"
+            "}"
+            "QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: #2c1f15;"
+            "  border-radius: 10px;"
+            "  padding: 6px 15px;"
+            "  min-width: 80px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #c89b7b;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #b5835a;"
+            "}"
+            );
+        msgBox.exec();
         return;
     }
 
     if (!emailValide(email)) {
-        QMessageBox::warning(this, "Email invalide",
-                             "Veuillez saisir une adresse email valide.");
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Email invalide");
+        msgBox.setText("Veuillez saisir une adresse email valide.");
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "  font-size: 14px;"
+            "  font-family: Segoe UI;"
+            "}"
+            "QLabel {"
+            "  color: #2c1f15;"
+            "}"
+            "QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: #2c1f15;"
+            "  border-radius: 10px;"
+            "  padding: 6px 15px;"
+            "  min-width: 80px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #c89b7b;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #b5835a;"
+            "}"
+            );
+        msgBox.exec();
         return;
     }
 
     if (mdp.length() < 8) {
-        QMessageBox::warning(this, "Mot de passe invalide",
-                             "Le mot de passe doit contenir au moins 8 caractères.");
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Mot de passe invalide");
+        msgBox.setText("Le mot de passe doit contenir au moins 8 caractères.");
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "  font-size: 14px;"
+            "  font-family: Segoe UI;"
+            "}"
+            "QLabel {"
+            "  color: #2c1f15;"
+            "}"
+            "QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: #2c1f15;"
+            "  border-radius: 10px;"
+            "  padding: 6px 15px;"
+            "  min-width: 80px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #c89b7b;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #b5835a;"
+            "}"
+            );
+        msgBox.exec();
         return;
     }
 
-    if (verifierLogin(email, mdp)) {
-        QMessageBox::information(this, "Succès", "Connexion réussie !");
-    } else {
-        QMessageBox::critical(this, "Échec", "Email ou mot de passe incorrect.");
+    if (!verifierLogin(email, mdp)) {
+        QMessageBox msgBox;
+        msgBox.setWindowTitle("Échec");
+        msgBox.setText("Email ou mot de passe incorrect.");
+        msgBox.setIcon(QMessageBox::Critical);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "  font-size: 14px;"
+            "  font-family: Segoe UI;"
+            "}"
+            "QLabel {"
+            "  color: #2c1f15;"
+            "}"
+            "QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: #2c1f15;"
+            "  border-radius: 10px;"
+            "  padding: 6px 15px;"
+            "  min-width: 80px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: #c89b7b;"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: #b5835a;"
+            "}"
+            );
+        msgBox.exec();
     }
 }
-
 
 void login::on_btnSignup_clicked()
 {
@@ -435,14 +617,14 @@ void login::on_btnSignup_clicked()
 
     QComboBox *posteCombo = new QComboBox();
     posteCombo->addItems({
-        "Responsable Stock",
-        "Service Achat",
-        "Service Technique",
-        "Service Client",
-        "Commercial",
-        "Comptable",
-        "Directeur"
+        "Produits",
+        "Fournisseurs",
+        "Machines",
+        "Commandes",
+        "Matieres",
+        "Employe"
     });
+
 
     QComboBox *niveauCombo = new QComboBox();
     niveauCombo->addItems({
