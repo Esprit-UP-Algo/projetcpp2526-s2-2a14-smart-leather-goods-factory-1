@@ -518,7 +518,7 @@ QStatusBar {
    <widget class="QPushButton" name="pushButton_8">
     <property name="geometry">
      <rect>
-      <x>1060</x>
+      <x>1080</x>
       <y>60</y>
       <width>141</width>
       <height>41</height>
@@ -528,10 +528,23 @@ QStatusBar {
      <string>Exporter PDF</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_maps">
+    <property name="geometry">
+     <rect>
+      <x>920</x>
+      <y>60</y>
+      <width>141</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Maps</string>
+    </property>
+   </widget>
    <widget class="QPushButton" name="pushButton_9">
     <property name="geometry">
      <rect>
-      <x>1240</x>
+      <x>1250</x>
       <y>60</y>
       <width>131</width>
       <height>41</height>
@@ -539,6 +552,19 @@ QStatusBar {
     </property>
     <property name="text">
      <string>Statistiques</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_recommandation">
+    <property name="geometry">
+     <rect>
+      <x>1060</x>
+      <y>130</y>
+      <width>161</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Recommandation</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_9">

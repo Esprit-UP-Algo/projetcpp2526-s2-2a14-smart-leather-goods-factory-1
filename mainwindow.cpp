@@ -6,22 +6,36 @@
 #include <QDate>
 #include <QDateTime>
 #include <QCoreApplication>
+#include <QDesktopServices>
+#include <QFile>
 #include <QMessageBox>
 #include <QPixmap>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QStandardPaths>
 #include <QTableWidgetItem>
 #include <QHeaderView>
 #include <QDialog>
 #include <QFileDialog>
+#include <QFormLayout>
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QTabWidget>
 #include <QPainter>
 #include <QPdfWriter>
 #include <QRegularExpression>
+#include <QTableWidget>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QTextStream>
+
+#include <algorithm>
+#include <cmath>
 
 #include <QtCharts/QChart>
 #include <QtCharts/QChartView>
@@ -33,11 +47,296 @@
 #include <QtCharts/QValueAxis>
 
 namespace {
+QString jsEscape(const QString &value)
+{
+    QString escaped = value;
+    escaped.replace("\\", "\\\\");
+    escaped.replace("\"", "\\\"");
+    escaped.replace("\n", " ");
+    escaped.replace("\r", " ");
+    return escaped;
+}
+
+bool ouvrirCarteHtmlGoogle(const QString &apiKey, const QString &nom, const QString &recherche)
+{
+    if (apiKey.trimmed().isEmpty()) {
+        return false;
+    }
+
+    const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+    if (tempDir.isEmpty()) {
+        return false;
+    }
+
+    const QString filePath = tempDir + "/fournisseur_google_map.html";
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        return false;
+    }
+
+    const QString nomJs = jsEscape(nom);
+    const QString rechercheJs = jsEscape(recherche);
+    const QString keyJs = jsEscape(apiKey.trimmed());
+
+    QTextStream out(&file);
+    out.setEncoding(QStringConverter::Utf8);
+    out << "<!doctype html>\n"
+           "<html>\n"
+           "  <head>\n"
+           "    <meta charset=\"utf-8\" />\n"
+           "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
+           "    <title>Fournisseur Map</title>\n"
+           "    <style>html, body, #map { height: 100%; margin: 0; padding: 0; }</style>\n"
+           "    <script>\n"
+           "      function initMap() {\n"
+           "        const geocoder = new google.maps.Geocoder();\n"
+           "        const query = \"" << rechercheJs << "\";\n"
+           "        const supplierName = \"" << nomJs << "\";\n"
+           "        geocoder.geocode({ address: query }, function(results, status) {\n"
+           "          if (status !== 'OK' || !results || !results.length) {\n"
+           "            alert('Impossible de localiser cette adresse: ' + query);\n"
+           "            return;\n"
+           "          }\n"
+           "          const map = new google.maps.Map(document.getElementById('map'), {\n"
+           "            zoom: 18,\n"
+           "            center: results[0].geometry.location,\n"
+           "            mapTypeControl: false\n"
+           "          });\n"
+           "          const marker = new google.maps.Marker({\n"
+           "            position: results[0].geometry.location,\n"
+           "            map: map,\n"
+           "            title: supplierName\n"
+           "          });\n"
+           "          const info = new google.maps.InfoWindow({\n"
+           "            content: '<div style=\"font-family:Segoe UI;font-size:14px\"><b>' + supplierName + '</b><br>' + query + '</div>'\n"
+           "          });\n"
+           "          info.open({ map, anchor: marker });\n"
+           "        });\n"
+           "      }\n"
+           "    </script>\n"
+           "  </head>\n"
+           "  <body>\n"
+           "    <div id=\"map\"></div>\n"
+           "    <script src=\"https://maps.googleapis.com/maps/api/js?key=" << keyJs << "&callback=initMap\" defer></script>\n"
+           "  </body>\n"
+           "</html>\n";
+
+    file.close();
+    return QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
+}
+
+QString chargerGoogleMapsApiKey()
+{
+    const QString envKey = qEnvironmentVariable("GOOGLE_MAPS_API_KEY").trimmed();
+    if (!envKey.isEmpty()) {
+        return envKey;
+    }
+
+    const QStringList candidates = {
+        QCoreApplication::applicationDirPath() + "/google_maps_api_key.txt",
+        QCoreApplication::applicationDirPath() + "/../google_maps_api_key.txt",
+        QDir::currentPath() + "/google_maps_api_key.txt"
+    };
+
+    for (const QString &path : candidates) {
+        QFile f(path);
+        if (!f.exists()) {
+            continue;
+        }
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            continue;
+        }
+        QTextStream in(&f);
+        in.setEncoding(QStringConverter::Utf8);
+        const QString fileKey = in.readAll().trimmed();
+        f.close();
+        if (!fileKey.isEmpty()) {
+            return fileKey;
+        }
+    }
+
+    return QString();
+}
+
+QString nettoyerPourMaps(const QString &texte)
+{
+    return texte.simplified().trimmed();
+}
+
+QString construireRechercheMaps(const QString &nom, const QString &adresse)
+{
+    QStringList parties;
+
+    if (!nom.trimmed().isEmpty()) {
+        parties << nettoyerPourMaps(nom);
+    }
+
+    const QStringList segments = adresse.split('-', Qt::SkipEmptyParts);
+    for (const QString &segment : segments) {
+        const QString propre = nettoyerPourMaps(segment);
+        if (!propre.isEmpty()) {
+            parties << propre;
+        }
+    }
+
+    if (parties.isEmpty()) {
+        return QString();
+    }
+
+    return parties.join(", ");
+}
+
 QString detailsErreurSql(const QSqlError &err)
 {
     return QString("Driver: %1\nBase: %2\nCode natif: %3\nTexte: %4")
     .arg(err.driverText(), err.databaseText(), err.nativeErrorCode(), err.text());
 }
+
+bool nomFournisseurValide(const QString &nom)
+{
+    return QRegularExpression("^[A-ZÀ-Ý][A-Za-zÀ-ÿ\\s'-]{0,19}$").match(nom).hasMatch();
+}
+
+bool adresseComplete(const QString &adresse)
+{
+    const QStringList parts = adresse.split("-", Qt::SkipEmptyParts);
+    if (parts.size() < 3) {
+        return false;
+    }
+    const bool baseOk = !parts.at(0).trimmed().isEmpty()
+                        && !parts.at(1).trimmed().isEmpty()
+                        && !parts.at(2).trimmed().isEmpty();
+    if (!baseOk) {
+        return false;
+    }
+    if (parts.size() >= 5) {
+        return !parts.at(3).trimmed().isEmpty() && !parts.at(4).trimmed().isEmpty();
+    }
+    return true;
+}
+
+bool idFournisseurValide(const QString &id)
+{
+    return QRegularExpression("^[A-Z][A-Z0-9]{2,19}$").match(id).hasMatch();
+}
+
+bool tableHasColumn(const QString &qualifiedTable, const QString &columnName)
+{
+    QString owner;
+    QString table = qualifiedTable;
+    if (qualifiedTable.contains('.')) {
+        const QStringList parts = qualifiedTable.split('.');
+        if (parts.size() == 2) {
+            owner = parts.at(0).trimmed().toUpper();
+            table = parts.at(1).trimmed();
+        }
+    }
+
+    table = table.trimmed().toUpper();
+    const QString col = columnName.trimmed().toUpper();
+
+    QSqlQuery query;
+    if (!owner.isEmpty()) {
+        query.prepare(
+            "SELECT COUNT(*) FROM ALL_TAB_COLUMNS "
+            "WHERE OWNER = :owner AND TABLE_NAME = :table AND COLUMN_NAME = :col"
+            );
+        query.bindValue(":owner", owner);
+    } else {
+        query.prepare(
+            "SELECT COUNT(*) FROM USER_TAB_COLUMNS "
+            "WHERE TABLE_NAME = :table AND COLUMN_NAME = :col"
+            );
+    }
+
+    query.bindValue(":table", table);
+    query.bindValue(":col", col);
+
+    if (!query.exec() || !query.next()) {
+        return false;
+    }
+
+    return query.value(0).toInt() > 0;
+}
+
+int scoreQualite(const QString &qualite)
+{
+    const QString q = qualite.trimmed().toUpper();
+    if (q.startsWith("1")) {
+        return 100;
+    }
+    if (q.startsWith("2")) {
+        return 75;
+    }
+    if (q.startsWith("3")) {
+        return 55;
+    }
+    return 45;
+}
+
+double coutUnitaireEstime(const QString &type, const QString &qualite)
+{
+    const QString t = type.trimmed().toUpper();
+    double base = 50.0;
+    if (t.contains("BOIS")) {
+        base = 35.0;
+    } else if (t.contains("METAL") || t.contains("M\u00c9TAL")) {
+        base = 60.0;
+    } else if (t.contains("BOVIN")) {
+        base = 82.0;
+    } else if (t.contains("OVIN")) {
+        base = 72.0;
+    } else if (t.contains("SYNTH")) {
+        base = 52.0;
+    }
+
+    const QString q = qualite.trimmed().toUpper();
+    double facteurQualite = 1.0;
+    if (q.startsWith("1")) {
+        facteurQualite = 1.20;
+    } else if (q.startsWith("2")) {
+        facteurQualite = 1.00;
+    } else if (q.startsWith("3")) {
+        facteurQualite = 0.85;
+    }
+
+    return base * facteurQualite;
+}
+
+int scoreBudget(double coutTotalEstime, double budgetMax)
+{
+    if (budgetMax <= 0.0) {
+        return 0;
+    }
+    if (coutTotalEstime <= budgetMax) {
+        return 100;
+    }
+    const double depassementRatio = (coutTotalEstime - budgetMax) / budgetMax;
+    const int penalty = static_cast<int>(std::round(depassementRatio * 120.0));
+    return std::max(0, 100 - penalty);
+}
+
+int scoreDelai(const QDate &dateLivraison, const QDate &dateLimite)
+{
+    if (!dateLivraison.isValid()) {
+        return 40;
+    }
+    if (dateLivraison <= dateLimite) {
+        return 100;
+    }
+    const int retardJours = dateLimite.daysTo(dateLivraison);
+    return std::max(0, 100 - retardJours * 4);
+}
+
+struct RecommendationItem {
+    QString id;
+    QString nom;
+    QString qualite;
+    QDate delai;
+    double coutUnitaire = 0.0;
+    double coutTotal = 0.0;
+    int score = 0;
+};
 }
 
 MainWindow::MainWindow(QWidget *parent)
@@ -125,7 +424,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->label_9->setText("ID fournisseur :");
     ui->label_10->setText("Type matiere :");
     ui->comboTypeRecherche->clear();
-    ui->comboTypeRecherche->addItems({"Tous", "Bois", "Métal", "Plastique", "Verre"});
+    ui->comboTypeRecherche->addItems({"Tous", "Bois", "Métal", "Cuir bovin", "Cuir ovin", "Cuir synthetique"});
 
     const QString appDir = QCoreApplication::applicationDirPath();
     const QStringList logoPaths = {
@@ -159,12 +458,6 @@ void MainWindow::on_pushButton_3_clicked() {
     }
 
     AjoutFournisseur dialog(this);
-    const QString idAuto = genererIdFournisseur();
-    if (idAuto.isEmpty()) {
-        QMessageBox::warning(this, "ID auto", "Impossible de generer automatiquement IDFOURNISSEUR.");
-        return;
-    }
-    dialog.setIdFournisseur(idAuto);
 
     if (dialog.exec() == QDialog::Accepted) {
         const QString idFournisseur = dialog.getIdFournisseur().trimmed();
@@ -175,9 +468,22 @@ void MainWindow::on_pushButton_3_clicked() {
         const QString delai = dialog.getDelaiLivraison().toString("dd/MM/yyyy");
         const QString qualite = dialog.getQualiteMatiere().trimmed();
         const QString statut = dialog.getStatut().trimmed();
+        const double prixUnitaire = dialog.getPrixUnitaireEstime();
+        const int capaciteMax = dialog.getCapaciteMax();
+        const double tauxFiabilite = dialog.getTauxFiabilite();
 
-        if (idFournisseur.isEmpty() || idFournisseur.size() < 3 || nom.isEmpty() || nom.size() < 3 || type.isEmpty() || adresse.isEmpty() || adresse.size() < 5) {
-            QMessageBox::warning(this, "Validation", "ID (min 3), NOM (min 3), TYPE et ADRESSE (min 5) sont obligatoires.");
+        if (!idFournisseurValide(idFournisseur) || type.isEmpty()) {
+            QMessageBox::warning(this, "Validation", "ID invalide (majuscule initiale, 3 a 20 caracteres A-Z/0-9) et TYPE obligatoire.");
+            return;
+        }
+
+        if (!nomFournisseurValide(nom)) {
+            QMessageBox::warning(this, "Validation", "Le NOM doit commencer par une majuscule et contenir au maximum 20 caracteres.");
+            return;
+        }
+
+        if (!adresseComplete(adresse)) {
+            QMessageBox::warning(this, "Validation", "L'ADRESSE doit etre complete: Pays - Region - Ville.");
             return;
         }
 
@@ -187,12 +493,24 @@ void MainWindow::on_pushButton_3_clicked() {
         }
 
         QSqlQuery query;
-        query.prepare(
-            QString("INSERT INTO %1 "
-                    "(IDFOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT) "
-                    "VALUES (:id, :nom, :type, TO_NUMBER(NULLIF(:telephone, '')), NULLIF(:adresse, ''), TO_DATE(:delai, 'DD/MM/YYYY'), NULLIF(:qualite, ''), NULLIF(:statut, ''))")
-                .arg(m_tableFournisseurs)
-            );
+        if (m_hasAdvancedRecommendationFields) {
+            query.prepare(
+                QString("INSERT INTO %1 "
+                        "(IDFOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT, "
+                        "PRIX_UNITAIRE_ESTIME, CAPACITE_MAX, TAUX_FIABILITE) "
+                        "VALUES (:id, :nom, :type, TO_NUMBER(NULLIF(:telephone, '')), NULLIF(:adresse, ''), "
+                        "TO_DATE(:delai, 'DD/MM/YYYY'), NULLIF(:qualite, ''), NULLIF(:statut, ''), :prix, :capacite, :fiabilite)")
+                    .arg(m_tableFournisseurs)
+                );
+        } else {
+            query.prepare(
+                QString("INSERT INTO %1 "
+                        "(IDFOURNISSEUR, NOM, TYPE_MATIERE, TELEPHONE, ADRESSE, DELAI_LIVRAISON, QUALITE, STATUT) "
+                        "VALUES (:id, :nom, :type, TO_NUMBER(NULLIF(:telephone, '')), NULLIF(:adresse, ''), "
+                        "TO_DATE(:delai, 'DD/MM/YYYY'), NULLIF(:qualite, ''), NULLIF(:statut, ''))")
+                    .arg(m_tableFournisseurs)
+                );
+        }
 
         query.bindValue(":id", idFournisseur);
         query.bindValue(":nom", nom);
@@ -202,6 +520,11 @@ void MainWindow::on_pushButton_3_clicked() {
         query.bindValue(":delai", delai);
         query.bindValue(":qualite", qualite);
         query.bindValue(":statut", statut);
+        if (m_hasAdvancedRecommendationFields) {
+            query.bindValue(":prix", prixUnitaire);
+            query.bindValue(":capacite", capaciteMax);
+            query.bindValue(":fiabilite", tauxFiabilite);
+        }
 
         if (!query.exec()) {
             afficherErreurSql("Ajout fournisseur", detailsErreurSql(query.lastError()));
@@ -233,6 +556,24 @@ void MainWindow::on_pushButton_4_clicked() {
     const QString delaiStr = ui->tableWidget->item(currentRow, 5)->text();
     const QString qualite = ui->tableWidget->item(currentRow, 6)->text();
     const QString statut = ui->tableWidget->item(currentRow, 7)->text();
+    double prixUnitaire = 0.0;
+    int capaciteMax = 0;
+    double tauxFiabilite = 50.0;
+
+    if (m_hasAdvancedRecommendationFields) {
+        QSqlQuery detailsQuery;
+        detailsQuery.prepare(
+            QString("SELECT NVL(PRIX_UNITAIRE_ESTIME, 0), NVL(CAPACITE_MAX, 0), NVL(TAUX_FIABILITE, 50) "
+                    "FROM %1 WHERE IDFOURNISSEUR = :id")
+                .arg(m_tableFournisseurs)
+            );
+        detailsQuery.bindValue(":id", idFournisseur);
+        if (detailsQuery.exec() && detailsQuery.next()) {
+            prixUnitaire = detailsQuery.value(0).toDouble();
+            capaciteMax = detailsQuery.value(1).toInt();
+            tauxFiabilite = detailsQuery.value(2).toDouble();
+        }
+    }
 
     QDate delai = QDate::fromString(delaiStr, "dd/MM/yyyy");
     if (!delai.isValid()) {
@@ -240,7 +581,8 @@ void MainWindow::on_pushButton_4_clicked() {
     }
 
     ModifierFournisseur dialog(this);
-    dialog.setInitialData(nom, type, telephone, adresse, delai, qualite, statut);
+    dialog.setInitialData(nom, type, telephone, adresse, delai, qualite, statut,
+                          prixUnitaire, capaciteMax, tauxFiabilite);
 
     if (dialog.exec() == QDialog::Accepted) {
         const QString newNom = dialog.getNomFournisseur().trimmed();
@@ -250,9 +592,22 @@ void MainWindow::on_pushButton_4_clicked() {
         const QString newDelai = dialog.getDelaiLivraison().toString("dd/MM/yyyy");
         const QString newQualite = dialog.getQualiteMatiere().trimmed();
         const QString newStatut = dialog.getStatut().trimmed();
+        const double newPrixUnitaire = dialog.getPrixUnitaireEstime();
+        const int newCapaciteMax = dialog.getCapaciteMax();
+        const double newTauxFiabilite = dialog.getTauxFiabilite();
 
-        if (newNom.isEmpty() || newNom.size() < 3 || newType.isEmpty() || newAdresse.isEmpty() || newAdresse.size() < 5) {
-            QMessageBox::warning(this, "Validation", "NOM (min 3), TYPE et ADRESSE (min 5) sont obligatoires.");
+        if (newType.isEmpty()) {
+            QMessageBox::warning(this, "Validation", "Le TYPE est obligatoire.");
+            return;
+        }
+
+        if (!nomFournisseurValide(newNom)) {
+            QMessageBox::warning(this, "Validation", "Le NOM doit commencer par une majuscule et contenir au maximum 20 caracteres.");
+            return;
+        }
+
+        if (!adresseComplete(newAdresse)) {
+            QMessageBox::warning(this, "Validation", "L'ADRESSE doit etre complete: Pays - Region - Ville.");
             return;
         }
 
@@ -262,18 +617,36 @@ void MainWindow::on_pushButton_4_clicked() {
         }
 
         QSqlQuery query;
-        query.prepare(
-            QString("UPDATE %1 SET "
-                    "NOM = :nom, "
-                    "TYPE_MATIERE = :type, "
-                    "TELEPHONE = TO_NUMBER(NULLIF(:telephone, '')), "
-                    "ADRESSE = NULLIF(:adresse, ''), "
-                    "DELAI_LIVRAISON = TO_DATE(:delai, 'DD/MM/YYYY'), "
-                    "QUALITE = NULLIF(:qualite, ''), "
-                    "STATUT = NULLIF(:statut, '') "
-                    "WHERE IDFOURNISSEUR = :id")
-                .arg(m_tableFournisseurs)
-            );
+        if (m_hasAdvancedRecommendationFields) {
+            query.prepare(
+                QString("UPDATE %1 SET "
+                        "NOM = :nom, "
+                        "TYPE_MATIERE = :type, "
+                        "TELEPHONE = TO_NUMBER(NULLIF(:telephone, '')), "
+                        "ADRESSE = NULLIF(:adresse, ''), "
+                        "DELAI_LIVRAISON = TO_DATE(:delai, 'DD/MM/YYYY'), "
+                        "QUALITE = NULLIF(:qualite, ''), "
+                        "STATUT = NULLIF(:statut, ''), "
+                        "PRIX_UNITAIRE_ESTIME = :prix, "
+                        "CAPACITE_MAX = :capacite, "
+                        "TAUX_FIABILITE = :fiabilite "
+                        "WHERE IDFOURNISSEUR = :id")
+                    .arg(m_tableFournisseurs)
+                );
+        } else {
+            query.prepare(
+                QString("UPDATE %1 SET "
+                        "NOM = :nom, "
+                        "TYPE_MATIERE = :type, "
+                        "TELEPHONE = TO_NUMBER(NULLIF(:telephone, '')), "
+                        "ADRESSE = NULLIF(:adresse, ''), "
+                        "DELAI_LIVRAISON = TO_DATE(:delai, 'DD/MM/YYYY'), "
+                        "QUALITE = NULLIF(:qualite, ''), "
+                        "STATUT = NULLIF(:statut, '') "
+                        "WHERE IDFOURNISSEUR = :id")
+                    .arg(m_tableFournisseurs)
+                );
+        }
 
         query.bindValue(":nom", newNom);
         query.bindValue(":type", newType);
@@ -282,6 +655,11 @@ void MainWindow::on_pushButton_4_clicked() {
         query.bindValue(":delai", newDelai);
         query.bindValue(":qualite", newQualite);
         query.bindValue(":statut", newStatut);
+        if (m_hasAdvancedRecommendationFields) {
+            query.bindValue(":prix", newPrixUnitaire);
+            query.bindValue(":capacite", newCapaciteMax);
+            query.bindValue(":fiabilite", newTauxFiabilite);
+        }
         query.bindValue(":id", idFournisseur);
 
         if (!query.exec()) {
@@ -455,6 +833,10 @@ bool MainWindow::resoudreStructureFournisseurs()
         query.bindValue(":table_name", tableName);
         if (query.exec() && query.next()) {
             m_tableFournisseurs = query.value(0).toString();
+            m_hasAdvancedRecommendationFields =
+                tableHasColumn(m_tableFournisseurs, "PRIX_UNITAIRE_ESTIME") &&
+                tableHasColumn(m_tableFournisseurs, "CAPACITE_MAX") &&
+                tableHasColumn(m_tableFournisseurs, "TAUX_FIABILITE");
             return true;
         }
     }
@@ -467,6 +849,10 @@ bool MainWindow::resoudreStructureFournisseurs()
             const QString owner = synQuery.value(0).toString();
             const QString tableName = synQuery.value(1).toString();
             m_tableFournisseurs = owner + "." + tableName;
+            m_hasAdvancedRecommendationFields =
+                tableHasColumn(m_tableFournisseurs, "PRIX_UNITAIRE_ESTIME") &&
+                tableHasColumn(m_tableFournisseurs, "CAPACITE_MAX") &&
+                tableHasColumn(m_tableFournisseurs, "TAUX_FIABILITE");
             return true;
         }
     }
@@ -782,5 +1168,262 @@ void MainWindow::on_pushButton_9_clicked()
     layout->addWidget(tabs, 1);
     dialog->setLayout(layout);
     dialog->exec();
+}
+
+void MainWindow::on_pushButton_maps_clicked()
+{
+    const int row = ui->tableWidget->currentRow();
+
+    QString nomSelectionne;
+    QString adresseSelectionnee;
+
+    if (row >= 0) {
+        if (ui->tableWidget->item(row, 1)) {
+            nomSelectionne = ui->tableWidget->item(row, 1)->text().trimmed();
+        }
+        if (ui->tableWidget->item(row, 4)) {
+            adresseSelectionnee = ui->tableWidget->item(row, 4)->text().trimmed();
+        }
+    }
+
+    if (nomSelectionne.isEmpty()) {
+        QStringList candidates;
+        if (!m_tableFournisseurs.isEmpty()) {
+            candidates << m_tableFournisseurs;
+        }
+        candidates << "TABLE_FOURNISSEURS" << "FOURNISSEUR" << "FOURNISSEURS";
+        candidates.removeDuplicates();
+
+        for (const QString &tableName : candidates) {
+            QSqlQuery query;
+            query.prepare(
+                QString("SELECT NOM, ADRESSE "
+                        "FROM %1 "
+                        "WHERE ADRESSE IS NOT NULL AND ROWNUM = 1")
+                    .arg(tableName)
+                );
+
+            if (!query.exec() || !query.next()) {
+                continue;
+            }
+
+            nomSelectionne = query.value(0).toString().trimmed();
+            adresseSelectionnee = query.value(1).toString().trimmed();
+            if (!nomSelectionne.isEmpty()) {
+                m_tableFournisseurs = tableName;
+                break;
+            }
+        }
+    }
+
+    if (nomSelectionne.isEmpty()) {
+        QMessageBox::information(this, "Maps", "Selectionne un fournisseur pour l'afficher dans Google Maps.");
+        return;
+    }
+
+    const QString recherche = construireRechercheMaps(nomSelectionne, adresseSelectionnee);
+    if (recherche.isEmpty()) {
+        QMessageBox::information(this, "Maps", "Selectionne un fournisseur pour l'afficher dans Google Maps.");
+        return;
+    }
+
+    const QString apiKey = chargerGoogleMapsApiKey();
+    if (ouvrirCarteHtmlGoogle(apiKey, nomSelectionne, recherche)) {
+        QMessageBox::information(this, "Maps", QString("Ouverture de la carte HTML Google Maps pour: %1").arg(nomSelectionne));
+        return;
+    }
+
+    QUrl mapsUrl("https://www.google.com/maps/search/");
+    QUrlQuery query;
+    query.addQueryItem("api", "1");
+    query.addQueryItem("query", recherche);
+    query.addQueryItem("zoom", "18");
+    mapsUrl.setQuery(query);
+
+    if (!QDesktopServices::openUrl(mapsUrl)) {
+        QMessageBox::warning(this, "Maps", "Impossible d'ouvrir Google Maps dans le navigateur.");
+        return;
+    }
+
+    QMessageBox::information(
+        this,
+        "Maps",
+        QString("Ouverture de Google Maps (mode navigateur) pour: %1\n"
+                "Astuce: ajoute GOOGLE_MAPS_API_KEY ou un fichier google_maps_api_key.txt pour activer la carte HTML avec épingle nommée.")
+            .arg(nomSelectionne)
+        );
+}
+
+void MainWindow::on_pushButton_recommandation_clicked()
+{
+    if (m_tableFournisseurs.isEmpty() && !resoudreStructureFournisseurs()) {
+        return;
+    }
+
+    QDialog besoinsDialog(this);
+    besoinsDialog.setWindowTitle("Recommandation intelligente");
+    besoinsDialog.resize(420, 250);
+
+    auto *form = new QFormLayout(&besoinsDialog);
+    auto *typeInput = new QComboBox(&besoinsDialog);
+    typeInput->addItems({"Bois", "Métal", "Cuir bovin", "Cuir ovin", "Cuir synthetique"});
+
+    auto *quantiteInput = new QSpinBox(&besoinsDialog);
+    quantiteInput->setRange(1, 100000);
+    quantiteInput->setValue(500);
+
+    auto *budgetInput = new QDoubleSpinBox(&besoinsDialog);
+    budgetInput->setRange(1.0, 100000000.0);
+    budgetInput->setDecimals(2);
+    budgetInput->setValue(50000.0);
+    budgetInput->setSuffix(" TND");
+
+    auto *delaiInput = new QDateEdit(QDate::currentDate().addDays(30), &besoinsDialog);
+    delaiInput->setCalendarPopup(true);
+    delaiInput->setDisplayFormat("dd/MM/yyyy");
+
+    form->addRow("Type matière", typeInput);
+    form->addRow("Quantité demandée", quantiteInput);
+    form->addRow("Budget max", budgetInput);
+    form->addRow("Délai max", delaiInput);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &besoinsDialog);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &besoinsDialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &besoinsDialog, &QDialog::reject);
+
+    if (besoinsDialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const QString typeCible = typeInput->currentText().trimmed();
+    const int quantite = quantiteInput->value();
+    const double budget = budgetInput->value();
+    const QDate dateLimite = delaiInput->date();
+
+    QSqlQuery query;
+    if (m_hasAdvancedRecommendationFields) {
+        query.prepare(
+            QString("SELECT IDFOURNISSEUR, NOM, TYPE_MATIERE, QUALITE, DELAI_LIVRAISON, STATUT, "
+                    "NVL(PRIX_UNITAIRE_ESTIME, 0), NVL(CAPACITE_MAX, 0), NVL(TAUX_FIABILITE, 50) "
+                    "FROM %1 "
+                    "WHERE UPPER(TYPE_MATIERE) LIKE :type")
+                .arg(m_tableFournisseurs)
+            );
+    } else {
+        query.prepare(
+            QString("SELECT IDFOURNISSEUR, NOM, TYPE_MATIERE, QUALITE, DELAI_LIVRAISON, STATUT "
+                    "FROM %1 "
+                    "WHERE UPPER(TYPE_MATIERE) LIKE :type")
+                .arg(m_tableFournisseurs)
+            );
+    }
+    query.bindValue(":type", "%" + typeCible.toUpper() + "%");
+
+    if (!query.exec()) {
+        afficherErreurSql("Recommandation fournisseurs", detailsErreurSql(query.lastError()));
+        return;
+    }
+
+    if (!m_hasAdvancedRecommendationFields) {
+        QMessageBox::information(
+            this,
+            "Recommandation",
+            "Les colonnes PRIX_UNITAIRE_ESTIME, CAPACITE_MAX et TAUX_FIABILITE sont absentes.\n"
+            "Le classement utilise une estimation provisoire."
+            );
+    }
+
+    QVector<RecommendationItem> candidats;
+    while (query.next()) {
+        const QString statut = query.value(5).toString().trimmed().toUpper();
+        if (!statut.isEmpty() && !statut.startsWith("ACTIF")) {
+            continue;
+        }
+
+        RecommendationItem item;
+        item.id = query.value(0).toString();
+        item.nom = query.value(1).toString();
+        item.qualite = query.value(3).toString();
+        item.delai = query.value(4).toDate();
+        const int qScore = scoreQualite(item.qualite);
+
+        double fiabiliteScore = 60.0;
+        int capaciteMax = quantite;
+        if (m_hasAdvancedRecommendationFields) {
+            item.coutUnitaire = query.value(6).toDouble();
+            capaciteMax = query.value(7).toInt();
+            fiabiliteScore = query.value(8).toDouble();
+            if (capaciteMax > 0 && quantite > capaciteMax) {
+                continue;
+            }
+            if (item.coutUnitaire <= 0.0) {
+                item.coutUnitaire = coutUnitaireEstime(typeCible, item.qualite);
+            }
+        } else {
+            item.coutUnitaire = coutUnitaireEstime(typeCible, item.qualite);
+        }
+
+        item.coutTotal = item.coutUnitaire * static_cast<double>(quantite);
+
+        const int bScore = scoreBudget(item.coutTotal, budget);
+        const int dScore = scoreDelai(item.delai, dateLimite);
+        const double fScore = std::max(0.0, std::min(100.0, fiabiliteScore));
+        item.score = static_cast<int>(std::round(0.40 * qScore + 0.30 * bScore + 0.20 * dScore + 0.10 * fScore));
+
+        candidats.append(item);
+    }
+
+    if (candidats.isEmpty()) {
+        QMessageBox::information(this, "Recommandation", "Aucun fournisseur actif ne correspond au type saisi.");
+        return;
+    }
+
+    std::sort(candidats.begin(), candidats.end(), [](const RecommendationItem &a, const RecommendationItem &b) {
+        if (a.score != b.score) {
+            return a.score > b.score;
+        }
+        return a.coutTotal < b.coutTotal;
+    });
+
+    const int topCount = std::min(3, static_cast<int>(candidats.size()));
+
+    QDialog resultatDialog(this);
+    resultatDialog.setWindowTitle("Top 3 fournisseurs recommandes");
+    resultatDialog.resize(780, 340);
+
+    auto *layout = new QVBoxLayout(&resultatDialog);
+    auto *subtitle = new QLabel(
+        QString("Besoin: %1 | Quantite: %2 | Budget: %3 TND | Delai: %4")
+            .arg(typeCible)
+            .arg(quantite)
+            .arg(QString::number(budget, 'f', 2))
+            .arg(dateLimite.toString("dd/MM/yyyy")),
+        &resultatDialog);
+
+    auto *table = new QTableWidget(topCount, 6, &resultatDialog);
+    table->setHorizontalHeaderLabels({"ID", "Nom", "Score", "Qualite", "Delai", "Cout estime"});
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionMode(QAbstractItemView::NoSelection);
+
+    for (int i = 0; i < topCount; ++i) {
+        const RecommendationItem &r = candidats.at(i);
+        table->setItem(i, 0, new QTableWidgetItem(r.id));
+        table->setItem(i, 1, new QTableWidgetItem(r.nom));
+        table->setItem(i, 2, new QTableWidgetItem(QString::number(r.score)));
+        table->setItem(i, 3, new QTableWidgetItem(r.qualite));
+        table->setItem(i, 4, new QTableWidgetItem(r.delai.isValid() ? r.delai.toString("dd/MM/yyyy") : "N/A"));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(r.coutTotal, 'f', 2) + " TND"));
+    }
+
+    layout->addWidget(subtitle);
+    layout->addWidget(table);
+
+    auto *closeBtn = new QPushButton("Fermer", &resultatDialog);
+    connect(closeBtn, &QPushButton::clicked, &resultatDialog, &QDialog::accept);
+    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+
+    resultatDialog.exec();
 }
 

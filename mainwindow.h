@@ -26,6 +26,8 @@ private slots:
     void on_pushButton_7_clicked(); // Bouton Recherche
     void on_pushButton_8_clicked(); // Bouton Exporter PDF
     void on_pushButton_9_clicked(); // Bouton Statistiques
+    void on_pushButton_maps_clicked(); // Bouton Maps
+    void on_pushButton_recommandation_clicked(); // Bouton Recommandation intelligente
     void on_comboBox_currentIndexChanged(int index); // Tri
 
 private:
@@ -37,5 +39,6 @@ private:
 
     Ui::MainWindow *ui;
     QString m_tableFournisseurs;
+    bool m_hasAdvancedRecommendationFields = false;
 };
 #endif // MAINWINDOW_H
