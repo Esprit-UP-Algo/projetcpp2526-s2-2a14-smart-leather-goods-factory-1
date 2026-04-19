@@ -243,47 +243,52 @@ void commandes::on_pushButton_7_clicked() {
     QString modePaiement = getText(8);
 
     QString html;
-    html += "<html><head><meta charset='utf-8'/>";
+    html += "<!DOCTYPE html><html><head><meta charset='utf-8'/>";
     html += "<style>";
-    html += "body{font-family:Segoe UI, Arial, sans-serif;color:#2a1a12;}";
-    html += ".invoice{max-width:800px;margin:0 auto;padding:24px;border:2px solid #b08a6b;border-radius:16px;background:#fffaf5;}";
-    html += ".header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}";
-    html += ".brand{font-size:22px;font-weight:700;color:#5b2f1d;}";
-    html += ".meta{font-size:12px;color:#6b3e26;text-align:right;}";
-    html += "h1{font-size:20px;color:#5b2f1d;margin:8px 0 16px 0;text-align:center;}";
-    html += "table{width:100%;border-collapse:collapse;margin-top:8px;}";
-    html += "th,td{padding:10px;border-bottom:1px solid #e0d2c5;text-align:left;}";
-    html += "th{background:#6b3e26;color:#fffaf5;}";
-    html += ".section-title{margin-top:16px;color:#6b3e26;font-weight:700;border-bottom:2px solid #b08a6b;display:inline-block;padding-bottom:4px;}";
-    html += ".totals{margin-top:16px;float:right;}";
-    html += ".totals td{padding:6px 10px;}";
-    html += ".totals tr:last-child td{font-weight:700;border-top:2px solid #b08a6b;}";
-    html += ".footer{clear:both;text-align:center;margin-top:28px;color:#6b3e26;}";
+    html += "body { font-family: 'Segoe UI', Arial, sans-serif; color: #3a2a20; }";
+    html += "h1 { color: #5b2f1d; text-align: center; font-size: 26pt; margin: 20px 0; }";
+    html += "th { background-color: #6b3e26; color: #fffaf5; font-weight: bold; padding: 12px; text-align: left; font-size: 12pt; border: 1px solid #6b3e26;}";
+    html += "td { padding: 12px; border: 1px solid #b08a6b; font-size: 12pt; }";
+    html += ".brand-title { font-size: 32pt; font-weight: bold; color: #5b2f1d; }";
+    html += ".meta-info { font-size: 14pt; color: #6b3e26; text-align: right; }";
     html += "</style></head><body>";
-    html += "<div class='invoice'>";
-    html += "  <div class='header'>";
-    html += "    <div class='brand'>SmartLeather - Facture</div>";
-    html += "    <div class='meta'>Émise le: " + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm") + "<br/>";
-    html += "    N°: " + (reference.isEmpty() ? id : reference) + "</div>";
-    html += "  </div>";
-    html += "  <h1>Détails de la commande</h1>";
-    html += "  <table>";
-    html += "    <tr><th>Champ</th><th>Valeur</th></tr>";
-    html += "    <tr><td>ID Commande</td><td>" + id + "</td></tr>";
-    html += "    <tr><td>Référence</td><td>" + reference + "</td></tr>";
-    html += "    <tr><td>Client</td><td>" + client + "</td></tr>";
-    html += "    <tr><td>Adresse</td><td>" + address + "</td></tr>";
-    html += "    <tr><td>Date Commande</td><td>" + dateCommande + "</td></tr>";
-    html += "    <tr><td>Date Livraison Prévue</td><td>" + dateLivraison + "</td></tr>";
-    html += "    <tr><td>État</td><td>" + etat + "</td></tr>";
-    html += "    <tr><td>Mode Paiement</td><td>" + modePaiement + "</td></tr>";
-    html += "  </table>";
-    html += "  <table class='totals'>";
-    html += "    <tr><td>Sous-total</td><td>" + montant + "</td></tr>";
-    html += "    <tr><td>Total TTC</td><td>" + montant + "</td></tr>";
-    html += "  </table>";
-    html += "  <div class='footer'>Merci pour votre confiance.</div>";
-    html += "</div></body></html>";
+    
+    // Header
+    html += "<table width='100%' style='border: none; margin-bottom: 20px;'><tr>";
+    html += "<td style='border: none; text-align: left;'><span class='brand-title'>SmartLeather</span><br/><span style='color: #a47148; font-size: 16pt; font-weight: bold;'>FACTURE PREMIUM</span></td>";
+    html += "<td style='border: none; text-align: right;' class='meta-info'><b>Émise le :</b> " + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm") + "<br/><b>N° Facture :</b> " + (reference.isEmpty() ? id : reference) + "</td>";
+    html += "</tr></table>";
+    
+    html += "<hr style='color: #b08a6b; background-color: #b08a6b; height: 4px; border: none; margin-bottom: 30px;' />";
+    
+    html += "<h1>Détails de la commande</h1>";
+    
+    // Data Table
+    html += "<table width='100%' cellspacing='0' cellpadding='10' style='border-collapse: collapse; margin-top: 20px;'>";
+    html += "<tr><th width='40%'>Champ</th><th width='60%'>Valeur</th></tr>";
+    html += "<tr><td><b>ID Commande</b></td><td>" + id + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Référence</b></td><td style='background-color:#fcf7f2;'>" + reference + "</td></tr>";
+    html += "<tr><td><b>Client</b></td><td>" + client + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Adresse</b></td><td style='background-color:#fcf7f2;'>" + address + "</td></tr>";
+    html += "<tr><td><b>Date de Commande</b></td><td>" + dateCommande + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Date de Livraison Prévue</b></td><td style='background-color:#fcf7f2;'>" + dateLivraison + "</td></tr>";
+    html += "<tr><td><b>État</b></td><td>" + etat + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Mode de Paiement</b></td><td style='background-color:#fcf7f2;'>" + modePaiement + "</td></tr>";
+    html += "</table>";
+    
+    // Totals Table
+    html += "<br/><br/><br/>";
+    html += "<table width='100%' style='border: none;'><tr><td width='50%' style='border: none;'></td><td width='50%' style='border: none;'>";
+    html += "<table width='100%' cellspacing='0' cellpadding='10' style='border: 2px solid #6b3e26; border-collapse: collapse;'>";
+    html += "<tr><td style='font-weight: bold; font-size: 14pt; background-color: #e9dccf; border: 1px solid #6b3e26;'>Sous-total</td><td style='text-align: right; font-size: 14pt; background-color: #e9dccf; border: 1px solid #6b3e26;'>" + montant + "</td></tr>";
+    html += "<tr><td style='font-weight: bold; font-size: 16pt; color: #fffaf5; background-color: #6b3e26; border: 1px solid #6b3e26;'>Total TTC</td><td style='font-weight: bold; font-size: 16pt; color: #fffaf5; background-color: #6b3e26; text-align: right; border: 1px solid #6b3e26;'>" + montant + "</td></tr>";
+    html += "</table>";
+    html += "</td></tr></table>";
+    
+    html += "<br/><br/><br/><br/>";
+    html += "<p style='text-align: center; color: #a47148; font-style: italic; font-size: 14pt; font-weight: bold;'>SmartLeather - L'excellence du cuir premium.<br/>Merci pour votre confiance.</p>";
+    
+    html += "</body></html>";
 
     QString defaultName = "facture_" + (reference.isEmpty() ? id : reference) + ".pdf";
     QString fileName = QFileDialog::getSaveFileName(this, "Enregistrer la facture", defaultName, "PDF Files (*.pdf)");

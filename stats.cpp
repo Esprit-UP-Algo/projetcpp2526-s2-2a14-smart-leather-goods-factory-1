@@ -7,8 +7,46 @@
 #include <QSqlError>
 #include <QDate>
 #include <QMessageBox>
+#include <QBrush>
+#include <QFont>
+#include <QColor>
+
+static void applyThemeToChart(QChart *chart) {
+    chart->setBackgroundBrush(QBrush(QColor("#fffaf5")));
+    chart->setPlotAreaBackgroundBrush(QBrush(QColor("#fffaf5")));
+    chart->setPlotAreaBackgroundVisible(true);
+
+    QFont titleFont("Segoe UI", 14, QFont::Bold);
+    chart->setTitleFont(titleFont);
+    chart->setTitleBrush(QBrush(QColor("#5b2f1d")));
+
+    QFont legendFont("Segoe UI", 10);
+    chart->legend()->setFont(legendFont);
+    chart->legend()->setLabelColor(QColor("#3a2a20"));
+
+    for (QAbstractAxis *axis : chart->axes()) {
+        axis->setLabelsColor(QColor("#3a2a20"));
+        axis->setLabelsFont(QFont("Segoe UI", 10));
+        if (QValueAxis *valAxis = qobject_cast<QValueAxis*>(axis)) {
+            valAxis->setGridLineColor(QColor("#e0d2c5"));
+            valAxis->setLinePenColor(QColor("#b08a6b"));
+        } else if (QBarCategoryAxis *catAxis = qobject_cast<QBarCategoryAxis*>(axis)) {
+            catAxis->setGridLineColor(QColor("#e0d2c5"));
+            catAxis->setLinePenColor(QColor("#b08a6b"));
+        }
+    }
+}
 
 Stats::Stats(QWidget *parent) : QDialog(parent) {
+    setStyleSheet(
+        "QDialog { background-color: #f1e7dc; color: #3a2a20; font-family: 'Segoe UI'; }"
+        "QLabel { color: #3a2a20; font-weight: bold; font-size: 14px; }"
+        "QDateEdit { background-color: rgba(255, 250, 245, 0.6); border: 1px solid #c6a88d; border-radius: 6px; padding: 6px; color: #3a2a20; }"
+        "QDateEdit:focus { border: 2px solid #6b3e26; background-color: #fffaf5; }"
+        "QTabWidget::pane { border: 2px solid #b08a6b; border-radius: 8px; background-color: #fffaf5; }"
+        "QTabBar::tab { background-color: #e9dccf; color: #3a2a20; padding: 8px 16px; border-top-left-radius: 8px; border-top-right-radius: 8px; border: 1px solid #c6a88d; border-bottom: none; margin-right: 2px; }"
+        "QTabBar::tab:selected { background-color: #fffaf5; color: #5b2f1d; font-weight: bold; border-bottom: 2px solid #fffaf5; }"
+    );
     setWindowTitle("Statistiques des commandes");
     resize(980, 720);
 
@@ -56,14 +94,21 @@ QChart *Stats::buildStatusDistributionChart() {
             series->append(it.key(), it.value());
         }
     }
+    const QList<QColor> colors = {QColor("#b08a6b"), QColor("#6f8f3d"), QColor("#a23b2a"), QColor("#7a4a2e"), QColor("#a47148")};
+    int colorIdx = 0;
     for (auto s : series->slices()) {
         s->setLabel(QString("%1 (%2)").arg(s->label()).arg((int)s->value()));
         s->setLabelVisible(true);
+        s->setBrush(colors.at(colorIdx % colors.size()));
+        s->setLabelColor(QColor("#3a2a20"));
+        s->setLabelFont(QFont("Segoe UI", 10, QFont::Bold));
+        colorIdx++;
     }
     QChart *chart = new QChart();
     chart->addSeries(series);
     chart->setTitle("Répartition par état de commande");
     chart->legend()->setAlignment(Qt::AlignRight);
+    applyThemeToChart(chart);
     return chart;
 }
 
@@ -72,6 +117,7 @@ QChart *Stats::buildDailyCountChart() {
 
     QBarSeries *series = new QBarSeries();
     QBarSet *set = new QBarSet("Commandes");
+    set->setColor(QColor("#7a4a2e")); // Dark brown
     QStringList categories;
 
     // Sort by day number (DD)
@@ -100,6 +146,7 @@ QChart *Stats::buildDailyCountChart() {
     series->attachAxis(axisY);
 
     chart->legend()->setVisible(false);
+    applyThemeToChart(chart);
     return chart;
 }
 
@@ -153,6 +200,7 @@ QChart *Stats::buildMonthlyRevenueChart() {
     chart->legend()->setVisible(true);
     chart->legend()->setAlignment(Qt::AlignBottom);
 
+    applyThemeToChart(chart);
     return chart;
 }
 
@@ -164,14 +212,21 @@ QChart *Stats::buildPaymentModeChart() {
             series->append(it.key(), it.value());
         }
     }
+    const QList<QColor> colors = {QColor("#a47148"), QColor("#d8b59c"), QColor("#4a2717"), QColor("#b08a6b"), QColor("#a23b2a")};
+    int colorIdx = 0;
     for (auto s : series->slices()) {
         s->setLabel(QString("%1 (%2)").arg(s->label()).arg((int)s->value()));
         s->setLabelVisible(true);
+        s->setBrush(colors.at(colorIdx % colors.size()));
+        s->setLabelColor(QColor("#3a2a20"));
+        s->setLabelFont(QFont("Segoe UI", 10, QFont::Bold));
+        colorIdx++;
     }
     QChart *chart = new QChart();
     chart->addSeries(series);
     chart->setTitle("Répartition par mode de paiement");
     chart->legend()->setAlignment(Qt::AlignRight);
+    applyThemeToChart(chart);
     return chart;
 }
 

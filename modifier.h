@@ -33,11 +33,15 @@ private:
     // UI Elements
     QLineEdit *idEdit;
     QLineEdit *clientEdit;
+    QLabel *errorClient;
     QLineEdit *addressEdit;
+    QLabel *errorAddr;
     QDateTimeEdit *dateOrder;
     QDateTimeEdit *dateDelivery;
+    QLabel *errorDate;
     QComboBox *statusCombo;
     QLineEdit *amountEdit;
+    QLabel *errorAmount;
 
     QPushButton *btnSave;
     QPushButton *btnCancel;
@@ -45,6 +49,9 @@ private:
     // Theme method
     void setupStyle();
     void accept() override;
+
+private slots:
+    void validateForm();
 };
 
 #endif // MODIFIER_H

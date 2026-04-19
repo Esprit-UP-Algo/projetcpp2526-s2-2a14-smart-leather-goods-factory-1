@@ -26,18 +26,26 @@ public:
 
 private:
     QLineEdit *referenceEdit;
+    QLabel *errorRef;
     QLineEdit *clientEdit;
+    QLabel *errorClient;
     QLineEdit *addressEdit;
+    QLabel *errorAddr;
     QDateTimeEdit *dateOrder;
     QDateTimeEdit *dateDelivery;
+    QLabel *errorDate;
     QComboBox *statusCombo;
     QLineEdit *amountEdit;
+    QLabel *errorAmount;
 
     QPushButton *btnSave;
     QPushButton *btnCancel;
 
     void setupStyle(); // Applies the Stitched Leather QSS
     void accept() override;
+
+private slots:
+    void validateForm();
 };
 
 #endif
