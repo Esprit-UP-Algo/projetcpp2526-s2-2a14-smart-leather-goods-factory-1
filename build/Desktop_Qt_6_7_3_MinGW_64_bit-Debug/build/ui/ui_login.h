@@ -35,7 +35,10 @@ public:
     QVBoxLayout *verticalLayout;
     QLineEdit *username;
     QLineEdit *password;
+<<<<<<< HEAD
     QPushButton *btnFaceId;
+=======
+>>>>>>> gestion-commande
     QLabel *label;
 
     void setupUi(QDialog *login)
@@ -237,11 +240,19 @@ public:
 "   "));
         mainContainer = new QFrame(login);
         mainContainer->setObjectName("mainContainer");
+<<<<<<< HEAD
         mainContainer->setGeometry(QRect(240, 90, 900, 631));
         mainContainer->setFrameShape(QFrame::Shape::StyledPanel);
         loginForm = new QFrame(mainContainer);
         loginForm->setObjectName("loginForm");
         loginForm->setGeometry(QRect(43, 183, 814, 421));
+=======
+        mainContainer->setGeometry(QRect(240, 90, 900, 600));
+        mainContainer->setFrameShape(QFrame::StyledPanel);
+        loginForm = new QFrame(mainContainer);
+        loginForm->setObjectName("loginForm");
+        loginForm->setGeometry(QRect(43, 183, 814, 372));
+>>>>>>> gestion-commande
         layoutWidget = new QWidget(loginForm);
         layoutWidget->setObjectName("layoutWidget");
         layoutWidget->setGeometry(QRect(80, 260, 641, 57));
@@ -260,7 +271,11 @@ public:
 
         layoutWidget1 = new QWidget(loginForm);
         layoutWidget1->setObjectName("layoutWidget1");
+<<<<<<< HEAD
         layoutWidget1->setGeometry(QRect(56, 76, 721, 127));
+=======
+        layoutWidget1->setGeometry(QRect(56, 76, 721, 122));
+>>>>>>> gestion-commande
         verticalLayout = new QVBoxLayout(layoutWidget1);
         verticalLayout->setObjectName("verticalLayout");
         verticalLayout->setContentsMargins(0, 0, 0, 0);
@@ -271,6 +286,7 @@ public:
 
         password = new QLineEdit(layoutWidget1);
         password->setObjectName("password");
+<<<<<<< HEAD
         password->setEchoMode(QLineEdit::EchoMode::Password);
 
         verticalLayout->addWidget(password);
@@ -309,6 +325,12 @@ public:
 "    background: #6b3e1a;\n"
 "    border-bottom: 2px solid #4a2a12;\n"
 "}"));
+=======
+        password->setEchoMode(QLineEdit::Password);
+
+        verticalLayout->addWidget(password);
+
+>>>>>>> gestion-commande
         label = new QLabel(mainContainer);
         label->setObjectName("label");
         label->setGeometry(QRect(330, 30, 231, 121));
@@ -328,9 +350,14 @@ public:
 #endif // QT_CONFIG(whatsthis)
         btnSignup->setText(QCoreApplication::translate("login", "\360\237\223\235 S'INSCRIRE", nullptr));
         btnLogin->setText(QCoreApplication::translate("login", "\360\237\224\223 CONNEXION", nullptr));
+<<<<<<< HEAD
         username->setPlaceholderText(QCoreApplication::translate("login", "Email", nullptr));
         password->setPlaceholderText(QCoreApplication::translate("login", "Mot de passe", nullptr));
         btnFaceId->setText(QCoreApplication::translate("login", "Face Id", nullptr));
+=======
+        username->setPlaceholderText(QCoreApplication::translate("login", "Nom d'utilisateur / Matricule", nullptr));
+        password->setPlaceholderText(QCoreApplication::translate("login", "Mot de passe", nullptr));
+>>>>>>> gestion-commande
         label->setText(QString());
     } // retranslateUi
 

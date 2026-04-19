@@ -1,20 +1,44 @@
-#include "login.h"
-#include "connection.h"
+#include "commandes.h"
+#include "connexion.h"
+#include <QFile>
+#include <QDebug>
 #include <QMessageBox>
 #include <QApplication>
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);   // لازم قبل أي QMessageBox
+    QApplication a(argc, argv);
 
-    if (!Connection::instance()->createConnect()) {
-        QMessageBox::critical(nullptr, "Connexion échouée",
-            "Impossible de se connecter à la base Oracle.\n"
-            "Vérifiez que le service Oracle XE est démarré.");
-        return 1;
+    // --- Connexion à la base Oracle ---
+    Connexion c;
+    bool test = c.ouvrir();
+
+    if (test) {
+        QMessageBox::information(nullptr, QObject::tr("Connexion"),
+                                 QObject::tr("Connexion établie avec succès.\nCliquez sur OK pour continuer."),
+                                 QMessageBox::Ok);
+    } else {
+        QMessageBox::critical(nullptr, QObject::tr("Connexion"),
+                              QObject::tr("Échec de la connexion à la base de données.\nCliquez sur Annuler pour quitter."),
+                              QMessageBox::Cancel);
+        return -1;  // Arrête le programme si la connexion échoue
     }
 
-    login w;
+    // --- Chargement du style QSS ---
+    QFile styleFile(":/style.qss"); // si le fichier est dans les ressources (.qrc)
+    // QFile styleFile("style.qss"); // sinon, s'il est dans le même dossier que l'exécutable
+
+    if (styleFile.open(QFile::ReadOnly | QFile::Text)) {
+        QString style = styleFile.readAll();
+        a.setStyleSheet(style);
+        styleFile.close();
+    } else {
+        qDebug("Impossible de charger le fichier style.qss");
+    }
+
+    // --- Afficher la fenêtre principale ---
+    commandes w;
     w.show();
+
     return a.exec();
 }

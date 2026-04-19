@@ -3,40 +3,49 @@
 
 #include <QDialog>
 #include <QLineEdit>
-#include <QComboBox>
 #include <QDateTimeEdit>
+#include <QComboBox>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QLabel>
 
-class Ajout : public QDialog
-{
+class Ajout : public QDialog {
     Q_OBJECT
 
 public:
     explicit Ajout(QWidget *parent = nullptr);
 
-    // Getters for all fields
-    QString getId() const { return idEdit->text(); }
+    // Getters to retrieve data after closing
+    QString getReference() const { return referenceEdit->text(); }
     QString getClient() const { return clientEdit->text(); }
     QString getAddress() const { return addressEdit->text(); }
-    QString getDateCommande() const { return dateCommandeEdit->dateTime().toString("dd/MM/yyyy"); }
-    QString getDateLivraison() const { return dateLivraisonEdit->dateTime().toString("dd/MM/yyyy"); }
-    QString getEtat() const { return etatCombo->currentText(); }
-    QString getMontant() const { return montantEdit->text(); }
-    QString getModePaiement() const { return modePaiementCombo->currentText(); }
-
-private slots:
-    void setupStyle();
+    QDateTime getDateOrder() const { return dateOrder->dateTime(); }
+    QDateTime getDateDelivery() const { return dateDelivery->dateTime(); }
+    QString getStatus() const { return statusCombo->currentText(); }
+    QString getAmount() const { return amountEdit->text(); }
 
 private:
-    QLineEdit *idEdit;
+    QLineEdit *referenceEdit;
+    QLabel *errorRef;
     QLineEdit *clientEdit;
+    QLabel *errorClient;
     QLineEdit *addressEdit;
-    QDateTimeEdit *dateCommandeEdit;
-    QDateTimeEdit *dateLivraisonEdit;
-    QComboBox *etatCombo;
-    QLineEdit *montantEdit;
-    QComboBox *modePaiementCombo;
+    QLabel *errorAddr;
+    QDateTimeEdit *dateOrder;
+    QDateTimeEdit *dateDelivery;
+    QLabel *errorDate;
+    QComboBox *statusCombo;
+    QLineEdit *amountEdit;
+    QLabel *errorAmount;
+
     QPushButton *btnSave;
     QPushButton *btnCancel;
+
+    void setupStyle(); // Applies the Stitched Leather QSS
+    void accept() override;
+
+private slots:
+    void validateForm();
 };
 
-#endif // AJOUT_H
+#endif

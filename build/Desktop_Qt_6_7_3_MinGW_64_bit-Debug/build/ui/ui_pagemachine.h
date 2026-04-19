@@ -27,7 +27,10 @@ public:
     QLineEdit *searchIdEdit;
     QLabel *label_8;
     QPushButton *pushButton_10;
+<<<<<<< HEAD
     QPushButton *btnAgenda;
+=======
+>>>>>>> gestion-commande
     QPushButton *pushButton_9;
     QLabel *label;
     QLabel *label_10;
@@ -259,9 +262,12 @@ public:
         pushButton_10 = new QPushButton(pagemachine);
         pushButton_10->setObjectName("pushButton_10");
         pushButton_10->setGeometry(QRect(1000, 120, 151, 41));
+<<<<<<< HEAD
         btnAgenda = new QPushButton(pagemachine);
         btnAgenda->setObjectName("btnAgenda");
         btnAgenda->setGeometry(QRect(900, 70, 171, 41));
+=======
+>>>>>>> gestion-commande
         pushButton_9 = new QPushButton(pagemachine);
         pushButton_9->setObjectName("pushButton_9");
         pushButton_9->setGeometry(QRect(1080, 70, 171, 41));
@@ -413,8 +419,13 @@ public:
 "    color: #2a1a12;\n"
 "}\n"
 ""));
+<<<<<<< HEAD
         tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
         tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAsNeeded);
+=======
+        tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+>>>>>>> gestion-commande
         tableWidget->horizontalHeader()->setVisible(false);
         tableWidget->horizontalHeader()->setCascadingSectionResizes(true);
         tableWidget->horizontalHeader()->setDefaultSectionSize(150);
@@ -445,9 +456,14 @@ public:
     void retranslateUi(QDialog *pagemachine)
     {
         pagemachine->setWindowTitle(QCoreApplication::translate("pagemachine", "Dialog", nullptr));
+<<<<<<< HEAD
         label_8->setText(QCoreApplication::translate("pagemachine", "<html><head/><body><p><span style=\" font-size:16pt; font-style:italic; text-decoration: underline;\">Gestion des machine :</span></p></body></html>", nullptr));
         pushButton_10->setText(QCoreApplication::translate("pagemachine", "Recherche", nullptr));
         btnAgenda->setText(QCoreApplication::translate("pagemachine", "Agenda", nullptr));
+=======
+        label_8->setText(QCoreApplication::translate("pagemachine", "<html><head/><body><p><span style=\" font-size:16pt; font-weight:700; font-style:italic; text-decoration: underline;\">Gestion des commandes :</span></p></body></html>", nullptr));
+        pushButton_10->setText(QCoreApplication::translate("pagemachine", "Recherche", nullptr));
+>>>>>>> gestion-commande
         pushButton_9->setText(QCoreApplication::translate("pagemachine", "Statistiques", nullptr));
         label->setText(QString());
         label_10->setText(QCoreApplication::translate("pagemachine", "<html><head/><body><p><span style=\" font-size:12pt; font-weight:700;\">NOM MACHINE :</span></p><p><br/></p></body></html>", nullptr));

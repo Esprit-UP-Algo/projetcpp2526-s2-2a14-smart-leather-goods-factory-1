@@ -6,7 +6,11 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
+<<<<<<< HEAD
 #include "../../../../matieres.h"
+=======
+#include "../../../../../../../../Downloads/projet2626/projet2626/matieres.h"
+>>>>>>> gestion-commande
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>

@@ -6,7 +6,11 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
+<<<<<<< HEAD
 #include "../../../../login.h"
+=======
+#include "../../../../../../../../Downloads/projet2626/projet2626/login.h"
+>>>>>>> gestion-commande
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>
@@ -38,8 +42,12 @@ constexpr auto qt_meta_stringdata_CLASSloginENDCLASS = QtMocHelpers::stringData(
     "login",
     "on_btnLogin_clicked",
     "",
+<<<<<<< HEAD
     "on_btnSignup_clicked",
     "on_btnFaceId_clicked"
+=======
+    "on_btnSignup_clicked"
+>>>>>>> gestion-commande
 );
 #else  // !QT_MOC_HAS_STRINGDATA
 #error "qtmochelpers.h not found or too old."
@@ -52,7 +60,11 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSloginENDCLASS[] = {
       12,       // revision
        0,       // classname
        0,    0, // classinfo
+<<<<<<< HEAD
        3,   14, // methods
+=======
+       2,   14, // methods
+>>>>>>> gestion-commande
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -60,14 +72,22 @@ Q_CONSTINIT static const uint qt_meta_data_CLASSloginENDCLASS[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags, initial metatype offsets
+<<<<<<< HEAD
        1,    0,   32,    2, 0x08,    1 /* Private */,
        3,    0,   33,    2, 0x08,    2 /* Private */,
        4,    0,   34,    2, 0x08,    3 /* Private */,
+=======
+       1,    0,   26,    2, 0x08,    1 /* Private */,
+       3,    0,   27,    2, 0x08,    2 /* Private */,
+>>>>>>> gestion-commande
 
  // slots: parameters
     QMetaType::Void,
     QMetaType::Void,
+<<<<<<< HEAD
     QMetaType::Void,
+=======
+>>>>>>> gestion-commande
 
        0        // eod
 };
@@ -84,8 +104,11 @@ Q_CONSTINIT const QMetaObject login::staticMetaObject = { {
         // method 'on_btnLogin_clicked'
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_btnSignup_clicked'
+<<<<<<< HEAD
         QtPrivate::TypeAndForceComplete<void, std::false_type>,
         // method 'on_btnFaceId_clicked'
+=======
+>>>>>>> gestion-commande
         QtPrivate::TypeAndForceComplete<void, std::false_type>
     >,
     nullptr
@@ -99,7 +122,10 @@ void login::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void 
         switch (_id) {
         case 0: _t->on_btnLogin_clicked(); break;
         case 1: _t->on_btnSignup_clicked(); break;
+<<<<<<< HEAD
         case 2: _t->on_btnFaceId_clicked(); break;
+=======
+>>>>>>> gestion-commande
         default: ;
         }
     }
@@ -125,6 +151,7 @@ int login::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
+<<<<<<< HEAD
         if (_id < 3)
             qt_static_metacall(this, _c, _id, _a);
         _id -= 3;
@@ -132,6 +159,15 @@ int login::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         if (_id < 3)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
         _id -= 3;
+=======
+        if (_id < 2)
+            qt_static_metacall(this, _c, _id, _a);
+        _id -= 2;
+    } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        if (_id < 2)
+            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
+        _id -= 2;
+>>>>>>> gestion-commande
     }
     return _id;
 }

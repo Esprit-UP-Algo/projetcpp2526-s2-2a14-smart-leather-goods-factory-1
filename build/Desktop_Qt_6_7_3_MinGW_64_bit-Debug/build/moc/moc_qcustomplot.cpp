@@ -6,7 +6,11 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
+<<<<<<< HEAD
 #include "../../../../qcustomplot.h"
+=======
+#include "../../../../../../../../Downloads/projet2626/projet2626/qcustomplot.h"
+>>>>>>> gestion-commande
 #include <QtGui/qtextcursor.h>
 #include <QtGui/qscreen.h>
 #include <QtCore/qmetatype.h>

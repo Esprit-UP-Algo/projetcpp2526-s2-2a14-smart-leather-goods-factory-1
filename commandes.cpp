@@ -1,205 +1,33 @@
-#include "commandes.h" // Force recompile
+#include "commandes.h"
 #include "ui_commandes.h"
-#include "login.h"
-#include "pageemployee.h"
-#include "fournisseurs.h"
-#include "produitswindow.h"
-#include "matieres.h"
-#include "pagemachine.h"
+#include "ajout.h"
+#include "modifier.h"
 #include <QMessageBox>
-#include <QSqlError>
-#include <QSqlQuery>
-#include <QTableWidgetItem>
-#include <QPrinter>
-#include <QPainter>
 #include <QFileDialog>
+#include <QtPrintSupport/QPrinter>
+#include <QTextDocument>
 #include <QDateTime>
-#include <QDialog>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QFile>
-#include <QTextStream>
-#include <QFrame>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QDoubleSpinBox>
-#include <QDateEdit>
-#include <QLabel>
-#include <QGraphicsDropShadowEffect>
-#include <QHeaderView>
-#include <QDebug>
-#include <QPieSeries>
-#include <QPieSlice>
-#include <QChart>
-#include <QChartView>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QVariant>
 
-static const char* DIALOG_BASE_STYLE = R"(
-QDialog {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 #faf6f1, stop:0.5 #f0e8de, stop:1 #e8ddd0);
-    border: none;
-}
-QLabel#headerLabel {
-    color: #4a2517;
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: 2px;
-    padding: 8px 0;
-}
-QLabel#subHeaderLabel {
-    color: #8b6f5a;
-    font-size: 11px;
-    letter-spacing: 1px;
-    margin-bottom: 15px;
-}
-QLabel {
-    color: #5b3a28;
-    font-weight: 600;
-    font-size: 12px;
-    background: transparent;
-}
-QLabel#errorLabel {
-    color: #c0392b;
-    font-size: 11px;
-    font-weight: 600;
-    font-style: italic;
-    background: transparent;
-    padding: 0 2px;
-}
-QLineEdit, QDoubleSpinBox, QDateEdit, QComboBox, QSpinBox {
-    background-color: rgba(255, 255, 255, 0.85);
-    border: 2px solid #d4c4b0;
-    border-radius: 12px;
-    padding: 10px 14px;
-    color: #3a2a20;
-    font-size: 13px;
-    selection-background-color: #c9a87c;
-}
-QLineEdit:focus, QDoubleSpinBox:focus, QDateEdit:focus, QComboBox:focus, QSpinBox:focus {
-    border: 2px solid #8b6f5a;
-    background-color: white;
-}
-QLineEdit[error="true"] { border: 2px solid #e74c3c; background-color: #fdf2f2; }
-QComboBox::drop-down { border: none; padding-right: 10px; }
-QComboBox QAbstractItemView {
-    background-color: #faf6f1; border: 2px solid #d4c4b0; border-radius: 8px;
-    selection-background-color: #c9a87c; padding: 4px; color: #3a2a20;
-}
-)";
-
-static const char* BTN_SAVE_GREEN = R"(
-QPushButton#btnSave {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6d9b3a, stop:1 #8fb85a);
-    border: none; border-radius: 14px; padding: 12px 28px;
-    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
-}
-QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #7dab4a, stop:1 #9fc86a); }
-QPushButton#btnSave:pressed { background: #5a8a2a; }
-QPushButton#btnCancel {
-    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
-    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
-}
-QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
-)";
-
-static const char* BTN_SAVE_AMBER = R"(
-QPushButton#btnSave {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c47a2c, stop:1 #e09a4c);
-    border: none; border-radius: 14px; padding: 12px 28px;
-    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
-}
-QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #d48a3c, stop:1 #f0aa5c); }
-QPushButton#btnSave:pressed { background: #b06a1c; }
-QPushButton#btnCancel {
-    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
-    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
-}
-QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
-)";
-
-
-static QFrame* createSeparator() {
-    QFrame* line = new QFrame();
-    line->setFrameShape(QFrame::HLine);
-    line->setStyleSheet("background-color: #d4c4b0; max-height: 1px; margin: 8px 0;");
-    return line;
-}
-static void addShadow(QWidget* w, int blur = 20, int offsetY = 4) {
-    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(w);
-    shadow->setBlurRadius(blur); shadow->setOffset(0, offsetY); shadow->setColor(QColor(0,0,0,40));
-    w->setGraphicsEffect(shadow);
-}
-static void setFieldError(QLineEdit* field, QLabel* errorLabel, bool hasError, const QString& msg = "") {
-    field->setProperty("error", hasError);
-    field->style()->unpolish(field); field->style()->polish(field);
-    errorLabel->setText(hasError ? "⚠ " + msg : "");
-    errorLabel->setVisible(hasError);
-}
-
-commandes::commandes(int idEmploye, QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::commandes)
-    , m_idEmploye(idEmploye)
+commandes::commandes(QWidget *parent)
+    : QMainWindow(parent), ui(new Ui::commandes)
 {
     ui->setupUi(this);
-    if (ui->groupBox_2) ui->groupBox_2->hide();
 
-    // Premium Sidebar Setup
-    QString navBtnStyle =
-        "QPushButton {"
-        "  background: transparent; border: none; color: #c9b8a5;"
-        "  text-align: left; padding-left: 20px; font-size: 14px; font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "  background-color: rgba(255, 255, 255, 0.1); color: white; border-left: 4px solid #c9a87c;"
-        "}";
+    // 1. Setup UI defaults
+    ui->dateEdit_commande->setDate(QDate::currentDate());
 
-    QWidget *sidebar = new QWidget(this);
-    sidebar->setGeometry(0, 0, 240, 900); 
-    sidebar->setStyleSheet("background-color: #3a1f14;");
+    // 2. Load the data
+    loadAllCommandes();
 
-    // Smart Leather Logo on Sidebar
-    QLabel *logoLab = new QLabel(sidebar); // Parent to sidebar
-    logoLab->setGeometry(20, 10, 211, 121);
-    logoLab->setPixmap(QPixmap(":/Logo.png"));
-    logoLab->setScaledContents(true);
-    logoLab->show();
-    logoLab->raise();
-    
-    QVBoxLayout *navLayout = new QVBoxLayout(sidebar);
-    navLayout->setContentsMargins(0, 160, 0, 20);
-    navLayout->setSpacing(5);
+    // 3. Connect signals AFTER loading to avoid flickering
+    connect(ui->lineEdit_5, &QLineEdit::textChanged, this, &commandes::applyFilters);
+    connect(ui->dateEdit_commande, &QDateEdit::dateChanged, this, &commandes::applyFilters);
 
-    auto addNavBtn = [&](const QString &txt, const char* slot, bool active = false) {
-        QPushButton *btn = new QPushButton("  " + txt);
-        btn->setMinimumHeight(45);
-        if (active) {
-            btn->setStyleSheet(navBtnStyle + "QPushButton { background-color: rgba(255,255,255,0.1); color:white; border-left:4px solid #c9a87c; }");
-        } else {
-            btn->setStyleSheet(navBtnStyle);
-            connect(btn, SIGNAL(clicked()), this, slot);
-        }
-        navLayout->addWidget(btn);
-        return btn;
-    };
-
-    addNavBtn("Employés", SLOT(on_pushButton_11_clicked()));
-    addNavBtn("Produits", SLOT(on_pushButton_21_clicked()));
-    addNavBtn("Commandes", nullptr, true);
-    addNavBtn("Fournisseurs", SLOT(on_pushButton_12_clicked()));
-    addNavBtn("Matières", SLOT(on_pushButton_22_clicked()));
-    addNavBtn("Machines", SLOT(on_pushButton_23_clicked()));
-
-    navLayout->addStretch();
-    addNavBtn("Déconnexion", SLOT(on_pushButton_5_clicked()));
-    
-    sidebar->raise();
-    sidebar->show();
-
-    setupTable();
-    loadCommandes();
-    setupSearch();
-
+    ui->tableWidget->setSortingEnabled(true);
+    ui->tableWidget->sortItems(4, Qt::AscendingOrder);
 }
 
 commandes::~commandes()
@@ -207,198 +35,83 @@ commandes::~commandes()
     delete ui;
 }
 
-void commandes::setupTable()
-{
-    ui->tableWidget->setColumnCount(9);
-    QStringList headers = {"ID", "Réf", "Client", "Adresse", "Date C.", "Livraison P.", "Montant", "Paiement", "État"};
-    ui->tableWidget->setHorizontalHeaderLabels(headers);
-    ui->tableWidget->horizontalHeader()->setVisible(true); // Force visibility
-    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->tableWidget->setAlternatingRowColors(true);
-    ui->tableWidget->setSortingEnabled(true);
-    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    ui->tableWidget->verticalHeader()->setVisible(false);
+void commandes::on_pushButton_clicked() {
+    Ajout dialog(this);
 
-    // Premium Styling for Table
-    ui->tableWidget->setStyleSheet(
-        "QTableWidget { background: white; border: 2px solid #c9b8a5; border-radius: 16px; gridline-color: #f5eee6; "
-        "selection-background-color: #f5eee6; selection-color: #3a1f14; }"
-    );
-
-    // Premium Styling for Horizontal Header
-    ui->tableWidget->horizontalHeader()->setStyleSheet(
-        "QHeaderView::section {"
-        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5b3020, stop:0.5 #4a2517, stop:1 #3a1a10);"
-        "    color: #f5efe8; padding: 10px; border: none; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
-        "}"
-    );
-}
-
-void commandes::loadCommandes()
-{
-    ui->tableWidget->setRowCount(0);
-    QSqlQuery query;
-    if (!query.exec("SELECT ID_COMMANDE, REF, NOM_CLIENT, ADRESSE_LIVRAISON, TO_CHAR(DATE_COMMANDE, 'DD/MM/YYYY'), "
-                    "TO_CHAR(DATE_LIVRAISON_PREVUE, 'DD/MM/YYYY'), MONTANT_TOTAL, MODE_PAIEMENT, ETAT_COMMANDE "
-                    "FROM SMARTLEATHER.COMMANDE")) {
-        qDebug() << "Erreur loadCommandes:" << query.lastError().text();
-        return;
-    }
-
-    while (query.next()) {
-        int row = ui->tableWidget->rowCount();
-        ui->tableWidget->insertRow(row);
-        for (int col = 0; col < 9; col++) {
-            QString text = query.value(col).toString();
-            if (col == 6) text += " DT";
-            QTableWidgetItem *item = new QTableWidgetItem(text);
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->tableWidget->setItem(row, col, item);
+    while (dialog.exec() == QDialog::Accepted) {
+        QString reference = dialog.getReference().trimmed();
+        
+        if (reference.isEmpty()) {
+            QMessageBox::warning(this, "Validation", "La référence ne peut pas être vide.");
+            continue;
         }
-    }
-    updateTableColors();
-}
 
-void commandes::updateTableColors()
-{
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        QTableWidgetItem *etatItem = ui->tableWidget->item(row, 8);
-        if (!etatItem) continue;
-        QString etat = etatItem->text();
-        if (etat == "Livrée") { etatItem->setBackground(QColor(200, 255, 200)); etatItem->setForeground(QColor(0, 100, 0)); }
-        else if (etat == "Annulée") { etatItem->setBackground(QColor(255, 200, 200)); etatItem->setForeground(QColor(139, 0, 0)); }
-        else if (etat == "En attente") { etatItem->setBackground(QColor(255, 255, 200)); etatItem->setForeground(QColor(128, 128, 0)); }
-        else if (etat == "En cours") { etatItem->setBackground(QColor(200, 230, 255)); etatItem->setForeground(QColor(0, 0, 139)); }
-    }
-}
-
-// ═══════════════════════════════════════════════
-//   AJOUTER COMMANDE
-// ═══════════════════════════════════════════════
-void commandes::on_pushButton_clicked()
-{
-    QDialog dialog(this);
-    dialog.setWindowTitle("Nouvelle Commande");
-    dialog.setFixedSize(440, 680);
-
-    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
-    mainLayout->setContentsMargins(32, 24, 32, 20);
-    mainLayout->setSpacing(4);
-
-    QLabel *header = new QLabel("✦ NOUVELLE COMMANDE");
-    header->setObjectName("headerLabel");
-    header->setAlignment(Qt::AlignCenter);
-    mainLayout->addWidget(header);
-    mainLayout->addWidget(createSeparator());
-
-    QLineEdit *refEdit = new QLineEdit();
-    refEdit->setPlaceholderText("ex: CMD-2026-001");
-    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
-
-    QLineEdit *clientEdit = new QLineEdit();
-    clientEdit->setPlaceholderText("ex: Maison du Cuir");
-    QLabel *clientError = new QLabel(); clientError->setObjectName("errorLabel"); clientError->setVisible(false);
-
-    QLineEdit *adresseEdit = new QLineEdit();
-    adresseEdit->setPlaceholderText("ex: 12 Rue de Paris");
-    QLabel *addrError = new QLabel(); addrError->setObjectName("errorLabel"); addrError->setVisible(false);
-
-    QDoubleSpinBox *montantSpin = new QDoubleSpinBox();
-    montantSpin->setRange(0, 9999999);
-    montantSpin->setValue(0.0);
-    montantSpin->setDecimals(2);
-    montantSpin->setSuffix(" DT");
-
-    QComboBox *etatCombo = new QComboBox();
-    etatCombo->addItems({"En attente", "En cours", "Livrée", "Annulée"});
-
-    QComboBox *modeCombo = new QComboBox();
-    modeCombo->addItems({"Espèces", "Virement", "Chèque", "Carte"});
-
-    QDateEdit *dateCmdEdit = new QDateEdit(QDate::currentDate());
-    dateCmdEdit->setDisplayFormat("dd/MM/yyyy");
-    dateCmdEdit->setCalendarPopup(true);
-
-    QDateEdit *dateLivEdit = new QDateEdit(QDate::currentDate().addDays(7));
-    dateLivEdit->setDisplayFormat("dd/MM/yyyy");
-    dateLivEdit->setCalendarPopup(true);
-
-    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
-    mainLayout->addWidget(new QLabel("NOM CLIENT")); mainLayout->addWidget(clientEdit); mainLayout->addWidget(clientError);
-    mainLayout->addWidget(new QLabel("ADRESSE LIVRAISON")); mainLayout->addWidget(adresseEdit); mainLayout->addWidget(addrError);
-    mainLayout->addWidget(new QLabel("MONTANT TOTAL")); mainLayout->addWidget(montantSpin);
-    
-    QHBoxLayout *comboLayout = new QHBoxLayout();
-    QVBoxLayout *eCol = new QVBoxLayout(); eCol->addWidget(new QLabel("ÉTAT")); eCol->addWidget(etatCombo);
-    QVBoxLayout *mCol = new QVBoxLayout(); mCol->addWidget(new QLabel("PAIEMENT")); mCol->addWidget(modeCombo);
-    comboLayout->addLayout(eCol); comboLayout->addLayout(mCol);
-    mainLayout->addLayout(comboLayout);
-
-    QHBoxLayout *dateLayout = new QHBoxLayout();
-    QVBoxLayout *cCol = new QVBoxLayout(); cCol->addWidget(new QLabel("DATE COMMANDE")); cCol->addWidget(dateCmdEdit);
-    QVBoxLayout *lCol = new QVBoxLayout(); lCol->addWidget(new QLabel("DATE LIVR. PRÉVUE")); lCol->addWidget(dateLivEdit);
-    dateLayout->addLayout(cCol); dateLayout->addLayout(lCol);
-    mainLayout->addLayout(dateLayout);
-
-    mainLayout->addSpacing(10);
-    mainLayout->addWidget(createSeparator());
-
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    QPushButton *btnSave = new QPushButton("  ✓  ENREGISTRER  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
-    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
-    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel);
-    mainLayout->addLayout(btnLayout);
-
-    auto validateAll = [&]() {
-        bool allOk = true;
-        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
-        if (clientEdit->text().trimmed().isEmpty()) { setFieldError(clientEdit, clientError, true, "Obligatoire"); allOk = false; } else setFieldError(clientEdit, clientError, false);
-        if (adresseEdit->text().trimmed().isEmpty()) { setFieldError(adresseEdit, addrError, true, "Obligatoire"); allOk = false; } else setFieldError(adresseEdit, addrError, false);
-        btnSave->setEnabled(allOk); return allOk;
-    };
-    btnSave->setEnabled(false);
-    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
-    QObject::connect(clientEdit, &QLineEdit::textChanged, validateAll);
-    QObject::connect(adresseEdit, &QLineEdit::textChanged, validateAll);
-    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
-    connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
-
-    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_GREEN);
-
-    if (dialog.exec() == QDialog::Accepted) {
-        QSqlQuery query;
-        query.prepare("INSERT INTO SMARTLEATHER.COMMANDE (ID_COMMANDE, REF, NOM_CLIENT, ADRESSE_LIVRAISON, MONTANT_TOTAL, ETAT_COMMANDE, MODE_PAIEMENT, DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ID_EMPLOYE) "
-                      "VALUES (SMARTLEATHER.SEQ_COMMANDE.NEXTVAL, :ref, :client, :addr, :montant, :etat, :mode, :datec, :datel, :idemp)");
-        query.bindValue(":ref", refEdit->text().trimmed());
-        query.bindValue(":client", clientEdit->text().trimmed());
-        query.bindValue(":addr", adresseEdit->text().trimmed());
-        query.bindValue(":montant", montantSpin->value());
-        query.bindValue(":etat", etatCombo->currentText());
-        query.bindValue(":mode", modeCombo->currentText());
-        query.bindValue(":datec", dateCmdEdit->date());
-        query.bindValue(":datel", dateLivEdit->date());
-        query.bindValue(":idemp", m_idEmploye);
-
-        if (query.exec()) {
-            QMessageBox::information(this, "Succès", "Commande ajoutée !");
-            loadCommandes();
-        } else {
-            QString err = query.lastError().text();
-            if (err.contains("ORA-00001")) {
-                QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
-            } else {
-                QMessageBox::critical(this, "Erreur", "L'ajout a échoué.\nErreur technique: " + err.split('\n').first());
+        QSqlQuery checkQuery;
+        checkQuery.prepare("SELECT COUNT(*) FROM COMMANDE WHERE REFERENCE = :ref");
+        checkQuery.bindValue(":ref", reference);
+        
+        if (checkQuery.exec() && checkQuery.next()) {
+            if (checkQuery.value(0).toInt() > 0) {
+                QMessageBox::critical(this, "Doublon", "Erreur : Cette référence existe déjà.");
+                continue;
             }
         }
+
+        QString client = dialog.getClient();
+        QString address = dialog.getAddress();
+        QDateTime dateCmd = dialog.getDateOrder();
+        QDateTime dateLiv = dialog.getDateDelivery(); // This is the delivery date
+        QString etat = dialog.getStatus();
+        QString montant = dialog.getAmount();
+        QString modePaiement = ""; 
+
+        QSqlQuery q;
+        q.prepare("INSERT INTO COMMANDE "
+                  "(ID_COMMANDE, REFERENCE, NOM_CLIENT, ADRESSE_LIVRAISON, "
+                  " DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT) "
+                  "VALUES (SEQ_COMMANDE.NEXTVAL, :ref, :nom, :addr, :datecmd, :dateliv, :etat, :montant, :mode)");
+        q.bindValue(":ref", reference);
+        q.bindValue(":nom", client);
+        q.bindValue(":addr", address);
+        q.bindValue(":datecmd", dateCmd);
+        q.bindValue(":dateliv", dateLiv);
+        q.bindValue(":etat", etat);
+        q.bindValue(":montant", montant);
+        q.bindValue(":mode", modePaiement);
+
+        if (!q.exec()) {
+            QMessageBox::critical(this, "Erreur d'insertion", q.lastError().text());
+            continue; 
+        }
+
+        QString id;
+        QSqlQuery qid("SELECT SEQ_COMMANDE.CURRVAL FROM DUAL");
+        if (qid.next()) id = qid.value(0).toString();
+
+        // --- BUG FIX: Disable sorting while adding items ---
+        ui->tableWidget->setSortingEnabled(false);
+
+        int row = ui->tableWidget->rowCount();
+        ui->tableWidget->insertRow(row);
+        ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
+        ui->tableWidget->setItem(row, 1, new QTableWidgetItem(reference));
+        ui->tableWidget->setItem(row, 2, new QTableWidgetItem(client));
+        ui->tableWidget->setItem(row, 3, new QTableWidgetItem(address));
+        ui->tableWidget->setItem(row, 4, new QTableWidgetItem(dateCmd.date().toString("yyyy-MM-dd")));
+        ui->tableWidget->setItem(row, 5, new QTableWidgetItem(dateLiv.date().toString("yyyy-MM-dd"))); // date_prev
+        ui->tableWidget->setItem(row, 6, new QTableWidgetItem(etat));
+        ui->tableWidget->setItem(row, 7, new QTableWidgetItem(montant));
+        ui->tableWidget->setItem(row, 8, new QTableWidgetItem(modePaiement));
+
+        ui->tableWidget->setSortingEnabled(true);
+        // --- END BUG FIX ---
+
+        applyFilters(); // Re-apply filters so the new row is visible if it matches
+        QMessageBox::information(this, "Succès", "Commande ajoutée avec succès !");
+        break; 
     }
 }
-
-// ═══════════════════════════════════════════════
-//   MODIFIER COMMANDE
-// ═══════════════════════════════════════════════
-void commandes::on_pushButton_2_clicked()
-{
+void commandes::on_pushButton_2_clicked() {
     int currentRow = ui->tableWidget->currentRow();
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une commande à modifier.");
@@ -406,211 +119,279 @@ void commandes::on_pushButton_2_clicked()
     }
 
     QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString ref = ui->tableWidget->item(currentRow, 1)->text();
     QString client = ui->tableWidget->item(currentRow, 2)->text();
-    QString addr = ui->tableWidget->item(currentRow, 3)->text();
-    QString dateCStr = ui->tableWidget->item(currentRow, 4)->text();
-    QString dateLStr = ui->tableWidget->item(currentRow, 5)->text();
-    QString montantStr = ui->tableWidget->item(currentRow, 6)->text().replace(" DT", "").trimmed();
-    QString paiement = ui->tableWidget->item(currentRow, 7)->text();
-    QString etat = ui->tableWidget->item(currentRow, 8)->text();
+    QString address = ui->tableWidget->item(currentRow, 3)->text();
+    QString dateCmdStr = ui->tableWidget->item(currentRow, 4)->text();
+    QString dateLivStr = ui->tableWidget->item(currentRow, 5)->text();
+    QString amount = ui->tableWidget->item(currentRow, 7)->text();
 
-    QDialog dialog(this);
-    dialog.setWindowTitle("Modifier Commande");
-    dialog.setFixedSize(440, 680);
-
-    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
-    mainLayout->setContentsMargins(32, 24, 32, 20);
-    mainLayout->setSpacing(4);
-
-    QLabel *header = new QLabel("✎ MODIFIER COMMANDE");
-    header->setObjectName("headerLabel"); header->setAlignment(Qt::AlignCenter); mainLayout->addWidget(header);
-    mainLayout->addWidget(createSeparator());
-
-    QLineEdit *refEdit = new QLineEdit(ref);
-    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
-    QLineEdit *clientEdit = new QLineEdit(client);
-    QLabel *clientError = new QLabel(); clientError->setObjectName("errorLabel"); clientError->setVisible(false);
-    QLineEdit *adresseEdit = new QLineEdit(addr);
-    QLabel *addrError = new QLabel(); addrError->setObjectName("errorLabel"); addrError->setVisible(false);
-
-    QDoubleSpinBox *montantSpin = new QDoubleSpinBox(); montantSpin->setRange(0, 9999999);
-    montantSpin->setValue(montantStr.toDouble()); montantSpin->setDecimals(2); montantSpin->setSuffix(" DT");
-
-    QComboBox *etatCombo = new QComboBox(); etatCombo->addItems({"En attente", "En cours", "Livrée", "Annulée"});
-    etatCombo->setCurrentText(etat);
-    QComboBox *modeCombo = new QComboBox(); modeCombo->addItems({"Espèces", "Virement", "Chèque", "Carte"});
-    modeCombo->setCurrentText(paiement);
-
-    QDateEdit *dateCmdEdit = new QDateEdit(QDate::fromString(dateCStr, "dd/MM/yyyy")); dateCmdEdit->setDisplayFormat("dd/MM/yyyy"); dateCmdEdit->setCalendarPopup(true);
-    QDateEdit *dateLivEdit = new QDateEdit(QDate::fromString(dateLStr, "dd/MM/yyyy")); dateLivEdit->setDisplayFormat("dd/MM/yyyy"); dateLivEdit->setCalendarPopup(true);
-
-    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
-    mainLayout->addWidget(new QLabel("NOM CLIENT")); mainLayout->addWidget(clientEdit); mainLayout->addWidget(clientError);
-    mainLayout->addWidget(new QLabel("ADRESSE LIVRAISON")); mainLayout->addWidget(adresseEdit); mainLayout->addWidget(addrError);
-    mainLayout->addWidget(new QLabel("MONTANT TOTAL")); mainLayout->addWidget(montantSpin);
+    Modifier dialog(this);
+    dialog.setInitialData(id, client, address, amount);
     
-    QHBoxLayout *coLayout = new QHBoxLayout();
-    QVBoxLayout *coC1 = new QVBoxLayout(); coC1->addWidget(new QLabel("ÉTAT")); coC1->addWidget(etatCombo);
-    QVBoxLayout *coC2 = new QVBoxLayout(); coC2->addWidget(new QLabel("PAIEMENT")); coC2->addWidget(modeCombo);
-    coLayout->addLayout(coC1); coLayout->addLayout(coC2); mainLayout->addLayout(coLayout);
-
-    QHBoxLayout *dtLayout = new QHBoxLayout();
-    QVBoxLayout *dtC1 = new QVBoxLayout(); dtC1->addWidget(new QLabel("DATE COMMANDE")); dtC1->addWidget(dateCmdEdit);
-    QVBoxLayout *dtC2 = new QVBoxLayout(); dtC2->addWidget(new QLabel("LIVRAISON")); dtC2->addWidget(dateLivEdit);
-    dtLayout->addLayout(dtC1); dtLayout->addLayout(dtC2); mainLayout->addLayout(dtLayout);
-
-    mainLayout->addSpacing(10); mainLayout->addWidget(createSeparator());
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    QPushButton *btnSave = new QPushButton("  ✓  METTRE À JOUR  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
-    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
-    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel); mainLayout->addLayout(btnLayout);
-
-    auto validateAll = [&]() {
-        bool allOk = true;
-        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
-        if (clientEdit->text().trimmed().isEmpty()) { setFieldError(clientEdit, clientError, true, "Obligatoire"); allOk = false; } else setFieldError(clientEdit, clientError, false);
-        if (adresseEdit->text().trimmed().isEmpty()) { setFieldError(adresseEdit, addrError, true, "Obligatoire"); allOk = false; } else setFieldError(adresseEdit, addrError, false);
-        btnSave->setEnabled(allOk); return allOk;
-    };
-    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
-    QObject::connect(clientEdit, &QLineEdit::textChanged, validateAll);
-    QObject::connect(adresseEdit, &QLineEdit::textChanged, validateAll);
-    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject); connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
-
-    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_AMBER);
+    QDate dateCmd = QDate::fromString(dateCmdStr, "yyyy-MM-dd");
+    QDate dateLiv = QDate::fromString(dateLivStr, "yyyy-MM-dd");
+    dialog.setDates(QDateTime(dateCmd, QTime(0,0)), QDateTime(dateLiv, QTime(0,0)));
 
     if (dialog.exec() == QDialog::Accepted) {
-        QSqlQuery query;
-        query.prepare("UPDATE SMARTLEATHER.COMMANDE SET REF=:ref, NOM_CLIENT=:client, ADRESSE_LIVRAISON=:addr, "
-                      "MONTANT_TOTAL=:montant, ETAT_COMMANDE=:etat, MODE_PAIEMENT=:mode, DATE_COMMANDE=:datec, DATE_LIVRAISON_PREVUE=:datel WHERE ID_COMMANDE=:id");
-        query.bindValue(":ref", refEdit->text().trimmed());
-        query.bindValue(":client", clientEdit->text().trimmed());
-        query.bindValue(":addr", adresseEdit->text().trimmed());
-        query.bindValue(":montant", montantSpin->value());
-        query.bindValue(":etat", etatCombo->currentText());
-        query.bindValue(":mode", modeCombo->currentText());
-        query.bindValue(":datec", dateCmdEdit->date());
-        query.bindValue(":datel", dateLivEdit->date());
-        query.bindValue(":id", id);
-            if (query.exec()) {
-                QMessageBox::information(this, "Succès", "Commande mise à jour !");
-                loadCommandes();
-            } else {
-                QString err = query.lastError().text();
-                if (err.contains("ORA-00001")) {
-                    QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
-                } else {
-                    QMessageBox::critical(this, "Erreur", "La modification a échoué.\nErreur technique: " + err.split('\n').first());
-                }
-            }
+        QSqlQuery q;
+        q.prepare("UPDATE COMMANDE SET "
+                  "NOM_CLIENT = :nom, ADRESSE_LIVRAISON = :addr, "
+                  "DATE_LIVRAISON_PREVUE = :dateliv, ETAT_COMMANDE = :etat, "
+                  "MONTANT_TOTAL = :montant "
+                  "WHERE ID_COMMANDE = :id");
+        q.bindValue(":nom", dialog.getClient());
+        q.bindValue(":addr", dialog.getAddress());
+        q.bindValue(":dateliv", dialog.getDateDelivery());
+        q.bindValue(":etat", dialog.getStatus());
+        q.bindValue(":montant", dialog.getAmount());
+        q.bindValue(":id", id);
+
+        if (!q.exec()) {
+            QMessageBox::critical(this, "Erreur", q.lastError().text());
+            return;
+        }
+
+        // --- BUG FIX: Disable sorting while updating items ---
+        ui->tableWidget->setSortingEnabled(false);
+
+        ui->tableWidget->item(currentRow, 2)->setText(dialog.getClient());
+        ui->tableWidget->item(currentRow, 3)->setText(dialog.getAddress());
+        ui->tableWidget->item(currentRow, 5)->setText(dialog.getDateDelivery().date().toString("yyyy-MM-dd"));
+        ui->tableWidget->item(currentRow, 6)->setText(dialog.getStatus());
+        ui->tableWidget->item(currentRow, 7)->setText(dialog.getAmount());
+
+        ui->tableWidget->setSortingEnabled(true);
+        // --- END BUG FIX ---
+
+        applyFilters(); 
+        QMessageBox::information(this, "Succès", "Commande mise à jour !");
     }
+}
+
+void commandes::loadAllCommandes() {
+    // 1. Completely block sorting and signals during load
+    ui->tableWidget->setSortingEnabled(false);
+    ui->tableWidget->blockSignals(true); 
+    ui->tableWidget->setRowCount(0);
+
+    QSqlQuery q;
+    // Removed ORDER BY because the QTableWidget sorting handles the view
+    if (!q.exec("SELECT ID_COMMANDE, REFERENCE, NOM_CLIENT, ADRESSE_LIVRAISON, "
+                "DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT "
+                "FROM COMMANDE")) {
+        QMessageBox::critical(this, "Erreur SQL", q.lastError().text());
+        ui->tableWidget->blockSignals(false);
+        ui->tableWidget->setSortingEnabled(true);
+        return;
+    }
+
+    int rowCount = 0;
+    while (q.next()) {
+        ui->tableWidget->insertRow(rowCount);
+
+        auto fmtDate = [](const QVariant &v) -> QString {
+            if (v.isNull()) return "";
+            QDateTime dt = v.toDateTime();
+            if (dt.isValid()) return dt.date().toString("yyyy-MM-dd");
+            QDate d = v.toDate();
+            if (d.isValid()) return d.toString("yyyy-MM-dd");
+            return v.toString();
+        };
+
+        ui->tableWidget->setItem(rowCount, 0, new QTableWidgetItem(q.value(0).toString()));
+        ui->tableWidget->setItem(rowCount, 1, new QTableWidgetItem(q.value(1).toString()));
+        ui->tableWidget->setItem(rowCount, 2, new QTableWidgetItem(q.value(2).toString()));
+        ui->tableWidget->setItem(rowCount, 3, new QTableWidgetItem(q.value(3).toString()));
+        ui->tableWidget->setItem(rowCount, 4, new QTableWidgetItem(fmtDate(q.value(4))));
+        ui->tableWidget->setItem(rowCount, 5, new QTableWidgetItem(fmtDate(q.value(5))));
+        ui->tableWidget->setItem(rowCount, 6, new QTableWidgetItem(q.value(6).toString()));
+        ui->tableWidget->setItem(rowCount, 7, new QTableWidgetItem(q.value(7).toString()));
+        ui->tableWidget->setItem(rowCount, 8, new QTableWidgetItem(q.value(8).toString()));
+        
+        rowCount++;
+    }
+
+    ui->tableWidget->blockSignals(false);
+    ui->tableWidget->setSortingEnabled(true);
+
+    // IMPORTANT: Only apply filters if there is text in the search box or the user changed the date
+    // If you want to see EVERYTHING on start, comment out the next line:
+    applyFilters(); 
+}
+
+void commandes::on_pushButton_7_clicked() {
+    int currentRow = ui->tableWidget->currentRow();
+    if (currentRow < 0) {
+        QMessageBox::warning(this, "Export PDF", "Veuillez sélectionner une commande.");
+        return;
+    }
+
+    // Extract fields with safe checks
+    auto getText = [&](int col) -> QString {
+        QTableWidgetItem *it = ui->tableWidget->item(currentRow, col);
+        return it ? it->text() : QString();
+    };
+
+    QString id = getText(0);
+    QString reference = getText(1);
+    QString client = getText(2);
+    QString address = getText(3);
+    QString dateCommande = getText(4);
+    QString dateLivraison = getText(5);
+    QString etat = getText(6);
+    QString montant = getText(7);
+    QString modePaiement = getText(8);
+
+    QString html;
+    html += "<!DOCTYPE html><html><head><meta charset='utf-8'/>";
+    html += "<style>";
+    html += "body { font-family: 'Segoe UI', Arial, sans-serif; color: #3a2a20; }";
+    html += "h1 { color: #5b2f1d; text-align: center; font-size: 26pt; margin: 20px 0; }";
+    html += "th { background-color: #6b3e26; color: #fffaf5; font-weight: bold; padding: 12px; text-align: left; font-size: 12pt; border: 1px solid #6b3e26;}";
+    html += "td { padding: 12px; border: 1px solid #b08a6b; font-size: 12pt; }";
+    html += ".brand-title { font-size: 32pt; font-weight: bold; color: #5b2f1d; }";
+    html += ".meta-info { font-size: 14pt; color: #6b3e26; text-align: right; }";
+    html += "</style></head><body>";
+    
+    // Header
+    html += "<table width='100%' style='border: none; margin-bottom: 20px;'><tr>";
+    html += "<td style='border: none; text-align: left;'><span class='brand-title'>SmartLeather</span><br/><span style='color: #a47148; font-size: 16pt; font-weight: bold;'>FACTURE PREMIUM</span></td>";
+    html += "<td style='border: none; text-align: right;' class='meta-info'><b>Émise le :</b> " + QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm") + "<br/><b>N° Facture :</b> " + (reference.isEmpty() ? id : reference) + "</td>";
+    html += "</tr></table>";
+    
+    html += "<hr style='color: #b08a6b; background-color: #b08a6b; height: 4px; border: none; margin-bottom: 30px;' />";
+    
+    html += "<h1>Détails de la commande</h1>";
+    
+    // Data Table
+    html += "<table width='100%' cellspacing='0' cellpadding='10' style='border-collapse: collapse; margin-top: 20px;'>";
+    html += "<tr><th width='40%'>Champ</th><th width='60%'>Valeur</th></tr>";
+    html += "<tr><td><b>ID Commande</b></td><td>" + id + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Référence</b></td><td style='background-color:#fcf7f2;'>" + reference + "</td></tr>";
+    html += "<tr><td><b>Client</b></td><td>" + client + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Adresse</b></td><td style='background-color:#fcf7f2;'>" + address + "</td></tr>";
+    html += "<tr><td><b>Date de Commande</b></td><td>" + dateCommande + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Date de Livraison Prévue</b></td><td style='background-color:#fcf7f2;'>" + dateLivraison + "</td></tr>";
+    html += "<tr><td><b>État</b></td><td>" + etat + "</td></tr>";
+    html += "<tr><td style='background-color:#fcf7f2;'><b>Mode de Paiement</b></td><td style='background-color:#fcf7f2;'>" + modePaiement + "</td></tr>";
+    html += "</table>";
+    
+    // Totals Table
+    html += "<br/><br/><br/>";
+    html += "<table width='100%' style='border: none;'><tr><td width='50%' style='border: none;'></td><td width='50%' style='border: none;'>";
+    html += "<table width='100%' cellspacing='0' cellpadding='10' style='border: 2px solid #6b3e26; border-collapse: collapse;'>";
+    html += "<tr><td style='font-weight: bold; font-size: 14pt; background-color: #e9dccf; border: 1px solid #6b3e26;'>Sous-total</td><td style='text-align: right; font-size: 14pt; background-color: #e9dccf; border: 1px solid #6b3e26;'>" + montant + "</td></tr>";
+    html += "<tr><td style='font-weight: bold; font-size: 16pt; color: #fffaf5; background-color: #6b3e26; border: 1px solid #6b3e26;'>Total TTC</td><td style='font-weight: bold; font-size: 16pt; color: #fffaf5; background-color: #6b3e26; text-align: right; border: 1px solid #6b3e26;'>" + montant + "</td></tr>";
+    html += "</table>";
+    html += "</td></tr></table>";
+    
+    html += "<br/><br/><br/><br/>";
+    html += "<p style='text-align: center; color: #a47148; font-style: italic; font-size: 14pt; font-weight: bold;'>SmartLeather - L'excellence du cuir premium.<br/>Merci pour votre confiance.</p>";
+    
+    html += "</body></html>";
+
+    QString defaultName = "facture_" + (reference.isEmpty() ? id : reference) + ".pdf";
+    QString fileName = QFileDialog::getSaveFileName(this, "Enregistrer la facture", defaultName, "PDF Files (*.pdf)");
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    QPrinter printer(QPrinter::PrinterMode::HighResolution);
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(fileName);
+    printer.setPageMargins(QMarginsF(12, 12, 12, 12));
+
+    QTextDocument doc;
+    doc.setHtml(html);
+    doc.print(&printer);
+
+    QMessageBox::information(this, "Export PDF", "Facture exportée: " + fileName);
+}
+
+// make sure u have this in database
+// CREATE SEQUENCE SEQ_COMMANDE START WITH 1 INCREMENT BY 1 NOCACHE;
+
+void commandes::filterByReference(const QString &query) {
+    for (int r = 0; r < ui->tableWidget->rowCount(); ++r) {
+        QTableWidgetItem *refItem = ui->tableWidget->item(r, 1);
+        bool match = refItem && refItem->text().contains(query, Qt::CaseInsensitive);
+        ui->tableWidget->setRowHidden(r, !query.isEmpty() ? !match : false);
+    }
+}
+
+void commandes::applyFilters() {
+    QString refQuery = ui->lineEdit_5->text().trimmed();
+    QDate dateQuery = ui->dateEdit_commande->date();
+
+    for (int r = 0; r < ui->tableWidget->rowCount(); ++r) {
+        // Reference Match
+        QTableWidgetItem *refItem = ui->tableWidget->item(r, 1);
+        bool refMatch = refItem && refItem->text().contains(refQuery, Qt::CaseInsensitive);
+
+        // Date Match
+        QTableWidgetItem *dateItem = ui->tableWidget->item(r, 4);
+        QDate rowDate = QDate::fromString(dateItem ? dateItem->text() : "", "yyyy-MM-dd");
+        bool dateMatch = (rowDate == dateQuery);
+
+        // If you want the search to only filter by date IF the user interacts with it, 
+        // you would add more logic here. 
+        // Currently: Row is visible ONLY if it matches the reference AND matches the date box.
+        bool visible = (refQuery.isEmpty() || refMatch) && dateMatch;
+        
+        ui->tableWidget->setRowHidden(r, !visible);
+    }
+}
+
+// Update the old function to call the new logic
+void commandes::on_pushButton_10_clicked() {
+    applyFilters();
 }
 
 void commandes::on_pushButton_3_clicked() {
+    // 1. Check if a row is selected
     int currentRow = ui->tableWidget->currentRow();
-    if (currentRow < 0) { QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une commande."); return; }
+
+    if (currentRow < 0) {
+        QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une commande à supprimer.");
+        return;
+    }
+
+    // 2. Get the ID of the command (Column 0) and Reference (Column 1) for the message
     QString id = ui->tableWidget->item(currentRow, 0)->text();
     QString ref = ui->tableWidget->item(currentRow, 1)->text();
-    if (QMessageBox::question(this, "Confirmation", "Supprimer la commande " + ref + " ?") == QMessageBox::Yes) {
-        QSqlQuery query;
-        query.prepare("DELETE FROM SMARTLEATHER.COMMANDE WHERE ID_COMMANDE = :id");
-        query.bindValue(":id", id);
-        if (query.exec()) { QMessageBox::information(this, "Succès", "Commande supprimée."); loadCommandes(); }
-        else { QMessageBox::critical(this, "Erreur", "Échec: " + query.lastError().text()); }
-    }
-}
 
-void commandes::on_pushButton_4_clicked() { loadCommandes(); }
-void commandes::filterTable(const QString &idFilter, const QString &dateFilter) {
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        bool match = true;
-        if (!idFilter.isEmpty()) {
-            if (!ui->tableWidget->item(row, 0)->text().contains(idFilter, Qt::CaseInsensitive) &&
-                !ui->tableWidget->item(row, 1)->text().contains(idFilter, Qt::CaseInsensitive) &&
-                !ui->tableWidget->item(row, 2)->text().contains(idFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
+    // 3. Ask for confirmation
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "Confirmation", 
+                                  "Êtes-vous sûr de vouloir supprimer la commande Ref: " + ref + " ?",
+                                  QMessageBox::Yes | QMessageBox::No);
+
+    if (reply == QMessageBox::Yes) {
+        // 4. Delete from Database
+        QSqlQuery q;
+        q.prepare("DELETE FROM COMMANDE WHERE ID_COMMANDE = :id");
+        q.bindValue(":id", id);
+
+        if (!q.exec()) {
+            QMessageBox::critical(this, "Erreur de suppression", 
+                                  "Impossible de supprimer la commande.\n" + q.lastError().text());
+            return;
         }
-        if (!dateFilter.isEmpty() && match) {
-            if (!ui->tableWidget->item(row, 4)->text().contains(dateFilter)) { match = false; }
-        }
-        ui->tableWidget->setRowHidden(row, !match);
+
+        // 5. Delete from UI Table
+        // We temporarily disable sorting to ensure the correct index is removed
+        ui->tableWidget->setSortingEnabled(false);
+        ui->tableWidget->removeRow(currentRow);
+        ui->tableWidget->setSortingEnabled(true);
+
+        QMessageBox::information(this, "Succès", "La commande a été supprimée avec succès.");
     }
 }
-void commandes::on_pushButton_10_clicked() { filterTable(ui->lineEdit_5->text(), ui->lineEdit_6->text()); }
-void commandes::on_lineEdit_5_textChanged(const QString &text) { filterTable(text, ui->lineEdit_6->text()); }
-void commandes::on_lineEdit_6_textChanged(const QString &text) { filterTable(ui->lineEdit_5->text(), text); }
 
-void commandes::on_pushButton_7_clicked() {
-    QString fileName = QFileDialog::getSaveFileName(this, "Excel", "commandes.csv", "CSV (*.csv)");
-    if (fileName.isEmpty()) return;
-    QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
-    QTextStream out(&file);
-    for (int col = 0; col < ui->tableWidget->columnCount(); col++) {
-        out << "\"" << ui->tableWidget->horizontalHeaderItem(col)->text() << "\"";
-        if (col < ui->tableWidget->columnCount() - 1) out << ",";
-    }
-    out << "\n";
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        for (int col = 0; col < ui->tableWidget->columnCount(); col++) {
-            out << "\"" << ui->tableWidget->item(row, col)->text() << "\"";
-            if (col < ui->tableWidget->columnCount() - 1) out << ",";
-        }
-        out << "\n";
-    }
-    file.close();
-    QMessageBox::information(this, "Export", "Données exportées vers " + fileName);
-}
-void commandes::on_pushButton_9_clicked() { showStatistics(); }
-void commandes::showStatistics() {
-    int enAttente = 0, enPreparation = 0, livree = 0, annulee = 0;
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (!ui->tableWidget->isRowHidden(row)) {
-            QString etat = ui->tableWidget->item(row, 8)->text();
-            if (etat == "En attente") enAttente++;
-            else if (etat == "En cours") enPreparation++;
-            else if (etat == "Livrée") livree++;
-            else if (etat == "Annulée") annulee++;
-        }
-    }
-    QPieSeries *series = new QPieSeries();
-    if(enAttente>0) series->append("En attente", enAttente);
-    if(enPreparation>0) series->append("En cours", enPreparation);
-    if(livree>0) series->append("Livrée", livree);
-    if(annulee>0) series->append("Annulée", annulee);
-
-    QChart *chart = new QChart();
-    chart->addSeries(series);
-    chart->setTitle("Répartition par État");
-    chart->setAnimationOptions(QChart::AllAnimations);
-    QChartView *chartView = new QChartView(chart);
-    chartView->setRenderHint(QPainter::Antialiasing);
-
-    QDialog d(this); d.resize(600,400); d.setWindowTitle("Statistiques");
-    QVBoxLayout *l = new QVBoxLayout(&d); l->addWidget(chartView);
-    d.exec();
-}
-bool commandes::validateData(const QString &id, const QString &client, const QString &addr, const QString &montant) {
-    Q_UNUSED(id); Q_UNUSED(client); Q_UNUSED(addr); Q_UNUSED(montant);
-    return true;
-}
-void commandes::exportToPDF() {}
-
-void commandes::on_pushButton_5_clicked() { hide(); login *l = new login(); l->show(); }
-void commandes::on_pushButton_11_clicked() { hide(); pageemployee *pl = new pageemployee(m_idEmploye, this); pl->show(); }
-void commandes::on_pushButton_12_clicked() { hide(); fournisseurs *pf = new fournisseurs(m_idEmploye, this); pf->show(); }
-void commandes::on_pushButton_19_clicked() { on_pushButton_11_clicked(); }
-void commandes::on_pushButton_20_clicked() { on_pushButton_12_clicked(); }
-void commandes::on_pushButton_21_clicked() { hide(); produitswindow *pd = new produitswindow(m_idEmploye, this); pd->show(); }
-void commandes::on_pushButton_22_clicked() { hide(); Matieres *mm = new Matieres(m_idEmploye, this); mm->show(); }
-void commandes::on_pushButton_23_clicked() { hide(); pagemachine *ss = new pagemachine(m_idEmploye, this); ss->show(); }
-void commandes::on_pushButton_17_clicked() { on_pushButton_5_clicked(); }
-
-void commandes::setupSearch()
-{
-    connect(ui->lineEdit_5, &QLineEdit::textChanged, this, [this](const QString &text){ on_lineEdit_5_textChanged(text); });
-    connect(ui->lineEdit_6, &QLineEdit::textChanged, this, [this](const QString &text){ on_lineEdit_6_textChanged(text); });
+void commandes::on_pushButton_4_clicked() {
+    loadAllCommandes();
+    QMessageBox::information(this, "Actualisation", "Liste des commandes mise à jour.");
 }
 
+// Update the lineEdit connection in constructor to use applyFilters()
+// connect(ui->lineEdit_5, &QLineEdit::textChanged, this, &commandes::applyFilters);

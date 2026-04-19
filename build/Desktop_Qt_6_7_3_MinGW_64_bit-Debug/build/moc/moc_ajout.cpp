@@ -6,7 +6,11 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
+<<<<<<< HEAD
 #include "../../../../ajout.h"
+=======
+#include "../../../../../../../../Downloads/projet2626/projet2626/ajout.h"
+>>>>>>> gestion-commande
 #include <QtGui/qtextcursor.h>
 #include <QtCore/qmetatype.h>
 

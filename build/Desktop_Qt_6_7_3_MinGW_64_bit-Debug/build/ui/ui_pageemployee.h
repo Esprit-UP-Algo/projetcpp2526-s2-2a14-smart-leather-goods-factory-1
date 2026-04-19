@@ -32,6 +32,10 @@ public:
     QLineEdit *searchIdEdit;
     QLabel *label_4;
     QLineEdit *searchNomEdit;
+<<<<<<< HEAD
+=======
+    QTableWidget *tableWidget;
+>>>>>>> gestion-commande
     QPushButton *search;
     QGroupBox *groupBox_2;
     QLabel *label_5;
@@ -43,17 +47,25 @@ public:
     QPushButton *pushButton_20;
     QPushButton *pushButton_22;
     QPushButton *pushButton_23;
+<<<<<<< HEAD
     QPushButton *pushButton_8;
     QLabel *label_8;
     QWidget *layoutWidget;
+=======
+    QLabel *label_8;
+    QWidget *widget;
+>>>>>>> gestion-commande
     QHBoxLayout *horizontalLayout;
     QPushButton *pushButton;
     QPushButton *pushButton_2;
     QPushButton *pushButton_3;
     QPushButton *actualiser;
+<<<<<<< HEAD
     QTableWidget *tableWidget;
     QPushButton *pushButton_4;
     QPushButton *btnSaveFacePhoto;
+=======
+>>>>>>> gestion-commande
     QPushButton *pushButton_9;
     QPushButton *pushButton_7;
 
@@ -289,6 +301,107 @@ public:
 
         horizontalLayout_5->addWidget(searchNomEdit);
 
+<<<<<<< HEAD
+=======
+        tableWidget = new QTableWidget(pageemployee);
+        if (tableWidget->columnCount() < 7)
+            tableWidget->setColumnCount(7);
+        QTableWidgetItem *__qtablewidgetitem = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(0, __qtablewidgetitem);
+        QTableWidgetItem *__qtablewidgetitem1 = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(1, __qtablewidgetitem1);
+        QTableWidgetItem *__qtablewidgetitem2 = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(2, __qtablewidgetitem2);
+        QTableWidgetItem *__qtablewidgetitem3 = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(3, __qtablewidgetitem3);
+        QTableWidgetItem *__qtablewidgetitem4 = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(4, __qtablewidgetitem4);
+        QTableWidgetItem *__qtablewidgetitem5 = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(5, __qtablewidgetitem5);
+        QTableWidgetItem *__qtablewidgetitem6 = new QTableWidgetItem();
+        tableWidget->setHorizontalHeaderItem(6, __qtablewidgetitem6);
+        tableWidget->setObjectName("tableWidget");
+        tableWidget->setEnabled(true);
+        tableWidget->setGeometry(QRect(300, 280, 871, 381));
+        tableWidget->setStyleSheet(QString::fromUtf8("/* =======================\n"
+"   TABLE \342\200\223 PERFECT ROUNDED LEATHER\n"
+"======================= */\n"
+"\n"
+"QTableWidget {\n"
+"    background-color: #fffaf5;\n"
+"    border: 2px solid #b08a6b;\n"
+"    border-radius: 14px;\n"
+"    gridline-color: #e0d2c5;\n"
+"    padding: 0px;\n"
+"}\n"
+"\n"
+"/* IMPORTANT: clip the viewport */\n"
+"QTableWidget::viewport {\n"
+"    background-color: #fffaf5;\n"
+"    border-radius: 12px;\n"
+"}\n"
+"\n"
+"/* Remove internal borders */\n"
+"QTableWidget QTableCornerButton::section {\n"
+"    background-color: #6b3e26;\n"
+"    border: none;\n"
+"}\n"
+"\n"
+"/* Header styling */\n"
+"QHeaderView {\n"
+"    background-color: transparent;\n"
+"}\n"
+"\n"
+"QHeaderView::section {\n"
+"    background-color: qlineargradient(\n"
+"        x1:0, y1:0, x2:0, y2:1,\n"
+"        stop:0 #6b3e26,\n"
+"        stop:1 #4a2717\n"
+"    );\n"
+"    color: #fffaf5;\n"
+"    padding: 8px;\n"
+"    border: none;\n"
+"    font-weight: bold;\n"
+"}\n"
+"\n"
+"/* Round TOP corners manually */\n"
+"QHeaderView::section:fir"
+                        "st {\n"
+"    border-top-left-radius: 12px;\n"
+"}\n"
+"\n"
+"QHeaderView::section:last {\n"
+"    border-top-right-radius: 12px;\n"
+"}\n"
+"\n"
+"/* Table items */\n"
+"QTableWidget::item {\n"
+"    padding: 8px;\n"
+"    border-bottom: 1px solid #e0d2c5;\n"
+"}\n"
+"\n"
+"/* Selection */\n"
+"QTableWidget::item:selected {\n"
+"    background-color: #d8b59c;\n"
+"    color: #2a1a12;\n"
+"}\n"
+""));
+        tableWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        tableWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        tableWidget->setSizeAdjustPolicy(QAbstractScrollArea::AdjustIgnored);
+        tableWidget->setProperty("showDropIndicator", QVariant(true));
+        tableWidget->setAlternatingRowColors(false);
+        tableWidget->setShowGrid(false);
+        tableWidget->setSortingEnabled(false);
+        tableWidget->setWordWrap(true);
+        tableWidget->horizontalHeader()->setCascadingSectionResizes(true);
+        tableWidget->horizontalHeader()->setProperty("showSortIndicator", QVariant(true));
+        tableWidget->horizontalHeader()->setStretchLastSection(true);
+        tableWidget->verticalHeader()->setVisible(false);
+        tableWidget->verticalHeader()->setCascadingSectionResizes(true);
+        tableWidget->verticalHeader()->setProperty("showSortIndicator", QVariant(true));
+        tableWidget->verticalHeader()->setStretchLastSection(true);
+>>>>>>> gestion-commande
         search = new QPushButton(pageemployee);
         search->setObjectName("search");
         search->setGeometry(QRect(822, 230, 341, 41));
@@ -502,7 +615,11 @@ public:
         label_5->setScaledContents(true);
         groupBox = new QGroupBox(groupBox_2);
         groupBox->setObjectName("groupBox");
+<<<<<<< HEAD
         groupBox->setGeometry(QRect(180, 180, 251, 651));
+=======
+        groupBox->setGeometry(QRect(180, 180, 251, 591));
+>>>>>>> gestion-commande
         pushButton_5 = new QPushButton(groupBox);
         pushButton_5->setObjectName("pushButton_5");
         pushButton_5->setGeometry(QRect(11, 502, 231, 51));
@@ -524,9 +641,12 @@ public:
         pushButton_23 = new QPushButton(groupBox);
         pushButton_23->setObjectName("pushButton_23");
         pushButton_23->setGeometry(QRect(11, 428, 231, 51));
+<<<<<<< HEAD
         pushButton_8 = new QPushButton(groupBox);
         pushButton_8->setObjectName("pushButton_8");
         pushButton_8->setGeometry(QRect(10, 570, 231, 51));
+=======
+>>>>>>> gestion-commande
         label_8 = new QLabel(groupBox_2);
         label_8->setObjectName("label_8");
         label_8->setGeometry(QRect(540, 180, 371, 81));
@@ -637,6 +757,7 @@ public:
 "    background-color: #e7dccf;\n"
 "}\n"
 ""));
+<<<<<<< HEAD
         layoutWidget = new QWidget(groupBox_2);
         layoutWidget->setObjectName("layoutWidget");
         layoutWidget->setGeometry(QRect(530, 720, 751, 61));
@@ -644,6 +765,15 @@ public:
         horizontalLayout->setObjectName("horizontalLayout");
         horizontalLayout->setContentsMargins(0, 0, 0, 0);
         pushButton = new QPushButton(layoutWidget);
+=======
+        widget = new QWidget(groupBox_2);
+        widget->setObjectName("widget");
+        widget->setGeometry(QRect(550, 730, 691, 40));
+        horizontalLayout = new QHBoxLayout(widget);
+        horizontalLayout->setObjectName("horizontalLayout");
+        horizontalLayout->setContentsMargins(0, 0, 0, 0);
+        pushButton = new QPushButton(widget);
+>>>>>>> gestion-commande
         pushButton->setObjectName("pushButton");
         QFont font;
         font.setFamilies({QString::fromUtf8("Segoe UI")});
@@ -655,7 +785,11 @@ public:
 
         horizontalLayout->addWidget(pushButton);
 
+<<<<<<< HEAD
         pushButton_2 = new QPushButton(layoutWidget);
+=======
+        pushButton_2 = new QPushButton(widget);
+>>>>>>> gestion-commande
         pushButton_2->setObjectName("pushButton_2");
         pushButton_2->setFont(font);
         pushButton_2->setStyleSheet(QString::fromUtf8("background-color : #C46A2C;\n"
@@ -663,7 +797,11 @@ public:
 
         horizontalLayout->addWidget(pushButton_2);
 
+<<<<<<< HEAD
         pushButton_3 = new QPushButton(layoutWidget);
+=======
+        pushButton_3 = new QPushButton(widget);
+>>>>>>> gestion-commande
         pushButton_3->setObjectName("pushButton_3");
         pushButton_3->setFont(font);
         pushButton_3->setStyleSheet(QString::fromUtf8("background-color : #B5523B;\n"
@@ -671,7 +809,11 @@ public:
 
         horizontalLayout->addWidget(pushButton_3);
 
+<<<<<<< HEAD
         actualiser = new QPushButton(layoutWidget);
+=======
+        actualiser = new QPushButton(widget);
+>>>>>>> gestion-commande
         actualiser->setObjectName("actualiser");
         actualiser->setFont(font);
         actualiser->setStyleSheet(QString::fromUtf8("background-color : #7A4A32;\n"
@@ -679,6 +821,7 @@ public:
 
         horizontalLayout->addWidget(actualiser);
 
+<<<<<<< HEAD
         tableWidget = new QTableWidget(groupBox_2);
         if (tableWidget->columnCount() < 8)
             tableWidget->setColumnCount(8);
@@ -786,6 +929,8 @@ public:
         btnSaveFacePhoto = new QPushButton(groupBox_2);
         btnSaveFacePhoto->setObjectName("btnSaveFacePhoto");
         btnSaveFacePhoto->setGeometry(QRect(1200, 160, 171, 51));
+=======
+>>>>>>> gestion-commande
         pushButton_9 = new QPushButton(pageemployee);
         pushButton_9->setObjectName("pushButton_9");
         pushButton_9->setGeometry(QRect(994, 181, 171, 38));
@@ -799,6 +944,10 @@ public:
 ""));
         groupBox_2->raise();
         horizontalLayoutWidget_4->raise();
+<<<<<<< HEAD
+=======
+        tableWidget->raise();
+>>>>>>> gestion-commande
         search->raise();
         pushButton_9->raise();
         pushButton_7->raise();
@@ -811,8 +960,27 @@ public:
     void retranslateUi(QDialog *pageemployee)
     {
         pageemployee->setWindowTitle(QCoreApplication::translate("pageemployee", "Dialog", nullptr));
+<<<<<<< HEAD
         label_3->setText(QCoreApplication::translate("pageemployee", "CIN :", nullptr));
         label_4->setText(QCoreApplication::translate("pageemployee", "Nom :", nullptr));
+=======
+        label_3->setText(QCoreApplication::translate("pageemployee", "ID : ", nullptr));
+        label_4->setText(QCoreApplication::translate("pageemployee", "Nom", nullptr));
+        QTableWidgetItem *___qtablewidgetitem = tableWidget->horizontalHeaderItem(0);
+        ___qtablewidgetitem->setText(QCoreApplication::translate("pageemployee", "ID", nullptr));
+        QTableWidgetItem *___qtablewidgetitem1 = tableWidget->horizontalHeaderItem(1);
+        ___qtablewidgetitem1->setText(QCoreApplication::translate("pageemployee", "Nom", nullptr));
+        QTableWidgetItem *___qtablewidgetitem2 = tableWidget->horizontalHeaderItem(2);
+        ___qtablewidgetitem2->setText(QCoreApplication::translate("pageemployee", "Pr\303\251nom", nullptr));
+        QTableWidgetItem *___qtablewidgetitem3 = tableWidget->horizontalHeaderItem(3);
+        ___qtablewidgetitem3->setText(QCoreApplication::translate("pageemployee", "Date_naissance", nullptr));
+        QTableWidgetItem *___qtablewidgetitem4 = tableWidget->horizontalHeaderItem(4);
+        ___qtablewidgetitem4->setText(QCoreApplication::translate("pageemployee", "Poste", nullptr));
+        QTableWidgetItem *___qtablewidgetitem5 = tableWidget->horizontalHeaderItem(5);
+        ___qtablewidgetitem5->setText(QCoreApplication::translate("pageemployee", "Niveau", nullptr));
+        QTableWidgetItem *___qtablewidgetitem6 = tableWidget->horizontalHeaderItem(6);
+        ___qtablewidgetitem6->setText(QCoreApplication::translate("pageemployee", "Salaire", nullptr));
+>>>>>>> gestion-commande
         search->setText(QCoreApplication::translate("pageemployee", "Search", nullptr));
         groupBox_2->setTitle(QString());
         label_5->setText(QString());
@@ -824,12 +992,16 @@ public:
         pushButton_20->setText(QCoreApplication::translate("pageemployee", "Fournisseur", nullptr));
         pushButton_22->setText(QCoreApplication::translate("pageemployee", "Matieres Premieres", nullptr));
         pushButton_23->setText(QCoreApplication::translate("pageemployee", "Machine", nullptr));
+<<<<<<< HEAD
         pushButton_8->setText(QCoreApplication::translate("pageemployee", "deconnecter", nullptr));
+=======
+>>>>>>> gestion-commande
         label_8->setText(QCoreApplication::translate("pageemployee", "<html><head/><body><p><span style=\" font-size:14pt; font-weight:696; font-style:italic; text-decoration: underline; color:#550000;\">Gestion des employ\303\251s :</span></p></body></html>", nullptr));
         pushButton->setText(QCoreApplication::translate("pageemployee", "Ajouter", nullptr));
         pushButton_2->setText(QCoreApplication::translate("pageemployee", "Modifier", nullptr));
         pushButton_3->setText(QCoreApplication::translate("pageemployee", "Supprimer", nullptr));
         actualiser->setText(QCoreApplication::translate("pageemployee", "Actualiser", nullptr));
+<<<<<<< HEAD
         QTableWidgetItem *___qtablewidgetitem = tableWidget->horizontalHeaderItem(0);
         ___qtablewidgetitem->setText(QCoreApplication::translate("pageemployee", "Nom", nullptr));
         QTableWidgetItem *___qtablewidgetitem1 = tableWidget->horizontalHeaderItem(1);
@@ -848,6 +1020,8 @@ public:
         ___qtablewidgetitem7->setText(QCoreApplication::translate("pageemployee", "Email", nullptr));
         pushButton_4->setText(QCoreApplication::translate("pageemployee", "ChatBox", nullptr));
         btnSaveFacePhoto->setText(QCoreApplication::translate("pageemployee", "Enregistrer photo Face ID", nullptr));
+=======
+>>>>>>> gestion-commande
         pushButton_9->setText(QCoreApplication::translate("pageemployee", "Statistiques", nullptr));
         pushButton_7->setText(QCoreApplication::translate("pageemployee", "Export", nullptr));
     } // retranslateUi

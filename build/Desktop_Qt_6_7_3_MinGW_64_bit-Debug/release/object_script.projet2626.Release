@@ -1,0 +1,12 @@
+release/ajout.o
+release/connexion.o
+release/main.o
+release/commandes.o
+release/commandes_slots.o
+release/modifier.o
+release/stats.o
+release/qrc_logo.o
+release/moc_ajout.o
+release/moc_commandes.o
+release/moc_modifier.o
+release/moc_stats.o

@@ -3,43 +3,55 @@
 
 #include <QDialog>
 #include <QLineEdit>
-#include <QComboBox>
 #include <QDateTimeEdit>
+#include <QComboBox>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 
-class Modifier : public QDialog
-{
+class Modifier : public QDialog {
     Q_OBJECT
 
 public:
     explicit Modifier(QWidget *parent = nullptr);
 
-    void setInitialData(const QString &id, const QString &client, const QString &address,
-                       const QString &dateCommande, const QString &dateLivraison,
-                       const QString &etat, const QString &montant, const QString &modePaiement);
+    // Function to fill the dialog with existing data from the table
+    void setInitialData(QString id, QString client, QString addr, QString amount);
+    void setDates(const QDateTime &dateOrderIn, const QDateTime &dateDeliveryIn);
 
-    // Getters
+    // Getters to retrieve the modified data in the main window
+    QString getId() const { return idEdit->text(); }
     QString getClient() const { return clientEdit->text(); }
     QString getAddress() const { return addressEdit->text(); }
-    QString getDateCommande() const { return dateCommandeEdit->dateTime().toString("dd/MM/yyyy"); }
-    QString getDateLivraison() const { return dateLivraisonEdit->dateTime().toString("dd/MM/yyyy"); }
-    QString getEtat() const { return etatCombo->currentText(); }
-    QString getMontant() const { return montantEdit->text(); }
-    QString getModePaiement() const { return modePaiementCombo->currentText(); }
-
-private slots:
-    void setupStyle();
+    QString getAmount() const { return amountEdit->text(); }
+    QString getStatus() const { return statusCombo->currentText(); }
+    QDateTime getDateOrder() const { return dateOrder->dateTime(); }
+    QDateTime getDateDelivery() const { return dateDelivery->dateTime(); }
 
 private:
+    // UI Elements
     QLineEdit *idEdit;
     QLineEdit *clientEdit;
+    QLabel *errorClient;
     QLineEdit *addressEdit;
-    QDateTimeEdit *dateCommandeEdit;
-    QDateTimeEdit *dateLivraisonEdit;
-    QComboBox *etatCombo;
-    QLineEdit *montantEdit;
-    QComboBox *modePaiementCombo;
+    QLabel *errorAddr;
+    QDateTimeEdit *dateOrder;
+    QDateTimeEdit *dateDelivery;
+    QLabel *errorDate;
+    QComboBox *statusCombo;
+    QLineEdit *amountEdit;
+    QLabel *errorAmount;
+
     QPushButton *btnSave;
     QPushButton *btnCancel;
+
+    // Theme method
+    void setupStyle();
+    void accept() override;
+
+private slots:
+    void validateForm();
 };
 
 #endif // MODIFIER_H

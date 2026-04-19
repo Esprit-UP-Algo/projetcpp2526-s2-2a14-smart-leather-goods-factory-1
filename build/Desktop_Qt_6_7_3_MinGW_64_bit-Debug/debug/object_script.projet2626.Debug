@@ -1,0 +1,12 @@
+debug/ajout.o
+debug/connexion.o
+debug/main.o
+debug/commandes.o
+debug/commandes_slots.o
+debug/modifier.o
+debug/stats.o
+debug/qrc_logo.o
+debug/moc_ajout.o
+debug/moc_commandes.o
+debug/moc_modifier.o
+debug/moc_stats.o
