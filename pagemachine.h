@@ -3,6 +3,8 @@
 
 #include <QDialog>
 #include <QTableWidgetItem>
+#include <QTimer>
+#include <QSet>
 
 namespace Ui {
 class pagemachine;
@@ -29,13 +31,19 @@ private slots:
     void on_pushButton_4_clicked();
     void on_pushButton_7_clicked();
     void on_pushButton_9_clicked();
+    void on_btnAgenda_clicked();
     void filterTable();
     void setupMachinesTable();
     void loadMachines();
 
+    void checkUpcomingMaintenance();
+
 private:
     Ui::pagemachine *ui;
     int m_idEmploye;
+    
+    QTimer *m_reminderTimer;
+    QSet<QString> m_notifiedTasks;
 
     void addMachineToTable(const QString &id, const QString &nom,
                            const QString &type, const QString &etat,

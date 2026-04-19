@@ -34,6 +34,9 @@
 #include <QChartView>
 #include <QPrinter>
 #include <QPainter>
+#include <QCalendarWidget>
+#include <QTimeEdit>
+#include <QTextCharFormat>
 
 static const char* DIALOG_BASE_STYLE = R"(
 QDialog {
@@ -214,7 +217,6 @@ pagemachine::pagemachine(int idEmploye, QWidget *parent)
     }
 
     // Customize search UI for State filter
-    // Customize search UI for State filter
     if (ui->label_9) ui->label_9->setText("REF MACHINE :");
     if (ui->label_10) ui->label_10->setText("ÉTAT :");
     
@@ -234,6 +236,12 @@ pagemachine::pagemachine(int idEmploye, QWidget *parent)
 
     setupSearch();
 
+    // Start background maintenance reminder timer (checks every 60 seconds)
+    m_reminderTimer = new QTimer(this);
+    connect(m_reminderTimer, &QTimer::timeout, this, &pagemachine::checkUpcomingMaintenance);
+    // Initial check right away, then every minute
+    checkUpcomingMaintenance();
+    m_reminderTimer->start(60000);
 }
 
 pagemachine::~pagemachine() { delete ui; }
@@ -738,10 +746,263 @@ void pagemachine::on_pushButton_9_clicked() {
 }
 
 
+// ═══════════════════════════════════════════════
+//   AGENDA DE MAINTENANCE PRÉVENTIVE
+// ═══════════════════════════════════════════════
+void pagemachine::on_btnAgenda_clicked()
+{
+    QDialog agenda(this);
+    agenda.setWindowTitle("Agenda de Maintenance");
+    agenda.setFixedSize(550, 480);
+    agenda.setStyleSheet(QString(DIALOG_BASE_STYLE) + 
+        "QCalendarWidget QWidget { alternate-background-color: #f0e8de; }"
+        "QCalendarWidget QToolButton { color: #5b3a28; font-weight: bold; font-size: 14px; }"
+    );
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(&agenda);
+    
+    QLabel *header = new QLabel("🗓️ AGENDA DE MAINTENANCE PRÉVENTIVE");
+    header->setObjectName("headerLabel");
+    header->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(header);
+
+    QLabel *infoLabel = new QLabel("ℹ️ Aujourd'hui : <b>" + QDate::currentDate().toString("dd/MM/yyyy") + 
+        "</b> &nbsp;&nbsp;|&nbsp;&nbsp; <i>Les dates antérieures à aujourd'hui sont verrouillées.</i>");
+    infoLabel->setStyleSheet("color: #8b6f5a; font-size: 12px; margin-bottom: 5px;");
+    infoLabel->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(infoLabel);
+
+    QCalendarWidget *calendar = new QCalendarWidget();
+    calendar->setGridVisible(true);
+    calendar->setMinimumHeight(400);
+    calendar->setMinimumDate(QDate::currentDate()); // Block past dates
+    mainLayout->addWidget(calendar);
+
+    QString agendaFile = QApplication::applicationDirPath() + "/agenda_maintenance.txt";
+
+    // Lambda to highlight calendar dates based on file records
+    auto highlightCalendar = [&]() {
+        QTextCharFormat fmtDefault;
+        calendar->setDateTextFormat(QDate(), fmtDefault);
+
+        QFile file(agendaFile);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+        
+        QTextStream in(&file);
+        QSet<QDate> highlightedDates;
+
+        while (!in.atEnd()) {
+            QStringList parts = in.readLine().split("|");
+            if (parts.size() >= 4) {
+                QDate d = QDate::fromString(parts[0], "yyyy-MM-dd");
+                if (d >= QDate::currentDate()) {
+                    highlightedDates.insert(d);
+                }
+            }
+        }
+        file.close();
+
+        QTextCharFormat fmtHighlight;
+        fmtHighlight.setBackground(QColor("#c9a87c"));
+        fmtHighlight.setForeground(Qt::white);
+        for (const QDate &d : highlightedDates) {
+            calendar->setDateTextFormat(d, fmtHighlight);
+        }
+    };
+
+    // Triggered when user explicitly CLICKS a specific date
+    connect(calendar, &QCalendarWidget::clicked, [&](const QDate &date) {
+        // Only open popup for today or future dates (safety net)
+        if (date < QDate::currentDate()) return;
+
+        // Block weekends (6 = Saturday, 7 = Sunday)
+        if (date.dayOfWeek() == 6 || date.dayOfWeek() == 7) {
+            QMessageBox::warning(&agenda, "Action Refusée", "Vous ne pouvez pas planifier d'intervention pendant le week-end.");
+            return;
+        }
+
+        QDialog dayDialog(&agenda);
+        dayDialog.setWindowTitle("Interventions - " + date.toString("dd/MM/yyyy"));
+        dayDialog.setFixedSize(550, 450);
+        dayDialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_GREEN);
+        
+        QVBoxLayout *dayLayout = new QVBoxLayout(&dayDialog);
+        
+        // Top: Table of scheduled tasks for clicked date
+        QTableWidget *taskTable = new QTableWidget();
+        taskTable->setColumnCount(3);
+        taskTable->setHorizontalHeaderLabels({"Heure", "Machine", "Intervention"});
+        taskTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+        taskTable->verticalHeader()->setVisible(false);
+        taskTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+        taskTable->setStyleSheet("background-color: #ffffff; border: 1px solid #d4c4b0; border-radius: 8px;");
+        dayLayout->addWidget(new QLabel("Interventions programmées pour le " + date.toString("dd/MM/yyyy") + " :"));
+        dayLayout->addWidget(taskTable);
+
+        // Bottom: Add task form
+        QFrame *addFrame = new QFrame();
+        addFrame->setStyleSheet("background-color: rgba(255, 255, 255, 0.6); border: 1px solid #d4c4b0; border-radius: 8px; margin-top: 10px;");
+        QGridLayout *addLayout = new QGridLayout(addFrame);
+        addLayout->setHorizontalSpacing(15);
+        addLayout->setVerticalSpacing(10);
+        
+        QComboBox *machineCombo = new QComboBox();
+        machineCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        machineCombo->setMinimumHeight(40);
+        QSqlQuery query;
+        if (query.exec("SELECT REF, NOM FROM SMARTLEATHER.MACHINE")) {
+            while (query.next()) machineCombo->addItem(query.value(0).toString() + " - " + query.value(1).toString());
+        }
+        if (machineCombo->count() == 0) machineCombo->addItem("-- Aucune machine trouvée --");
+
+        QTime defaultTime = QTime::currentTime();
+        if (defaultTime < QTime(8,0)) defaultTime = QTime(8,0);
+        if (defaultTime > QTime(18,0)) defaultTime = QTime(18,0);
+        
+        QTimeEdit *timeEdit = new QTimeEdit(defaultTime);
+        timeEdit->setMinimumHeight(40);
+        timeEdit->setMinimumTime(QTime(8, 0));  // 8 AM
+        timeEdit->setMaximumTime(QTime(18, 0)); // 6 PM
+        
+        QLineEdit *descEdit = new QLineEdit();
+        descEdit->setPlaceholderText("Ex: Lubrification, Nettoyage...");
+        descEdit->setMinimumHeight(40);
+        
+        addLayout->addWidget(new QLabel("Machine:"), 0, 0);
+        addLayout->addWidget(machineCombo, 0, 1);
+        addLayout->addWidget(new QLabel("Heure:"), 0, 2);
+        addLayout->addWidget(timeEdit, 0, 3);
+        addLayout->addWidget(new QLabel("Cause / Action:"), 1, 0);
+        addLayout->addWidget(descEdit, 1, 1, 1, 2);
+
+        QPushButton *btnAdd = new QPushButton(" ✓ Planifier");
+        btnAdd->setStyleSheet("QPushButton { background-color: #6d9b3a; border: none; border-radius: 10px; color: white; font-weight: bold; font-size: 14px; } QPushButton:hover { background-color: #7dab4a; }");
+        btnAdd->setMinimumHeight(45);
+        addLayout->addWidget(btnAdd, 1, 3);
+        
+        dayLayout->addWidget(addFrame);
+
+        auto loadDayTasks = [&]() {
+            taskTable->setRowCount(0);
+            QFile file(agendaFile);
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+            QString targetDate = date.toString("yyyy-MM-dd");
+            QTextStream in(&file);
+            while (!in.atEnd()) {
+                QStringList parts = in.readLine().split("|");
+                if (parts.size() >= 4 && parts[0] == targetDate) {
+                    int row = taskTable->rowCount();
+                    taskTable->insertRow(row);
+                    taskTable->setItem(row, 0, new QTableWidgetItem(parts[1]));
+                    taskTable->setItem(row, 1, new QTableWidgetItem(parts[2]));
+                    taskTable->setItem(row, 2, new QTableWidgetItem(parts[3]));
+                }
+            }
+            file.close();
+        };
+
+        connect(btnAdd, &QPushButton::clicked, [&]() {
+            QString actionText = descEdit->text().trimmed();
+            
+            // Input Validation
+            if (actionText.isEmpty()) { 
+                QMessageBox::warning(&dayDialog, "Erreur", "Veuillez entrer une cause/action."); 
+                return; 
+            }
+            if (!QRegularExpression("^[A-Za-zÀ-ÿ\\s']+$").match(actionText).hasMatch()) { 
+                QMessageBox::warning(&dayDialog, "Contrôle Saisie", "Seules les lettres et les espaces sont autorisés pour l'action."); 
+                return; 
+            }
+            if (machineCombo->currentText().contains("--")) { 
+                QMessageBox::warning(&dayDialog, "Erreur", "Veuillez sélectionner une machine valide."); 
+                return; 
+            }
+
+            // Save to file
+            QFile file(agendaFile);
+            if (file.open(QIODevice::Append | QIODevice::Text)) {
+                QTextStream out(&file);
+                out << date.toString("yyyy-MM-dd") << "|" << timeEdit->time().toString("HH:mm") << "|" << machineCombo->currentText() << "|" << actionText << "\n";
+                file.close();
+                QMessageBox::information(&dayDialog, "Succès", "Planifié pour le " + date.toString("dd/MM/yyyy") + " !");
+                descEdit->clear();
+                loadDayTasks(); // Refresh table in modal
+            } else {
+                QMessageBox::critical(&dayDialog, "Erreur", "Sauvegarde impossible : " + file.errorString());
+            }
+        });
+
+        loadDayTasks();
+        dayDialog.exec();
+        
+        // After modal is closed, refresh main calendar highlights
+        highlightCalendar();
+    });
+
+    highlightCalendar();
+    agenda.exec();
+}
+
+
 void pagemachine::on_pushButton_6_clicked() { hide(); pageemployee *pl = new pageemployee(m_idEmploye, this); pl->show(); }
 void pagemachine::on_pushButton_21_clicked() { hide(); produitswindow *pd = new produitswindow(m_idEmploye, this); pd->show(); }
 void pagemachine::on_pushButton_20_clicked() { hide(); commandes *pc = new commandes(m_idEmploye, this); pc->show(); }
 void pagemachine::on_pushButton_22_clicked() { hide(); fournisseurs *pf = new fournisseurs(m_idEmploye, this); pf->show(); }
 void pagemachine::on_pushButton_23_clicked() { hide(); Matieres *mm = new Matieres(m_idEmploye, this); mm->show(); }
 void pagemachine::on_pushButton_11_clicked() { hide(); login *l = new login(); l->show(); }
+
+
+// ═══════════════════════════════════════════════
+//   VÉRIFICATION BACKGROUND MAINTENANCE (TIMER)
+// ═══════════════════════════════════════════════
+void pagemachine::checkUpcomingMaintenance()
+{
+    QString agendaFile = QApplication::applicationDirPath() + "/agenda_maintenance.txt";
+    QFile file(agendaFile);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+
+    QTextStream in(&file);
+    QDate today = QDate::currentDate();
+    QTime now = QTime::currentTime();
+
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList parts = line.split("|");
+        if (parts.size() >= 4) { // date|time|machine|action
+            QDate d = QDate::fromString(parts[0], "yyyy-MM-dd");
+            QTime t = QTime::fromString(parts[1], "HH:mm");
+
+            if (d == today) {
+                int secsDiff = now.secsTo(t);
+                // Si l'intervention est dans moins de 2 heures (7200 sec) et n'est pas encore passée
+                if (secsDiff > 0 && secsDiff <= 7200) {
+                    if (!m_notifiedTasks.contains(line)) {
+                        m_notifiedTasks.insert(line);
+
+                        // Envoi de l'email automatique de rappel
+                        QString admEmail = "eyadkhil@aiesec.net"; 
+                        Smtp *smtp = new Smtp("dkhileya5@gmail.com", "bfnedrbmyguthysx");
+                        QString subject = "⏰ RAPPEL: Maintenance dans moins de 2 heures";
+                        QString body = "Bonjour,\n\n"
+                                       "Ceci est un rappel automatique de notre agenda de maintenance.\n"
+                                       "Une intervention approche à grands pas !\n\n"
+                                       "- Date : Aujourd'hui\n"
+                                       "- Heure prévue : " + parts[1] + "\n"
+                                       "- Machine : " + parts[2] + "\n"
+                                       "- Action/Cause : " + parts[3] + "\n\n"
+                                       "Veuillez prendre les dispositions nécessaires.\n\n"
+                                       "Cordialement,\n"
+                                       "Smart Leather Factory ERP";
+                        
+                        connect(smtp, &Smtp::status, smtp, &QObject::deleteLater);
+                        connect(smtp, &Smtp::error, smtp, &QObject::deleteLater);
+
+                        smtp->sendMail("eyadkhil5@gmail.com", admEmail, subject, body);
+                    }
+                }
+            }
+        }
+    }
+    file.close();
+}
 

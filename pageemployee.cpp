@@ -150,14 +150,23 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     , m_idEmployeConnecte(idEmployeConnecte)
 {
     ui->setupUi(this);
-    setWindowFlags(windowFlags() | Qt::FramelessWindowHint);
-    
-    // Hide old sidebar and cleanup
-    if (ui->groupBox) ui->groupBox->hide();
-    if (ui->groupBox_2) ui->groupBox_2->hide();
-    if (ui->layoutWidget) ui->layoutWidget->setStyleSheet("background: transparent;");
+    // setWindowFlags(windowFlags() | Qt::FramelessWindowHint); 
 
-    // Premium Sidebar Setup
+    // Match the machine background
+    this->setStyleSheet("QDialog { background-color: #f1e7dc; }");
+
+    // Hide old messy sidebar elements from .ui without breaking geometry
+    if (ui->groupBox) ui->groupBox->hide();
+    
+    QLabel *oldLogo = this->findChild<QLabel*>("label_5");
+    if (oldLogo) oldLogo->hide();
+
+    // Remove dashed borders from the main bounding box
+    if (ui->groupBox_2) {
+        ui->groupBox_2->setStyleSheet("QGroupBox#groupBox_2 { border: none; background: transparent; }");
+    }
+
+    // Premium Sidebar Setup (Like Machine)
     QString navBtnStyle =
         "QPushButton {"
         "  background: transparent; border: none; color: #c9b8a5;"
@@ -171,13 +180,11 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     sidebar->setGeometry(0, 0, 240, 900); 
     sidebar->setStyleSheet("background-color: #3a1f14;");
 
-    // Smart Leather Logo on Sidebar
-    QLabel *logoLab = new QLabel(sidebar); // Parent to sidebar
+    QLabel *logoLab = new QLabel(sidebar);
     logoLab->setGeometry(20, 10, 211, 121);
     logoLab->setPixmap(QPixmap(":/Logo.png"));
     logoLab->setScaledContents(true);
     logoLab->show();
-    logoLab->raise();
     
     QVBoxLayout *navLayout = new QVBoxLayout(sidebar);
     navLayout->setContentsMargins(0, 160, 0, 20);
@@ -196,7 +203,7 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
         return btn;
     };
 
-    addNavBtn("Employés", nullptr, true);
+    addNavBtn("Employés", nullptr, true); // Active
     addNavBtn("Produits", SLOT(navToProduits()));
     addNavBtn("Commandes", SLOT(navToCommandes()));
     addNavBtn("Fournisseurs", SLOT(navToFournisseurs()));
@@ -206,70 +213,39 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     navLayout->addStretch();
     addNavBtn("Déconnexion", SLOT(navToLogout()));
 
-    // Central layout adjustment (clearing the 240px sidebar)
-    if(ui->label_8) {
-        ui->label_8->setGeometry(260, 50, 600, 60);
-        ui->label_8->setText("✦ GESTION DES EMPLOYÉS");
-    }
+    sidebar->raise();
+    sidebar->show();
 
-    // Align search widgets
-    if(ui->label_3) ui->label_3->setGeometry(260, 160, 60, 31);
-    if(ui->searchIdEdit) {
-        ui->searchIdEdit->setGeometry(320, 160, 140, 31);
-        ui->searchIdEdit->setStyleSheet("background: white; border-radius: 8px; padding: 4px; border: 1px solid #dcd1c5;");
-        ui->searchIdEdit->setPlaceholderText("Email...");
-    }
-    if(ui->label_4) ui->label_4->setGeometry(480, 160, 60, 31);
-    if(ui->searchNomEdit) {
-        ui->searchNomEdit->setGeometry(540, 160, 140, 31);
-        ui->searchNomEdit->setStyleSheet("background: white; border-radius: 8px; padding: 4px; border: 1px solid #dcd1c5;");
-        ui->searchNomEdit->setPlaceholderText("Nom...");
-    }
-    if(ui->search) {
-        ui->search->setGeometry(700, 160, 100, 31);
-        ui->search->setText("Filtre");
-    }
-    if(ui->actualiser) {
-        ui->actualiser->setGeometry(810, 160, 100, 31);
-        ui->actualiser->setText("Actualiser");
-    }
-    if(ui->pushButton_9) {
-        ui->pushButton_9->setGeometry(930, 160, 120, 31);
-        ui->pushButton_9->setText("Stats RH");
-    }
-    if(ui->pushButton_7) {
-        ui->pushButton_7->setGeometry(1060, 160, 120, 31);
-        ui->pushButton_7->setText("Certificats PDF");
-    }
-
-    // Table View
+    // Style the Table Grid and Background to match Machine exactly
     if(ui->tableWidget) {
-        ui->tableWidget->setGeometry(260, 230, 1050, 490);
         ui->tableWidget->setStyleSheet(
-            "QTableWidget { background: white; border: 2px solid #c9b8a5; border-radius: 16px; gridline-color: #f5eee6; selection-background-color: #f5eee6; selection-color: #3a1f14; }"
+            "QTableWidget { "
+            "    background-color: #ffffff; "
+            "    gridline-color: #d4c4b0; "
+            "    border: 1px solid #d4c4b0; "
+            "    alternate-background-color: #faf6f1; "
+            "    selection-background-color: #e8ddd0; "
+            "    selection-color: #3a1f14; "
+            "    border-radius: 8px;"
+            "}"
         );
         ui->tableWidget->horizontalHeader()->setStyleSheet(
             "QHeaderView::section {"
-            "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5b3020, stop:0.5 #4a2517, stop:1 #3a1a10);"
-            "    color: #f5efe8; padding: 10px; border: none; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
+            "    background: #5b3020;"
+            "    color: #f5efe8; "
+            "    padding: 8px; "
+            "    border: 1px solid #4a2517; "
+            "    font-weight: bold; "
+            "    font-size: 11px; "
             "}"
         );
     }
-
-    // CRUD Buttons (bottom)
-    if(ui->pushButton) ui->pushButton->setGeometry(260, 730, 150, 40);
-    if(ui->pushButton_2) ui->pushButton_2->setGeometry(420, 730, 150, 40);
-    if(ui->pushButton_3) ui->pushButton_3->setGeometry(580, 730, 150, 40);
-    if(ui->pushButton_4) ui->pushButton_4->setGeometry(740, 730, 150, 40);
 
     setupTable();
     loadEmployeesTable();
 
     connect(ui->searchIdEdit,  &QLineEdit::textChanged, this, &pageemployee::applyFilter);
     connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &pageemployee::applyFilter);
-    
-    sidebar->raise();
-    if(ui->tableWidget) ui->tableWidget->raise();
 }
 
 

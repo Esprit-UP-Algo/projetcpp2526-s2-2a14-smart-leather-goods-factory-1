@@ -2,7 +2,7 @@ import cv2
 import os
 import sys
 
-save_dir = "C:/Users/AZERTY/Desktop/qt/database_faces"
+save_dir = "C:/Users/MSI/Documents/projetcpp2526-s2-2a14-smart-leather-goods-factory-1-integration/database_faces"
 
 def capture_face(cin_value):
     os.makedirs(save_dir, exist_ok=True)

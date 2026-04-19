@@ -5,8 +5,8 @@ import time
 import numpy as np
 from PIL import Image
 
-database_folder = "C:/Users/AZERTY/Desktop/qt/database_faces"
-clean_folder = "C:/Users/AZERTY/Desktop/qt/database_faces_clean"
+database_folder = "C:/Users/MSI/Documents/projetcpp2526-s2-2a14-smart-leather-goods-factory-1-integration/database_faces"
+clean_folder = "C:/Users/MSI/Documents/projetcpp2526-s2-2a14-smart-leather-goods-factory-1-integration/database_faces_clean"
 
 
 def prepare_images():

@@ -31,8 +31,8 @@ void FaceID::startFaceRecognition()
         return;
     }
 
-    QString program = "C:/Users/AZERTY/Desktop/qt/venv311/Scripts/python.exe";
-    QString scriptPath = "C:/Users/AZERTY/Desktop/qt/facial_recognition.py";
+    QString program = "C:/Users/MSI/Documents/projetcpp2526-s2-2a14-smart-leather-goods-factory-1-integration/venv311/Scripts/python.exe";
+    QString scriptPath = "C:/Users/MSI/Documents/projetcpp2526-s2-2a14-smart-leather-goods-factory-1-integration/facial_recognition.py";
 
 
 
@@ -46,7 +46,7 @@ void FaceID::startFaceRecognition()
     env.remove("PYTHONPATH");
 
     // Optionnel: forcer un PATH propre
-    QString pythonDir = "C:/Users/AZERTY/AppData/Local/Python/bin/";
+    QString pythonDir = "C:/Users/MSI/AppData/Local/Microsoft/WindowsApps/python.exe/";
     QString currentPath = env.value("PATH");
     env.insert("PATH", pythonDir + ";" + currentPath);
 

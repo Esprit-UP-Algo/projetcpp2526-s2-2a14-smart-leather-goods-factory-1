@@ -228,7 +228,7 @@ QStatusBar {
     </rect>
    </property>
    <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt; font-weight:700; font-style:italic; text-decoration: underline;&quot;&gt;Gestion des commandes :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:16pt; font-style:italic; text-decoration: underline;&quot;&gt;Gestion des machine :&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_10">
@@ -242,6 +242,19 @@ QStatusBar {
    </property>
    <property name="text">
     <string>Recherche</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btnAgenda">
+   <property name="geometry">
+    <rect>
+     <x>900</x>
+     <y>70</y>
+     <width>171</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Agenda</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_9">
@@ -270,7 +283,7 @@ QStatusBar {
     <string/>
    </property>
    <property name="pixmap">
-    <pixmap>:/Logo.png</pixmap>
+    <pixmap resource="logo.qrc">:/Logo.png</pixmap>
    </property>
    <property name="scaledContents">
     <bool>true</bool>
@@ -555,10 +568,10 @@ QTableWidget::item:selected {
 </string>
    </property>
    <property name="verticalScrollBarPolicy">
-    <enum>Qt::ScrollBarAsNeeded</enum>
+    <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
    </property>
    <property name="horizontalScrollBarPolicy">
-    <enum>Qt::ScrollBarAsNeeded</enum>
+    <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
    </property>
    <attribute name="horizontalHeaderVisible">
     <bool>false</bool>
@@ -668,6 +681,8 @@ QTableWidget::item:selected {
   <zorder>searchNomEdit</zorder>
   <zorder>groupBox</zorder>
  </widget>
- <resources/>
+ <resources>
+  <include location="logo.qrc"/>
+ </resources>
  <connections/>
 </ui>
