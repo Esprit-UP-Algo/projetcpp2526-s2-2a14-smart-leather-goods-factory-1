@@ -32,9 +32,8 @@ bool Connection::createConnect()
 {
     bool test = false;
 
-    db.setDatabaseName("youssef");//inserer le nom de la source de données
-    db.setUserName("smartleather");//inserer nom de l'utilisateur
-    db.setPassword("smartleather");//inserer mot de passe de cet utilisateur
+    db.setDatabaseName("DRIVER={Oracle in XE};DBQ=XE;Uid=smartleather;Pwd=smartleather;");
+    // db.setPassword("smartleather");
 
     if (db.open()) {
         test = true;

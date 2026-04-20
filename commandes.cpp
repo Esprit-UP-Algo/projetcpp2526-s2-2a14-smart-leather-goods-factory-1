@@ -65,7 +65,7 @@ void commandes::loadSampleData()
     ui->tableWidget->setRowCount(0);
 
     QSqlQuery query;
-    query.prepare("SELECT C.ID_COMMANDE, C.NOMCLIENT, C.ADRESSE_LIVRAISON, TO_CHAR(C.DATE_COMMANDE, 'DD/MM/YYYY'), TO_CHAR(C.DATE_LIVRAISON, 'DD/MM/YYYY'), C.ETAT_COMMANDE, C.MONTANT_TOTALE, C.MODE_PAIMENT, E.NOM || ' ' || E.PRENOM AS EMP_NAME, C.ID_EMPLOYEE FROM COMMANDE C LEFT JOIN EMPLOYEE E ON C.ID_EMPLOYEE = E.ID_EMPLOYEE");
+    query.prepare("SELECT C.ID_COMMANDE, C.NOM_CLIENT, C.ADRESSE_LIVRAISON, TO_CHAR(C.DATE_COMMANDE, 'DD/MM/YYYY'), TO_CHAR(C.DATE_LIVRAISON_PREVUE, 'DD/MM/YYYY'), C.ETAT_COMMANDE, C.MONTANT_TOTAL, C.MODE_PAIEMENT, E.NOM_EMPLOYEE AS EMP_NAME, C.ID_EMPLOYEE FROM COMMANDE C LEFT JOIN EMPLOYEE E ON C.ID_EMPLOYEE = E.ID_EMPLOYEE");
     
     if (query.exec()) {
         while (query.next()) {
@@ -157,7 +157,7 @@ void commandes::on_pushButton_clicked()
         if (!validateData(id, client, address, montant)) return;
 
         QSqlQuery query;
-        query.prepare("INSERT INTO COMMANDE (ID_COMMANDE, NOMCLIENT, ADRESSE_LIVRAISON, DATE_COMMANDE, DATE_LIVRAISON, ETAT_COMMANDE, MONTANT_TOTALE, MODE_PAIMENT, ID_EMPLOYEE) "
+        query.prepare("INSERT INTO COMMANDE (ID_COMMANDE, NOM_CLIENT, ADRESSE_LIVRAISON, DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT, ID_EMPLOYEE) "
                       "VALUES (:id, :client, :adresse, TO_DATE(:datec, 'DD/MM/YYYY'), TO_DATE(:datel, 'DD/MM/YYYY'), :etat, :montant, :modep, :empid)");
         query.bindValue(":id", id);
         query.bindValue(":client", client);
@@ -203,8 +203,8 @@ void commandes::on_pushButton_2_clicked()
 
     if (dialog.exec() == QDialog::Accepted) {
         QSqlQuery query;
-        query.prepare("UPDATE COMMANDE SET NOMCLIENT = :client, ADRESSE_LIVRAISON = :adresse, DATE_COMMANDE = TO_DATE(:datec, 'DD/MM/YYYY'), "
-                      "DATE_LIVRAISON = TO_DATE(:datel, 'DD/MM/YYYY'), ETAT_COMMANDE = :etat, MONTANT_TOTALE = :montant, MODE_PAIMENT = :modep, ID_EMPLOYEE = :empid "
+        query.prepare("UPDATE COMMANDE SET NOM_CLIENT = :client, ADRESSE_LIVRAISON = :adresse, DATE_COMMANDE = TO_DATE(:datec, 'DD/MM/YYYY'), "
+                      "DATE_LIVRAISON_PREVUE = TO_DATE(:datel, 'DD/MM/YYYY'), ETAT_COMMANDE = :etat, MONTANT_TOTAL = :montant, MODE_PAIEMENT = :modep, ID_EMPLOYEE = :empid "
                       "WHERE ID_COMMANDE = :id");
         query.bindValue(":client", dialog.getClient());
         query.bindValue(":adresse", dialog.getAddress());

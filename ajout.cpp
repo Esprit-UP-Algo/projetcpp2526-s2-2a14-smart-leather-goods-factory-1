@@ -25,7 +25,7 @@ Ajout::Ajout(QWidget *parent) : QDialog(parent) {
 
     // Form Fields for COMMANDES (not machines)
     idEdit = new QLineEdit();
-    idEdit->setPlaceholderText("ID Commande (ex: C001)");
+    idEdit->setPlaceholderText("ID Commande (ex: 1)");
     idEdit->setAlignment(Qt::AlignCenter);
 
     clientEdit = new QLineEdit();
@@ -55,9 +55,9 @@ Ajout::Ajout(QWidget *parent) : QDialog(parent) {
     modePaiementCombo->addItems({"Carte bancaire", "Espèces", "Virement", "Chèque", "PayPal"});
 
     employeCombo = new QComboBox();
-    QSqlQuery q("SELECT ID_EMPLOYEE, NOM, PRENOM FROM EMPLOYEE");
+    QSqlQuery q("SELECT ID_EMPLOYEE, NOM_EMPLOYEE FROM EMPLOYEE");
     while (q.next()) {
-        employeCombo->addItem(q.value(1).toString() + " " + q.value(2).toString(), q.value(0).toString());
+        employeCombo->addItem(q.value(1).toString(), q.value(0).toString());
     }
 
     // Add to layout
