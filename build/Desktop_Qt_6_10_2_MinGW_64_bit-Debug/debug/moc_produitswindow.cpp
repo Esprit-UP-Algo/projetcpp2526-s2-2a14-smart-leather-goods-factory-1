@@ -6,7 +6,11 @@
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
+<<<<<<< HEAD
 #include "../../../../produitss/produitswindow.h"
+=======
+#include "../../../produitswindow.h"
+>>>>>>> a6d80d846e86a500757f33c3b53cbb077f027308
 #include <QtCore/qmetatype.h>
 
 #include <QtCore/qtmochelpers.h>
@@ -45,7 +49,10 @@ template <> constexpr inline auto produitswindow::qt_create_metaobjectdata<qt_me
         "on_pushButton_3_clicked",
         "on_pushButton_4_clicked",
         "on_pushButton_7_clicked",
+<<<<<<< HEAD
         "on_pushButton_9_clicked",
+=======
+>>>>>>> a6d80d846e86a500757f33c3b53cbb077f027308
         "on_pushButton_10_clicked",
         "on_comboBox_tri_currentIndexChanged",
         "index"
@@ -62,6 +69,7 @@ template <> constexpr inline auto produitswindow::qt_create_metaobjectdata<qt_me
         QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'on_pushButton_7_clicked'
         QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
+<<<<<<< HEAD
         // Slot 'on_pushButton_9_clicked'
         QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
         // Slot 'on_pushButton_10_clicked'
@@ -69,6 +77,13 @@ template <> constexpr inline auto produitswindow::qt_create_metaobjectdata<qt_me
         // Slot 'on_comboBox_tri_currentIndexChanged'
         QtMocHelpers::SlotData<void(int)>(9, 2, QMC::AccessPrivate, QMetaType::Void, {{
             { QMetaType::Int, 10 },
+=======
+        // Slot 'on_pushButton_10_clicked'
+        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'on_comboBox_tri_currentIndexChanged'
+        QtMocHelpers::SlotData<void(int)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 9 },
+>>>>>>> a6d80d846e86a500757f33c3b53cbb077f027308
         }}),
     };
     QtMocHelpers::UintData qt_properties {
@@ -98,9 +113,14 @@ void produitswindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _
         case 2: _t->on_pushButton_3_clicked(); break;
         case 3: _t->on_pushButton_4_clicked(); break;
         case 4: _t->on_pushButton_7_clicked(); break;
+<<<<<<< HEAD
         case 5: _t->on_pushButton_9_clicked(); break;
         case 6: _t->on_pushButton_10_clicked(); break;
         case 7: _t->on_comboBox_tri_currentIndexChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+=======
+        case 5: _t->on_pushButton_10_clicked(); break;
+        case 6: _t->on_comboBox_tri_currentIndexChanged((*reinterpret_cast<std::add_pointer_t<int>>(_a[1]))); break;
+>>>>>>> a6d80d846e86a500757f33c3b53cbb077f027308
         default: ;
         }
     }
@@ -125,6 +145,7 @@ int produitswindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
+<<<<<<< HEAD
         if (_id < 8)
             qt_static_metacall(this, _c, _id, _a);
         _id -= 8;
@@ -133,6 +154,16 @@ int produitswindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
         if (_id < 8)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
         _id -= 8;
+=======
+        if (_id < 7)
+            qt_static_metacall(this, _c, _id, _a);
+        _id -= 7;
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        if (_id < 7)
+            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
+        _id -= 7;
+>>>>>>> a6d80d846e86a500757f33c3b53cbb077f027308
     }
     return _id;
 }

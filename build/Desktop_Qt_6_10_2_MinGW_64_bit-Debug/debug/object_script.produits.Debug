@@ -1,0 +1,10 @@
+debug/ajout.o
+debug/connection.o
+debug/main.o
+debug/produitswindow.o
+debug/produit.o
+debug/modifier.o
+debug/qrc_logo.o
+debug/moc_ajout.o
+debug/moc_produitswindow.o
+debug/moc_modifier.o

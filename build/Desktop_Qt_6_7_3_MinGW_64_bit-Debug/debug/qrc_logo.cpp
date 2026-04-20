@@ -1,18 +1,13 @@
 /****************************************************************************
 ** Resource object code
 **
-** Created by: The Resource Compiler for Qt version 6.10.2
+** Created by: The Resource Compiler for Qt version 6.7.3
 **
 ** WARNING! All changes made in this file will be lost!
 *****************************************************************************/
 
-#ifdef _MSC_VER
-// disable informational message "function ... selected for automatic inline expansion"
-#pragma warning (disable: 4711)
-#endif
-
 static const unsigned char qt_resource_data[] = {
-  // Logo.png
+  // C:/Users/moham/OneDrive/Desktop/Documents/projet2626/Logo.png
   0x0,0x2a,0x80,0x81,
   0x89,
   0x50,0x4e,0x47,0xd,0xa,0x1a,0xa,0x0,0x0,0x0,0xd,0x49,0x48,0x44,0x52,0x0,
@@ -174122,11 +174117,7 @@ static const unsigned char qt_resource_struct[] = {
 0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
   // :/Logo.png
   0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,
-<<<<<<< HEAD
-0x0,0x0,0x1,0x9d,0x36,0x89,0x93,0xbc,
-=======
-0x0,0x0,0x1,0x9c,0x47,0x2a,0xf7,0x50,
->>>>>>> a6d80d846e86a500757f33c3b53cbb077f027308
+0x0,0x0,0x1,0x9b,0xff,0xa7,0x2,0xc1,
 
 };
 
@@ -174142,9 +174133,7 @@ static const unsigned char qt_resource_struct[] = {
 #   define QT_RCC_MANGLE_NAMESPACE(name) name
 #endif
 
-#if defined(QT_INLINE_NAMESPACE)
-inline namespace QT_NAMESPACE {
-#elif defined(QT_NAMESPACE)
+#ifdef QT_NAMESPACE
 namespace QT_NAMESPACE {
 #endif
 

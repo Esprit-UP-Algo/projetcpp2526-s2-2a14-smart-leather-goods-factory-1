@@ -1,0 +1,10 @@
+release/ajout.o
+release/connection.o
+release/main.o
+release/produitswindow.o
+release/produit.o
+release/modifier.o
+release/qrc_logo.o
+release/moc_ajout.o
+release/moc_produitswindow.o
+release/moc_modifier.o
