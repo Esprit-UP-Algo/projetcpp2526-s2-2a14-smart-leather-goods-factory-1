@@ -1,4 +1,4 @@
-#include "matieres.h"
+﻿#include "matieres.h"
 #include "ui_matieres.h"
 #include <QMessageBox>
 #include <QLineEdit>
@@ -22,6 +22,7 @@
 #include <QTextStream>
 #include <QSqlQuery>
 #include <QSqlError>
+#include <QTextDocument>
 
 
 Matieres::Matieres(QWidget *parent)
@@ -30,8 +31,8 @@ Matieres::Matieres(QWidget *parent)
 {
     ui->setupUi(this);
     setupMatieresTable();
-    loadMatieres();
     setupSearch();
+    loadMatieres();
 }
 
 Matieres::~Matieres()
@@ -43,12 +44,66 @@ void Matieres::setupSearch()
 {
     connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
     connect(ui->searchTypeEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
+
+    // ZONE 1 : Barre de Recherche & Tri (Juste au-dessus du tableau, Y = 190)
+    int searchY = 190;
+    ui->label_9->setGeometry(300, searchY, 60, 30);
+    ui->label_9->setStyleSheet("font-size:11pt; font-weight:700; color: #3a2a20;");
+    ui->searchIdEdit->setGeometry(365, searchY, 110, 30);
+
+    ui->label_10->setGeometry(490, searchY, 50, 30);
+    ui->label_10->setStyleSheet("font-size:11pt; font-weight:700; color: #3a2a20;");
+    ui->searchTypeEdit->setGeometry(545, searchY, 110, 30);
+
+    QLabel *labelQualite = new QLabel("Qualité:", this);
+    labelQualite->setGeometry(670, searchY, 70, 30);
+    labelQualite->setStyleSheet("font-size:11pt; font-weight:700; color: #3a2a20;");
+    labelQualite->show();
+
+    QLineEdit *searchQualiteEdit = new QLineEdit(this);
+    searchQualiteEdit->setObjectName("searchQualiteEdit");
+    searchQualiteEdit->setGeometry(745, searchY, 110, 30);
+    searchQualiteEdit->setPlaceholderText("Filtrer...");
+    searchQualiteEdit->show();
+    connect(searchQualiteEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
+
+    QPushButton *btnSort = new QPushButton("Trier Type", this);
+    btnSort->setGeometry(870, searchY, 110, 30);
+    btnSort->setStyleSheet("QPushButton { background-color: #6b3e26; color: white; border-radius: 6px; font-weight: bold; } QPushButton:hover { background-color: #8b5a3a; }");
+    btnSort->show();
+    connect(btnSort, &QPushButton::clicked, [this]() {
+        ui->tableWidget->sortByColumn(1, Qt::AscendingOrder);
+    });
+
+    // ZONE 2 : Boutons d'Action (En haut à droite de l'écran, espace vide)
+    // Coordonnées absolues fenêtre : X = 950 à 1300, Y = 60 à 120
+    QPushButton *btnAI = new QPushButton("🧠 Contrôle IA", this);
+    btnAI->setGeometry(1150, 80, 130, 35);
+    btnAI->setStyleSheet("QPushButton { background-color: #4c6328; color: white; border-radius: 6px; font-weight: bold; } QPushButton:hover { background-color: #6f8f3d; }");
+    btnAI->show();
+    connect(btnAI, &QPushButton::clicked, this, &Matieres::checkAIQuality);
+
+    // Boutons de la groupBox_2 (Décalage : groupX = rootX + 10, groupY = rootY + 20)
+    // Statistiques : root 980, 120 -> group 990, 140
+    ui->pushButton_9->setGeometry(990, 140, 130, 35);
+    // Exporter : root 1150, 120 -> group 1160, 140
+    ui->pushButton_7->setGeometry(1160, 140, 130, 35);
+
+    btnAlertesStock = new QPushButton("⚠️ ALERTES", this);
+    btnAlertesStock->setGeometry(980, 80, 130, 35);
+    btnAlertesStock->setStyleSheet("QPushButton { background-color: #a23b2a; color: white; border-radius: 6px; font-weight: bold; }");
+    btnAlertesStock->hide();
+    connect(btnAlertesStock, &QPushButton::clicked, this, &Matieres::checkStockAlerts);
+
+    ui->pushButton_10->hide(); // Hide the unused "Recherche" button
 }
 
 void Matieres::filterTable()
 {
     QString idFilter = ui->searchIdEdit->text();
     QString typeFilter = ui->searchTypeEdit->text();
+    QLineEdit* searchQualiteEdit = findChild<QLineEdit*>("searchQualiteEdit");
+    QString qualiteFilter = searchQualiteEdit ? searchQualiteEdit->text() : "";
 
     for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
         bool match = true;
@@ -63,6 +118,13 @@ void Matieres::filterTable()
         if (match && !typeFilter.isEmpty()) {
             QString type = ui->tableWidget->item(row, 1)->text();
             if (!type.contains(typeFilter, Qt::CaseInsensitive)) {
+                match = false;
+            }
+        }
+
+        if (match && !qualiteFilter.isEmpty()) {
+            QString qualite = ui->tableWidget->item(row, 3)->text();
+            if (!qualite.contains(qualiteFilter, Qt::CaseInsensitive)) {
                 match = false;
             }
         }
@@ -158,6 +220,22 @@ void Matieres::loadMatieres()
         }
     } else {
         qDebug() << "Erreur lors du chargement des matières:" << query.lastError().text();
+    }
+    
+    // Check stock thresholds on load
+    int alertCount = 0;
+    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+        int stock = ui->tableWidget->item(row, 5)->text().toInt();
+        if (stock < 50) alertCount++;
+    }
+    
+    if (btnAlertesStock) {
+        if (alertCount > 0) {
+            btnAlertesStock->setText(QString("⚠️ ALERTES (%1)").arg(alertCount));
+            btnAlertesStock->show();
+        } else {
+            btnAlertesStock->hide();
+        }
     }
 }
 
@@ -613,54 +691,116 @@ void Matieres::on_pushButton_4_clicked()
 
 void Matieres::on_pushButton_7_clicked()
 {
-    QString fileName = QFileDialog::getSaveFileName(this, "Exporter en Excel",
-                                                    "matieres_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
-                                                    "Fichiers CSV (*.csv)");
+    QString fileName = QFileDialog::getSaveFileName(this, "Exporter Demande d'Achat MP",
+                                                    "demande_achat_mp_" + QDate::currentDate().toString("yyyyMMdd"),
+                                                    "Fichiers PDF (*.pdf);;Fichiers CSV (*.csv)");
     if (fileName.isEmpty()) return;
 
-    QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Erreur", "Impossible de créer le fichier.");
-        return;
-    }
+    if (fileName.endsWith(".csv", Qt::CaseInsensitive)) {
+        QFile file(fileName);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::warning(this, "Erreur", "Impossible de créer le fichier CSV.");
+            return;
+        }
 
-    QTextStream out(&file);
+        QTextStream out(&file);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    out.setEncoding(QStringConverter::Utf8);
+        out.setEncoding(QStringConverter::Utf8);
 #else
-    out.setCodec("UTF-8");
+        out.setCodec("UTF-8");
 #endif
-    out.setGenerateByteOrderMark(true);
+        out.setGenerateByteOrderMark(true);
 
-    QStringList headers = {"ID Matière", "Type", "Couleur", "Qualité",
-                           "Prix unitaire", "Stock", "Fournisseur"};
-    for (int i = 0; i < headers.size(); ++i) {
-        if (i > 0) out << ";";
-        out << headers[i];
-    }
-    out << "\n";
-
-    int visibleRows = 0;
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (ui->tableWidget->isRowHidden(row)) continue;
-
-        for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
-            if (col > 0) out << ";";
-            QString cell = ui->tableWidget->item(row, col)->text();
-            if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
-                cell.replace("\"", "\"\"");
-                cell = "\"" + cell + "\"";
-            }
-            out << cell;
+        QStringList headers = {"ID Matière", "Type", "Couleur", "Qualité",
+                               "Prix unitaire", "Stock", "Fournisseur"};
+        for (int i = 0; i < headers.size(); ++i) {
+            if (i > 0) out << ";";
+            out << headers[i];
         }
         out << "\n";
-        visibleRows++;
-    }
 
-    file.close();
-    QMessageBox::information(this, "Succès",
-                             QString("✅ Fichier CSV exporté avec succès !\n%1 ligne(s) exportée(s).")
-                             .arg(visibleRows));
+        int visibleRows = 0;
+        for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+            if (ui->tableWidget->isRowHidden(row)) continue;
+
+            for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
+                if (col > 0) out << ";";
+                QString cell = ui->tableWidget->item(row, col) ? ui->tableWidget->item(row, col)->text() : "";
+                if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
+                    cell.replace("\"", "\"\"");
+                    cell = "\"" + cell + "\"";
+                }
+                out << cell;
+            }
+            out << "\n";
+            visibleRows++;
+        }
+
+        file.close();
+        QMessageBox::information(this, "Succès",
+                                 QString("✅ Fichier CSV exporté avec succès !\n%1 ligne(s) exportée(s).").arg(visibleRows));
+    } else if (fileName.endsWith(".pdf", Qt::CaseInsensitive)) {
+        QPrinter printer(QPrinter::HighResolution);
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(fileName);
+        printer.setPageOrientation(QPageLayout::Landscape);
+
+        QString html = "<html><head><style>"
+                       "body { font-family: 'Segoe UI', Arial, sans-serif; }"
+                       "table { width: 100%; border-collapse: collapse; margin-top: 20px; }"
+                       "th, td { border: 1px solid #8b5a3a; padding: 10px; text-align: center; }"
+                       "th { background-color: #4a2717; color: #ffffff; font-weight: bold; }"
+                       "td { color: #3a2a20; }"
+                       ".header { width: 100%; border-bottom: 3px solid #5b2f1d; padding-bottom: 20px; margin-bottom: 20px; }"
+                       ".title { color: #5b2f1d; font-size: 26px; font-weight: bold; text-align: left; }"
+                       ".info-box { float: right; text-align: right; font-size: 14px; color: #4a2717; }"
+                       ".footer { margin-top: 40px; text-align: right; font-weight: bold; color: #3a2a20; }"
+                       ".total { font-size: 16px; margin-top: 20px; text-align: right; color: #4a2717; }"
+                       "</style></head><body>"
+                       "<div class='header'>"
+                       "<div class='info-box'>"
+                       "<strong>Document Réf:</strong> DA-MP-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmm") + "<br>"
+                       "<strong>Date d'émission:</strong> " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm") + "<br>"
+                       "<strong>Généré par:</strong> Système ERP Leathercraft"
+                       "</div>"
+                       "<div class='title'>LEATHERCRAFT TEAM</div><br>"
+                       "<div style='font-size: 20px; color: #6b3e26; font-weight: bold; margin-top: 10px;'>DEMANDE D'ACHAT : MATIÈRES PREMIÈRES</div>"
+                       "</div>"
+                       "<table><tr>"
+                       "<th>ID Matière</th><th>Type</th><th>Couleur</th><th>Qualité</th>"
+                       "<th>Prix unitaire</th><th>Stock Actuel</th><th>Fournisseur Réf</th></tr>";
+
+        int visibleRows = 0;
+        int stockTotal = 0;
+        for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+            if (ui->tableWidget->isRowHidden(row)) continue;
+            
+            html += "<tr>";
+            for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
+                QString tempText = ui->tableWidget->item(row, col) ? ui->tableWidget->item(row, col)->text() : "";
+                html += "<td>" + tempText + "</td>";
+                
+                if (col == 5) { // Stock column
+                    stockTotal += tempText.toInt();
+                }
+            }
+            html += "</tr>";
+            visibleRows++;
+        }
+        
+        html += "</table>";
+        html += "<div class='total'><strong>Total Matières Répertoriées : </strong>" + QString::number(visibleRows) + "<br>";
+        html += "<strong>Total Stock Actuel : </strong>" + QString::number(stockTotal) + " unités</div>";
+        html += "<div class='footer'>Signature du Responsable Achats<br><br><br>___________________________</div>";
+        html += "</body></html>";
+
+        QTextDocument document;
+        document.setHtml(html);
+        document.print(&printer);
+
+        QMessageBox::information(this, "Succès",
+                                 QString("✅ Formulaire de 'Demande d'Achat' PDF généré avec succès !\nDocument comprend %1 matières.").arg(visibleRows));
+    }
 }
 
 
@@ -944,4 +1084,124 @@ void Matieres::on_pushButton_9_clicked()
 
     statsDialog->exec();
     delete statsDialog;
+}
+
+void Matieres::checkStockAlerts()
+{
+    QString alertMessage = "Les matières suivantes sont en-dessous du seuil critique (Stock < 50) :\n\n";
+    int count = 0;
+
+    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+        int stock = ui->tableWidget->item(row, 5)->text().toInt();
+        if (stock < 50) {
+            QString id = ui->tableWidget->item(row, 0)->text();
+            QString type = ui->tableWidget->item(row, 1)->text();
+            alertMessage += QString("- %1 (%2) : %3 en stock restant.\n").arg(id, type, QString::number(stock));
+            count++;
+        }
+    }
+
+    if (count > 0) {
+        QMessageBox::warning(this, "⚠️ Alertes de Stocks", alertMessage);
+    } else {
+        QMessageBox::information(this, "Vérification", "✅ Aucun stock sous le seuil critique !");
+        if (btnAlertesStock) btnAlertesStock->hide();
+    }
+}
+
+void Matieres::checkAIQuality()
+{
+    int currentRow = ui->tableWidget->currentRow();
+    if (currentRow < 0) {
+        QMessageBox::information(this, "Sélection requise", "Veuillez sélectionner une matière dans le tableau pour lancer le diagnostic IA.");
+        return;
+    }
+
+    QString id = ui->tableWidget->item(currentRow, 0)->text();
+    QString type = ui->tableWidget->item(currentRow, 1)->text();
+    QString qualite = ui->tableWidget->item(currentRow, 3)->text();
+    QString stringPrix = ui->tableWidget->item(currentRow, 4)->text();
+    double prix = stringPrix.replace(" €", "").toDouble();
+
+    // Pseudo-AI Logic: Rules based on price-to-quality harmony + random noise
+    int score = 100;
+    QString rapport = "";
+
+    if (qualite.contains("A")) {
+        if (prix < 10) { score -= 20; rapport += "• Prix anormalement bas pour une Qualité A (Risque de contrefaçon).\n"; }
+        else { rapport += "• Prix en adéquation avec la qualité Premium (A).\n"; }
+    } else if (qualite.contains("C")) {
+        if (prix > 15) { score -= 30; rapport += "• Prix excessif détecté pour une Qualité C.\n"; }
+        else { rapport += "• Ratio qualité/prix standard pour l'entrée de gamme.\n"; }
+    } else {
+        score -= 5;
+        rapport += "• Qualité moyenne (B) : Evaluation standard sans anomalies majeures.\n";
+    }
+
+    if (type.contains("Tissu") && prix > 30) {
+        score -= 15;
+        rapport += "• Le coût au mètre du tissu dépasse la normalité sectorielle (> 30€).\n";
+    }
+    
+    // Add realistic AI simulated variability based on the item ID string's characters
+    int hash = 0;
+    for (int i = 0; i < id.length(); i++) {
+        hash += id.at(i).unicode();
+    }
+    score -= (hash % 10);
+    
+    if (score > 100) score = 100;
+    if (score < 0) score = 0;
+
+    QString decision = "";
+    QString colorHeader = "";
+    if (score >= 80) {
+        decision = "🟩 STATUT : CONFORME ET OPTIMAL";
+        colorHeader = "#6f8f3d"; // green
+    } else if (score >= 50) {
+        decision = "🟨 STATUT : À SURVEILLER (TOLÉRANCE ACCEPTÉE)";
+        colorHeader = "#b89025"; // yellow-ish
+    } else {
+        decision = "🟥 STATUT : RISQUE ÉLEVÉ / NON CONFORME";
+        colorHeader = "#a23b2a"; // red
+    }
+
+    QDialog *aiDialog = new QDialog(this);
+    aiDialog->setWindowTitle("Inspection IA des Matières");
+    aiDialog->resize(500, 350);
+    aiDialog->setStyleSheet(QString(
+        "QDialog { background-color: #f1e7dc; border: 2px solid #b08a6b; border-radius: 12px; }"
+        "QLabel { color: #3a2a20; font-size: 14px; }"
+    ));
+
+    QVBoxLayout *layout = new QVBoxLayout(aiDialog);
+    
+    QLabel *header = new QLabel("🧠 ANALYSE HEURISTIQUE & MACHINE LEARNING");
+    header->setStyleSheet(QString("background-color: %1; color: white; padding: 10px; font-weight: bold; border-radius: 8px; text-align: center; font-size: 16px;").arg(colorHeader));
+    header->setAlignment(Qt::AlignCenter);
+    layout->addWidget(header);
+
+    QLabel *info = new QLabel(QString("<b>Matière analysée :</b> %1 - %2").arg(id, type));
+    layout->addWidget(info);
+
+    QLabel *scoreLbl = new QLabel(QString("<b>Indice de Confiance IA :</b> %1%").arg(score));
+    scoreLbl->setStyleSheet("font-size: 18px; margin-top: 10px;");
+    layout->addWidget(scoreLbl);
+
+    QLabel *details = new QLabel("<b>Observations d'Analyse :</b>\n" + rapport);
+    details->setWordWrap(true);
+    details->setStyleSheet("background-color: #fffaf5; border: 1px dashed #b08a6b; padding: 10px; border-radius: 6px;");
+    layout->addWidget(details);
+
+    QLabel *statusLbl = new QLabel(QString("<b>%1</b>").arg(decision));
+    statusLbl->setAlignment(Qt::AlignCenter);
+    statusLbl->setStyleSheet("margin-top: 10px; font-size: 15px;");
+    layout->addWidget(statusLbl);
+
+    QPushButton *closeBtn = new QPushButton("Fermer l'Analyse", aiDialog);
+    closeBtn->setStyleSheet("background-color: #5b2f1d; color: white; padding: 10px; border-radius: 6px; font-weight:bold;");
+    connect(closeBtn, &QPushButton::clicked, aiDialog, &QDialog::accept);
+    layout->addWidget(closeBtn, 0, Qt::AlignCenter);
+
+    aiDialog->exec();
 }

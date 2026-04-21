@@ -39,6 +39,9 @@ void on_pushButton_4_clicked();
 void on_pushButton_7_clicked();
 void on_pushButton_9_clicked();
 
+void checkStockAlerts();
+void checkAIQuality();
+
 private:
     Ui::Matieres *ui;
 
@@ -51,6 +54,8 @@ private:
                              const QString &couleur, const QString &qualite,
                              const QString &prix, const QString &stock,
                              const QString &fournisseur);
+
+    QPushButton *btnAlertesStock = nullptr;
 };
 
 #endif // MATIERES_H
