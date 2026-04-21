@@ -3,6 +3,8 @@ QT       += core gui
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT       += sql
 QT       += charts
+QT       += network
+qtHaveModule(webenginewidgets): QT += webenginewidgets
 
 CONFIG += c++17
 

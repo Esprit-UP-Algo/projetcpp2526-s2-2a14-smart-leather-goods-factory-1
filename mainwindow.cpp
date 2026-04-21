@@ -18,24 +18,65 @@
 #include <QHeaderView>
 #include <QDialog>
 #include <QFileDialog>
+#include <QDir>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QLabel>
 #include <QHBoxLayout>
+#include <QImage>
+#include <QLineEdit>
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
 #include <QSpinBox>
 #include <QTabWidget>
 #include <QPainter>
+#include <QPaintEvent>
+#include <QMouseEvent>
+#include <QPolygonF>
 #include <QPdfWriter>
 #include <QRegularExpression>
 #include <QTableWidget>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QTextStream>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QPixmap>
+#include <QScrollArea>
+#include <QGroupBox>
+#include <QGraphicsView>
+#include <QGraphicsScene>
+#include <QGraphicsPixmapItem>
+#include <QGraphicsEllipseItem>
+#include <QGraphicsSimpleTextItem>
+#include <QWheelEvent>
+#include <QScrollBar>
+#include <QShortcut>
+
+#if __has_include(<QtWebEngineWidgets/QWebEngineView>)
+#include <QtWebEngineWidgets/QWebEngineView>
+#include <QtWebEngineCore/QWebEngineSettings>
+#define FOURNISSEURS_HAS_WEBENGINE 1
+#elif __has_include(<QWebEngineView>)
+#include <QWebEngineView>
+#include <QWebEngineSettings>
+#define FOURNISSEURS_HAS_WEBENGINE 1
+#else
+#define FOURNISSEURS_HAS_WEBENGINE 0
+#endif
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <QHash>
+#include <QSet>
+#include <memory>
 
 #include <QtCharts/QChart>
 #include <QtCharts/QChartView>
@@ -47,131 +88,810 @@
 #include <QtCharts/QValueAxis>
 
 namespace {
-QString jsEscape(const QString &value)
+
+constexpr double kPi = 3.14159265358979323846;
+
+class SignaturePadWidget : public QWidget
 {
-    QString escaped = value;
-    escaped.replace("\\", "\\\\");
-    escaped.replace("\"", "\\\"");
-    escaped.replace("\n", " ");
-    escaped.replace("\r", " ");
-    return escaped;
+public:
+    explicit SignaturePadWidget(QWidget *parent = nullptr)
+        : QWidget(parent)
+    {
+        setMinimumHeight(280);
+        setCursor(Qt::CrossCursor);
+        setMouseTracking(true);
+        setAutoFillBackground(true);
+    }
+
+    void clear()
+    {
+        m_strokes.clear();
+        m_activeStroke.clear();
+        m_drawing = false;
+        update();
+    }
+
+    bool hasSignature() const
+    {
+        return !m_strokes.isEmpty() || !m_activeStroke.isEmpty();
+    }
+
+    QImage exportImage(const QSize &targetSize = QSize(1200, 420)) const
+    {
+        const QSize exportSize = targetSize.isValid() ? targetSize : size();
+        QImage image(exportSize, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+
+        QPainter painter(&image);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        if (width() > 0 && height() > 0) {
+            painter.scale(static_cast<qreal>(exportSize.width()) / width(), static_cast<qreal>(exportSize.height()) / height());
+        }
+        renderCanvas(painter);
+        return image;
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        renderCanvas(painter);
+    }
+
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        if (event->button() != Qt::LeftButton) {
+            QWidget::mousePressEvent(event);
+            return;
+        }
+
+        m_drawing = true;
+        m_activeStroke = QPolygonF();
+        m_activeStroke << event->position();
+        update();
+        event->accept();
+    }
+
+    void mouseMoveEvent(QMouseEvent *event) override
+    {
+        if (!m_drawing || !(event->buttons() & Qt::LeftButton)) {
+            QWidget::mouseMoveEvent(event);
+            return;
+        }
+
+        m_activeStroke << event->position();
+        update();
+        event->accept();
+    }
+
+    void mouseReleaseEvent(QMouseEvent *event) override
+    {
+        if (event->button() != Qt::LeftButton || !m_drawing) {
+            QWidget::mouseReleaseEvent(event);
+            return;
+        }
+
+        m_activeStroke << event->position();
+        if (!m_activeStroke.isEmpty()) {
+            m_strokes << m_activeStroke;
+        }
+        m_activeStroke.clear();
+        m_drawing = false;
+        update();
+        event->accept();
+    }
+
+private:
+    QList<QPolygonF> m_strokes;
+    QPolygonF m_activeStroke;
+    bool m_drawing = false;
+
+    void renderCanvas(QPainter &painter) const
+    {
+        painter.fillRect(rect(), Qt::white);
+        painter.setPen(QPen(QColor("#6b3f2b"), 2.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter.drawRect(rect().adjusted(0, 0, -1, -1));
+
+        if (!hasSignature()) {
+            painter.setPen(QColor("#7d6b5d"));
+            painter.drawText(rect(), Qt::AlignCenter, "Signez ici avec la souris ou le doigt");
+            return;
+        }
+
+        const auto drawStroke = [&painter](const QPolygonF &stroke) {
+            if (stroke.size() == 1) {
+                painter.drawEllipse(stroke.first(), 2.0, 2.0);
+                return;
+            }
+            painter.drawPolyline(stroke);
+        };
+
+        painter.setPen(QPen(QColor("#1f1a17"), 3.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        for (const QPolygonF &stroke : m_strokes) {
+            drawStroke(stroke);
+        }
+        if (!m_activeStroke.isEmpty()) {
+            drawStroke(m_activeStroke);
+        }
+    }
+};
+
+class SignatureDialog : public QDialog
+{
+public:
+    explicit SignatureDialog(QWidget *parent = nullptr)
+        : QDialog(parent)
+        , m_signataireEdit(new QLineEdit(this))
+        , m_pad(new SignaturePadWidget(this))
+    {
+        setWindowTitle("Signature de validation");
+        resize(880, 620);
+
+        auto *layout = new QVBoxLayout(this);
+
+        auto *info = new QLabel(
+            "Validez la recommandation par une signature manuscrite. Le fichier sera enregistré localement avec l'horodatage.",
+            this);
+        info->setWordWrap(true);
+        info->setStyleSheet("color: #4a2517; font-weight: 600;");
+        layout->addWidget(info);
+
+        auto *form = new QFormLayout();
+        m_signataireEdit->setPlaceholderText("Nom du valideur");
+        form->addRow("Validé par", m_signataireEdit);
+        layout->addLayout(form);
+
+        auto *group = new QGroupBox("Zone de signature", this);
+        auto *groupLayout = new QVBoxLayout(group);
+        groupLayout->addWidget(m_pad);
+        layout->addWidget(group, 1);
+
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        auto *clearButton = new QPushButton("Effacer", this);
+        buttons->addButton(clearButton, QDialogButtonBox::ResetRole);
+        connect(clearButton, &QPushButton::clicked, m_pad, &SignaturePadWidget::clear);
+        connect(buttons, &QDialogButtonBox::accepted, this, [this]() {
+            if (m_signataireEdit->text().trimmed().isEmpty()) {
+                QMessageBox::warning(this, "Signature", "Veuillez saisir le nom du valideur.");
+                return;
+            }
+            if (!m_pad->hasSignature()) {
+                QMessageBox::warning(this, "Signature", "Veuillez tracer une signature avant de valider.");
+                return;
+            }
+            accept();
+        });
+        connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+        layout->addWidget(buttons);
+    }
+
+    QString signataire() const
+    {
+        return m_signataireEdit->text().trimmed();
+    }
+
+    QImage signatureImage() const
+    {
+        return m_pad->exportImage();
+    }
+
+private:
+    QLineEdit *m_signataireEdit = nullptr;
+    SignaturePadWidget *m_pad = nullptr;
+};
+
+QString normaliserNomFichier(QString texte)
+{
+    texte = texte.simplified().trimmed();
+    texte.replace(QRegularExpression("[^A-Za-z0-9]+"), "_");
+    texte.remove(QRegularExpression("^_+|_+$"));
+    if (texte.isEmpty()) {
+        texte = "valideur";
+    }
+    return texte.toLower();
 }
 
-bool ouvrirCarteHtmlGoogle(const QString &apiKey, const QString &nom, const QString &recherche)
+bool sauvegarderSignatureValidation(const QImage &signature, const QString &signataire, const QString &contexte, QString *cheminEnregistre)
 {
-    if (apiKey.trimmed().isEmpty()) {
+    const QString baseDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (baseDir.isEmpty()) {
         return false;
     }
 
-    const QString tempDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-    if (tempDir.isEmpty()) {
+    QDir dir(baseDir);
+    if (!dir.mkpath("signatures")) {
         return false;
     }
 
-    const QString filePath = tempDir + "/fournisseur_google_map.html";
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+    const QString dossier = dir.filePath("signatures");
+    const QString horodatage = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+    const QString baseName = QString("validation_%1_%2").arg(horodatage, normaliserNomFichier(signataire));
+    const QString imagePath = QDir(dossier).filePath(baseName + ".png");
+    const QString metaPath = QDir(dossier).filePath(baseName + ".txt");
+
+    if (!signature.save(imagePath)) {
         return false;
     }
 
-    const QString nomJs = jsEscape(nom);
-    const QString rechercheJs = jsEscape(recherche);
-    const QString keyJs = jsEscape(apiKey.trimmed());
+    QFile metaFile(metaPath);
+    if (metaFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream stream(&metaFile);
+        stream << "Date: " << QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss") << "\n";
+        stream << "Valideur: " << signataire << "\n";
+        stream << contexte << "\n";
+    }
 
-    QTextStream out(&file);
-    out.setEncoding(QStringConverter::Utf8);
-    out << "<!doctype html>\n"
-           "<html>\n"
-           "  <head>\n"
-           "    <meta charset=\"utf-8\" />\n"
-           "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
-           "    <title>Fournisseur Map</title>\n"
-           "    <style>html, body, #map { height: 100%; margin: 0; padding: 0; }</style>\n"
-           "    <script>\n"
-           "      function initMap() {\n"
-           "        const geocoder = new google.maps.Geocoder();\n"
-           "        const query = \"" << rechercheJs << "\";\n"
-           "        const supplierName = \"" << nomJs << "\";\n"
-           "        geocoder.geocode({ address: query }, function(results, status) {\n"
-           "          if (status !== 'OK' || !results || !results.length) {\n"
-           "            alert('Impossible de localiser cette adresse: ' + query);\n"
-           "            return;\n"
-           "          }\n"
-           "          const map = new google.maps.Map(document.getElementById('map'), {\n"
-           "            zoom: 18,\n"
-           "            center: results[0].geometry.location,\n"
-           "            mapTypeControl: false\n"
-           "          });\n"
-           "          const marker = new google.maps.Marker({\n"
-           "            position: results[0].geometry.location,\n"
-           "            map: map,\n"
-           "            title: supplierName\n"
-           "          });\n"
-           "          const info = new google.maps.InfoWindow({\n"
-           "            content: '<div style=\"font-family:Segoe UI;font-size:14px\"><b>' + supplierName + '</b><br>' + query + '</div>'\n"
-           "          });\n"
-           "          info.open({ map, anchor: marker });\n"
-           "        });\n"
-           "      }\n"
-           "    </script>\n"
-           "  </head>\n"
-           "  <body>\n"
-           "    <div id=\"map\"></div>\n"
-           "    <script src=\"https://maps.googleapis.com/maps/api/js?key=" << keyJs << "&callback=initMap\" defer></script>\n"
-           "  </body>\n"
-           "</html>\n";
+    if (cheminEnregistre) {
+        *cheminEnregistre = imagePath;
+    }
 
-    file.close();
-    return QDesktopServices::openUrl(QUrl::fromLocalFile(filePath));
+    return true;
 }
 
-QString chargerGoogleMapsApiKey()
+class InteractiveMapView : public QGraphicsView
 {
-    const QString envKey = qEnvironmentVariable("GOOGLE_MAPS_API_KEY").trimmed();
-    if (!envKey.isEmpty()) {
-        return envKey;
+public:
+    explicit InteractiveMapView(QWidget *parent = nullptr)
+        : QGraphicsView(parent)
+        , m_scene(new QGraphicsScene(this))
+        , m_manager(new QNetworkAccessManager(this))
+    {
+        setScene(m_scene);
+        setDragMode(QGraphicsView::ScrollHandDrag);
+        setTransformationAnchor(QGraphicsView::NoAnchor);
+        setResizeAnchor(QGraphicsView::AnchorViewCenter);
+        setRenderHint(QPainter::Antialiasing, true);
+        setRenderHint(QPainter::SmoothPixmapTransform, true);
+        setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+        setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+
+        QObject::connect(horizontalScrollBar(), &QScrollBar::valueChanged, this, [this]() {
+            chargerTuilesVisibles();
+        });
+        QObject::connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this]() {
+            chargerTuilesVisibles();
+        });
     }
 
-    const QStringList candidates = {
-        QCoreApplication::applicationDirPath() + "/google_maps_api_key.txt",
-        QCoreApplication::applicationDirPath() + "/../google_maps_api_key.txt",
-        QDir::currentPath() + "/google_maps_api_key.txt"
-    };
-
-    for (const QString &path : candidates) {
-        QFile f(path);
-        if (!f.exists()) {
-            continue;
-        }
-        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            continue;
-        }
-        QTextStream in(&f);
-        in.setEncoding(QStringConverter::Utf8);
-        const QString fileKey = in.readAll().trimmed();
-        f.close();
-        if (!fileKey.isEmpty()) {
-            return fileKey;
-        }
+    void setCenterAndMarker(double latitude, double longitude, int zoom)
+    {
+        m_centerLat = qBound(-85.0511, latitude, 85.0511);
+        m_centerLon = longitude;
+        m_zoom = qBound(2, zoom, 19);
+        rebuildScene(true);
     }
 
-    return QString();
-}
+    void zoomInStep()
+    {
+        zoomAtViewportCenter(+1);
+    }
+
+    void zoomOutStep()
+    {
+        zoomAtViewportCenter(-1);
+    }
+
+protected:
+    void resizeEvent(QResizeEvent *event) override
+    {
+        QGraphicsView::resizeEvent(event);
+        chargerTuilesVisibles();
+    }
+
+    void wheelEvent(QWheelEvent *event) override
+    {
+        const int delta = event->angleDelta().y();
+        if (delta == 0) {
+            event->accept();
+            return;
+        }
+
+        const QPointF sceneBefore = mapToScene(event->position().toPoint());
+        const auto geo = worldToGeo(sceneBefore, m_zoom);
+        const int newZoom = qBound(2, m_zoom + (delta > 0 ? 1 : -1), 19);
+
+        if (newZoom != m_zoom) {
+            m_zoom = newZoom;
+            m_centerLat = geo.first;
+            m_centerLon = geo.second;
+            rebuildScene(true);
+        }
+
+        event->accept();
+    }
+
+private:
+    QGraphicsScene *m_scene = nullptr;
+    QNetworkAccessManager *m_manager = nullptr;
+    QHash<QString, QGraphicsPixmapItem *> m_tiles;
+    QSet<QString> m_pending;
+    QGraphicsEllipseItem *m_marker = nullptr;
+    QGraphicsSimpleTextItem *m_statusItem = nullptr;
+    int m_failedRequests = 0;
+    double m_centerLat = 36.8065;
+    double m_centerLon = 10.1815;
+    int m_zoom = 16;
+
+    void zoomAtViewportCenter(int delta)
+    {
+        const QPointF sceneCenter = mapToScene(viewport()->rect().center());
+        const auto geo = worldToGeo(sceneCenter, m_zoom);
+        const int newZoom = qBound(2, m_zoom + delta, 19);
+        if (newZoom == m_zoom) {
+            return;
+        }
+
+        m_zoom = newZoom;
+        m_centerLat = geo.first;
+        m_centerLon = geo.second;
+        rebuildScene(true);
+    }
+
+    static QPointF geoToWorld(double latitude, double longitude, int zoom)
+    {
+        const double latRad = latitude * kPi / 180.0;
+        const double n = std::pow(2.0, zoom);
+        const double x = (longitude + 180.0) / 360.0 * n * 256.0;
+        const double y = (1.0 - std::log(std::tan(latRad) + (1.0 / std::cos(latRad))) / kPi) / 2.0 * n * 256.0;
+        return QPointF(x, y);
+    }
+
+    static QPair<double, double> worldToGeo(const QPointF &world, int zoom)
+    {
+        const double n = std::pow(2.0, zoom);
+        const double lon = (world.x() / (256.0 * n)) * 360.0 - 180.0;
+        const double mercN = kPi * (1.0 - 2.0 * world.y() / (256.0 * n));
+        const double lat = 180.0 / kPi * std::atan(std::sinh(mercN));
+        return qMakePair(lat, lon);
+    }
+
+    static QUrl tileUrl(int zoom, int x, int y)
+    {
+        return QUrl(QStringLiteral("https://tile.openstreetmap.org/%1/%2/%3.png").arg(zoom).arg(x).arg(y));
+    }
+
+    void rebuildScene(bool recenter)
+    {
+        m_pending.clear();
+        m_tiles.clear();
+        m_scene->clear();
+        m_marker = nullptr;
+        m_statusItem = nullptr;
+        m_failedRequests = 0;
+
+        const double worldSize = 256.0 * std::pow(2.0, m_zoom);
+        m_scene->setSceneRect(0, 0, worldSize, worldSize);
+
+        const QPointF markerPos = geoToWorld(m_centerLat, m_centerLon, m_zoom);
+        m_marker = m_scene->addEllipse(-10, -10, 20, 20, QPen(QColor(123, 30, 30), 3), QBrush(QColor(214, 40, 40)));
+        m_marker->setPos(markerPos);
+        m_marker->setZValue(10);
+
+        auto *dot = m_scene->addEllipse(-3.5, -3.5, 7, 7, QPen(Qt::NoPen), QBrush(Qt::white));
+        dot->setPos(markerPos);
+        dot->setZValue(11);
+
+        if (recenter) {
+            centerOn(markerPos);
+        }
+
+        chargerTuilesVisibles();
+    }
+
+    void chargerTuilesVisibles()
+    {
+        if (!m_scene) {
+            return;
+        }
+
+        const QRectF visible = mapToScene(viewport()->rect()).boundingRect();
+        const int maxTile = (1 << m_zoom) - 1;
+
+        const int minX = qMax(0, static_cast<int>(std::floor(visible.left() / 256.0)) - 1);
+        const int maxX = qMin(maxTile, static_cast<int>(std::floor(visible.right() / 256.0)) + 1);
+        const int minY = qMax(0, static_cast<int>(std::floor(visible.top() / 256.0)) - 1);
+        const int maxY = qMin(maxTile, static_cast<int>(std::floor(visible.bottom() / 256.0)) + 1);
+
+        for (int ty = minY; ty <= maxY; ++ty) {
+            for (int tx = minX; tx <= maxX; ++tx) {
+                const QString key = QStringLiteral("%1/%2/%3").arg(m_zoom).arg(tx).arg(ty);
+                if (m_tiles.contains(key) || m_pending.contains(key)) {
+                    continue;
+                }
+
+                m_pending.insert(key);
+                QNetworkRequest req(tileUrl(m_zoom, tx, ty));
+                req.setHeader(QNetworkRequest::UserAgentHeader, "FournisseursQt/1.0 (OSM-Tiles)");
+                QNetworkReply *reply = m_manager->get(req);
+
+                QObject::connect(reply, &QNetworkReply::finished, this,
+                    [this, reply, key, tx, ty]() {
+                        m_pending.remove(key);
+                        if (reply->error() == QNetworkReply::NoError) {
+                            QPixmap tile;
+                            if (tile.loadFromData(reply->readAll())) {
+                                auto *item = m_scene->addPixmap(tile);
+                                item->setPos(tx * 256.0, ty * 256.0);
+                                item->setZValue(0);
+                                m_tiles.insert(key, item);
+                                if (m_statusItem) {
+                                    m_scene->removeItem(m_statusItem);
+                                    delete m_statusItem;
+                                    m_statusItem = nullptr;
+                                }
+                            }
+                        } else {
+                            ++m_failedRequests;
+                            if (m_tiles.isEmpty() && m_failedRequests >= 3 && !m_statusItem) {
+                                m_statusItem = m_scene->addSimpleText("Connexion internet requise pour charger la carte.");
+                                m_statusItem->setBrush(QBrush(QColor(212, 80, 80)));
+                                m_statusItem->setZValue(20);
+                                const QPointF center = mapToScene(viewport()->rect().center());
+                                m_statusItem->setPos(center.x() - 180.0, center.y() - 10.0);
+                            }
+                        }
+                        reply->deleteLater();
+                    });
+            }
+        }
+    }
+};
 
 QString nettoyerPourMaps(const QString &texte)
 {
     return texte.simplified().trimmed();
 }
 
+QUrl construireUrlNominatim(const QString &recherche)
+{
+    QUrl url(QStringLiteral("https://nominatim.openstreetmap.org/search"));
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("format"), QStringLiteral("jsonv2"));
+    query.addQueryItem(QStringLiteral("limit"), QStringLiteral("1"));
+    query.addQueryItem(QStringLiteral("addressdetails"), QStringLiteral("1"));
+    query.addQueryItem(QStringLiteral("q"), recherche);
+    url.setQuery(query);
+    return url;
+}
+
+QString normaliserPartieAdresse(QString partie)
+{
+    partie = partie.simplified().trimmed();
+    partie.remove(QRegularExpression("\\bville\\b", QRegularExpression::CaseInsensitiveOption));
+    partie = partie.simplified().trimmed();
+    return partie;
+}
+
+QString ajouterContexteTunisie(QString valeur)
+{
+    if (valeur.contains("Tunisie", Qt::CaseInsensitive) || valeur.contains("Tunis", Qt::CaseInsensitive)) {
+        return valeur;
+    }
+    return valeur + ", Tunisie";
+}
+
+QStringList construireCandidatsGeocodage(const QString &recherche)
+{
+    QStringList segments = recherche.split(',', Qt::SkipEmptyParts);
+    QStringList parties;
+    for (const QString &segment : segments) {
+        const QString normalise = normaliserPartieAdresse(segment);
+        if (!normalise.isEmpty() && !parties.contains(normalise, Qt::CaseInsensitive)) {
+            parties << normalise;
+        }
+    }
+
+    QStringList candidats;
+    auto ajouter = [&](QString valeur) {
+        valeur = nettoyerPourMaps(valeur);
+        valeur = ajouterContexteTunisie(valeur);
+        if (!valeur.isEmpty() && !candidats.contains(valeur, Qt::CaseInsensitive)) {
+            candidats << valeur;
+        }
+    };
+
+    if (parties.size() >= 4) {
+        const QString pays = parties.value(0);
+        const QString region = parties.value(1);
+        const QString ville = parties.value(2);
+        const QString rue = parties.value(3);
+        const QString localisation = parties.value(4);
+
+        ajouter(QStringList{rue, ville, region, pays}.join(", "));
+        ajouter(QStringList{rue, ville, pays}.join(", "));
+        ajouter(QStringList{rue, region, pays}.join(", "));
+        ajouter(QStringList{ville, region, pays}.join(", "));
+        ajouter(QStringList{ville, pays}.join(", "));
+        if (!localisation.isEmpty()) {
+            ajouter(QStringList{localisation, rue, ville, pays}.join(", "));
+            ajouter(QStringList{localisation, rue, ville, region, pays}.join(", "));
+        }
+    }
+
+    if (parties.size() >= 3) {
+        const QString pays = parties.value(0);
+        const QString region = parties.value(1);
+        const QString ville = parties.value(2);
+        ajouter(QStringList{ville, region, pays}.join(", "));
+        ajouter(QStringList{region, ville, pays}.join(", "));
+        ajouter(QStringList{ville, pays}.join(", "));
+    }
+
+    if (parties.size() >= 2) {
+        const QString pays = parties.value(0);
+        const QString ville = parties.value(1);
+        ajouter(QStringList{ville, pays}.join(", "));
+    }
+
+    ajouter(recherche);
+    return candidats;
+}
+
+void afficherErreurCarte(QLabel *mapLabel, const QString &message)
+{
+    mapLabel->setText(message);
+    mapLabel->setStyleSheet("color: #d9534f; padding: 20px;");
+    mapLabel->show();
+}
+
+bool afficherCarteInteractive(QLabel *mapLabel, const QString &nom, const QString &recherche, double latitude, double longitude)
+{
+#if FOURNISSEURS_HAS_WEBENGINE
+        if (!mapLabel || !mapLabel->parentWidget()) {
+                return false;
+        }
+
+        auto *layout = qobject_cast<QVBoxLayout *>(mapLabel->parentWidget()->layout());
+        if (!layout) {
+                return false;
+        }
+
+        auto *webView = new QWebEngineView(mapLabel->parentWidget());
+        webView->setMinimumSize(800, 600);
+        webView->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
+        webView->settings()->setAttribute(QWebEngineSettings::ShowScrollBars, false);
+
+        const QString titre = nom.toHtmlEscaped();
+        const QString adresse = recherche.toHtmlEscaped();
+        const QString html = QString(R"HTML(
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%%; height: 100%%; background: #efe7dd; }
+        #map { width: 100%%; height: calc(100%% - 52px); }
+        #meta {
+            height: 52px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 12px;
+            background: #f6eee3;
+            border-bottom: 1px solid #d8c2aa;
+            color: #4a2517;
+            font: 600 12px sans-serif;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div id="meta"><div>%3</div><div>%4</div></div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', { zoomControl: true }).setView([%1, %2], 16);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        L.marker([%1, %2]).addTo(map);
+    </script>
+</body>
+</html>
+)HTML")
+                .arg(latitude, 0, 'f', 6)
+                .arg(longitude, 0, 'f', 6)
+                .arg(titre)
+                .arg(adresse);
+
+        webView->setHtml(html, QUrl(QStringLiteral("https://leafletjs.com/")));
+
+        const int index = layout->indexOf(mapLabel);
+        if (index >= 0) {
+                layout->insertWidget(index, webView, 1);
+        } else {
+                layout->addWidget(webView, 1);
+        }
+
+        mapLabel->hide();
+        mapLabel->deleteLater();
+        return true;
+#else
+        Q_UNUSED(mapLabel);
+        Q_UNUSED(nom);
+        Q_UNUSED(recherche);
+        Q_UNUSED(latitude);
+        Q_UNUSED(longitude);
+        return false;
+#endif
+}
+
+} // namespace
+
+void afficherCartePopupOpenStreetMap(QWidget *parent, const QString &nom, const QString &recherche)
+{
+    if (recherche.trimmed().isEmpty()) {
+        QMessageBox::warning(parent, "Localisation",
+            "Aucune adresse exploitable n'a été trouvée pour ce fournisseur.");
+        return;
+    }
+
+    // Créer la popup
+    QDialog *dialog = new QDialog(parent);
+    dialog->setWindowTitle(QString("Localisation: %1").arg(nom));
+    dialog->setModal(true);
+    dialog->resize(850, 750);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    
+    QVBoxLayout *mainLayout = new QVBoxLayout(dialog);
+    
+    // Header avec les infos du fournisseur
+    QGroupBox *infoGroup = new QGroupBox("Informations", dialog);
+    QVBoxLayout *infoLayout = new QVBoxLayout(infoGroup);
+    
+    QLabel *nomLabel = new QLabel(QString("Fournisseur: <b>%1</b>").arg(nom), dialog);
+    QLabel *adresseLabel = new QLabel(QString("Adresse: <b>%1</b>").arg(recherche), dialog);
+    nomLabel->setStyleSheet("color: #4a2517; font-size: 12px; padding: 5px;");
+    adresseLabel->setStyleSheet("color: #4a2517; font-size: 11px; padding: 5px;");
+    infoLayout->addWidget(nomLabel);
+    infoLayout->addWidget(adresseLabel);
+    
+    mainLayout->addWidget(infoGroup);
+    
+    // Zone d'etat (texte) + vue interactive (zoom/deplacement)
+    QLabel *mapLabel = new QLabel(dialog);
+    mapLabel->setAlignment(Qt::AlignCenter);
+    mapLabel->setText("Chargement de la carte...");
+    mapLabel->setStyleSheet("color: #666; padding: 20px;");
+    mapLabel->setWordWrap(true);
+
+    auto *mapView = new InteractiveMapView(dialog);
+    mapView->setMinimumSize(800, 600);
+    mapView->hide();
+
+    mainLayout->addWidget(mapLabel);
+    mainLayout->addWidget(mapView, 1);
+    
+    QNetworkAccessManager *manager = new QNetworkAccessManager(dialog);
+    auto candidats = std::make_shared<QStringList>(construireCandidatsGeocodage(recherche));
+    auto geocoder = std::make_shared<std::function<void(int)>>();
+    auto hadNetworkError = std::make_shared<bool>(false);
+
+    *geocoder = [manager, mapLabel, mapView, nom, recherche, candidats, geocoder, hadNetworkError](int index) {
+        if (index >= candidats->size()) {
+            if (*hadNetworkError) {
+                afficherErreurCarte(mapLabel, "Connexion internet requise pour afficher la carte (géocodage impossible hors-ligne).");
+            } else {
+                afficherErreurCarte(mapLabel, "Erreur: Adresse introuvable sur OpenStreetMap. Essayez une adresse plus précise.");
+            }
+            return;
+        }
+
+        QNetworkRequest geocodeRequest(construireUrlNominatim(candidats->at(index)));
+        geocodeRequest.setHeader(QNetworkRequest::UserAgentHeader, "FournisseursQt/1.0 (OpenStreetMap)");
+        QNetworkReply *geocodeReply = manager->get(geocodeRequest);
+
+        QObject::connect(geocodeReply, &QNetworkReply::finished, mapLabel,
+            [geocodeReply, manager, mapLabel, mapView, nom, recherche, candidats, geocoder, hadNetworkError, index]() {
+                if (geocodeReply->error() != QNetworkReply::NoError) {
+                    *hadNetworkError = true;
+                    geocodeReply->deleteLater();
+                    (*geocoder)(index + 1);
+                    return;
+                }
+
+                QJsonParseError parseError;
+                const QJsonDocument document = QJsonDocument::fromJson(geocodeReply->readAll(), &parseError);
+                geocodeReply->deleteLater();
+
+                if (parseError.error != QJsonParseError::NoError || !document.isArray() || document.array().isEmpty()) {
+                    (*geocoder)(index + 1);
+                    return;
+                }
+
+                const QJsonObject result = document.array().first().toObject();
+                const double latitude = result.value(QStringLiteral("lat")).toString().toDouble();
+                const double longitude = result.value(QStringLiteral("lon")).toString().toDouble();
+
+                if (!qIsFinite(latitude) || !qIsFinite(longitude)) {
+                    (*geocoder)(index + 1);
+                    return;
+                }
+
+                if (afficherCarteInteractive(mapLabel, nom, recherche, latitude, longitude)) {
+                    return;
+                }
+
+                mapView->setCenterAndMarker(latitude, longitude, 16);
+                mapView->setToolTip(QString("%1\n%2").arg(nom, recherche));
+                mapLabel->hide();
+                mapView->show();
+            });
+    };
+
+    (*geocoder)(0);
+    
+    // Boutons
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnZoomOut = new QPushButton("-", dialog);
+    btnZoomOut->setMinimumWidth(46);
+    btnZoomOut->setToolTip("Zoom arrière (-)");
+    QPushButton *btnZoomIn = new QPushButton("+", dialog);
+    btnZoomIn->setMinimumWidth(46);
+    btnZoomIn->setToolTip("Zoom avant (+)");
+    QPushButton *btnFermer = new QPushButton("Fermer", dialog);
+    btnFermer->setMinimumWidth(100);
+    btnFermer->setStyleSheet(
+        "QPushButton { "
+        "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c47a2c, stop:1 #e09a4c); "
+        "   border: none; border-radius: 6px; padding: 8px 16px; color: white; font-weight: bold; "
+        "} "
+        "QPushButton:hover { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #d48a3c, stop:1 #f0aa5c); } "
+    );
+
+    QObject::connect(btnZoomIn, &QPushButton::clicked, dialog, [dialog, mapView]() {
+        if (mapView->isVisible()) {
+            mapView->zoomInStep();
+            return;
+        }
+#if FOURNISSEURS_HAS_WEBENGINE
+        if (auto *web = dialog->findChild<QWebEngineView *>()) {
+            web->page()->runJavaScript("if (window.map) { map.zoomIn(); }");
+        }
+#endif
+    });
+
+    QObject::connect(btnZoomOut, &QPushButton::clicked, dialog, [dialog, mapView]() {
+        if (mapView->isVisible()) {
+            mapView->zoomOutStep();
+            return;
+        }
+#if FOURNISSEURS_HAS_WEBENGINE
+        if (auto *web = dialog->findChild<QWebEngineView *>()) {
+            web->page()->runJavaScript("if (window.map) { map.zoomOut(); }");
+        }
+#endif
+    });
+
+    auto *shortcutPlus = new QShortcut(QKeySequence(Qt::Key_Plus), dialog);
+    auto *shortcutMinus = new QShortcut(QKeySequence(Qt::Key_Minus), dialog);
+    QObject::connect(shortcutPlus, &QShortcut::activated, btnZoomIn, &QPushButton::click);
+    QObject::connect(shortcutMinus, &QShortcut::activated, btnZoomOut, &QPushButton::click);
+
+    QObject::connect(btnFermer, &QPushButton::clicked, dialog, &QDialog::close);
+    btnLayout->addStretch();
+    btnLayout->addWidget(btnZoomOut);
+    btnLayout->addWidget(btnZoomIn);
+    btnLayout->addSpacing(8);
+    btnLayout->addWidget(btnFermer);
+    btnLayout->addSpacing(10);
+    mainLayout->addLayout(btnLayout);
+    
+    dialog->exec();
+}
+
 QString construireRechercheMaps(const QString &nom, const QString &adresse)
 {
     QStringList parties;
 
-    if (!nom.trimmed().isEmpty()) {
-        parties << nettoyerPourMaps(nom);
-    }
+    Q_UNUSED(nom);
 
-    const QStringList segments = adresse.split('-', Qt::SkipEmptyParts);
+    const QString normalisee = adresse.simplified().trimmed();
+    const QStringList segments = normalisee.split(QRegularExpression("[,-]"), Qt::SkipEmptyParts);
     for (const QString &segment : segments) {
         const QString propre = nettoyerPourMaps(segment);
         if (!propre.isEmpty()) {
@@ -180,10 +900,16 @@ QString construireRechercheMaps(const QString &nom, const QString &adresse)
     }
 
     if (parties.isEmpty()) {
-        return QString();
+        return normalisee;
     }
 
-    return parties.join(", ");
+    QString recherche = parties.join(", ");
+    if (!recherche.contains("Tunisie", Qt::CaseInsensitive) &&
+        !recherche.contains("Tunis", Qt::CaseInsensitive)) {
+        recherche += ", Tunisie";
+    }
+
+    return recherche;
 }
 
 QString detailsErreurSql(const QSqlError &err)
@@ -328,6 +1054,95 @@ int scoreDelai(const QDate &dateLivraison, const QDate &dateLimite)
     return std::max(0, 100 - retardJours * 4);
 }
 
+double borner01(double value)
+{
+    return std::max(0.0, std::min(1.0, value));
+}
+
+double sigmoid(double x)
+{
+    return 1.0 / (1.0 + std::exp(-x));
+}
+
+struct IAProfileWeights {
+    double wOnTime = 0.45;
+    double wQuality = 0.35;
+    double wBudget = 0.20;
+    QString label;
+};
+
+IAProfileWeights profileIAFromLabel(const QString &label)
+{
+    IAProfileWeights p;
+    const QString v = label.trimmed().toUpper();
+    p.label = label;
+
+    if (v.contains("URGENT")) {
+        p.wOnTime = 0.62;
+        p.wQuality = 0.25;
+        p.wBudget = 0.13;
+    } else if (v.contains("ECON")) {
+        p.wOnTime = 0.25;
+        p.wQuality = 0.20;
+        p.wBudget = 0.55;
+    } else if (v.contains("PREMIUM")) {
+        p.wOnTime = 0.25;
+        p.wQuality = 0.60;
+        p.wBudget = 0.15;
+    } else {
+        p.wOnTime = 0.45;
+        p.wQuality = 0.35;
+        p.wBudget = 0.20;
+    }
+    return p;
+}
+
+QString explicationIA(double pOnTime, double pQuality, double pBudget, double fiabiliteNorm)
+{
+    QStringList plus;
+    QStringList moins;
+
+    if (pOnTime >= 0.75) {
+        plus << "delai predit favorable";
+    } else if (pOnTime <= 0.45) {
+        moins << "risque de retard";
+    }
+
+    if (pQuality >= 0.75) {
+        plus << "qualite predite elevee";
+    } else if (pQuality <= 0.45) {
+        moins << "qualite predite fragile";
+    }
+
+    if (pBudget >= 0.75) {
+        plus << "cout compatible budget";
+    } else if (pBudget <= 0.45) {
+        moins << "pression budget";
+    }
+
+    if (fiabiliteNorm >= 0.75) {
+        plus << "fiabilite historique forte";
+    } else if (fiabiliteNorm <= 0.45) {
+        moins << "fiabilite historique faible";
+    }
+
+    if (plus.isEmpty() && moins.isEmpty()) {
+        return "profil moyen, sans signal fort";
+    }
+
+    QString msg;
+    if (!plus.isEmpty()) {
+        msg += "+ " + plus.first();
+    }
+    if (!moins.isEmpty()) {
+        if (!msg.isEmpty()) {
+            msg += " | ";
+        }
+        msg += "- " + moins.first();
+    }
+    return msg;
+}
+
 struct RecommendationItem {
     QString id;
     QString nom;
@@ -335,9 +1150,14 @@ struct RecommendationItem {
     QDate delai;
     double coutUnitaire = 0.0;
     double coutTotal = 0.0;
-    int score = 0;
+    int scoreClassique = 0;
+    int scoreIA = 0;
+    double pOnTime = 0.0;
+    double pQuality = 0.0;
+    double pBudget = 0.0;
+    QString explication;
 };
-}
+
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -1069,17 +1889,17 @@ void MainWindow::on_pushButton_9_clicked()
         }
     };
 
-    addSlice("1er choix", countA, QColor("#6ba539"));
-    addSlice("2eme choix", countB, QColor("#e5a93d"));
-    addSlice("3eme choix", countC, QColor("#d45a3a"));
-    addSlice("Autre", countAutre, QColor("#8f8f8f"));
+    addSlice("1er choix", countA, QColor(107, 165, 57));
+    addSlice("2eme choix", countB, QColor(229, 169, 61));
+    addSlice("3eme choix", countC, QColor(212, 90, 58));
+    addSlice("Autre", countAutre, QColor(143, 143, 143));
 
     auto *chart = new QChart();
     chart->addSeries(series);
     chart->setTitle("Repartition des fournisseurs par qualite");
-    chart->setTitleBrush(QBrush(QColor("#4a2717")));
+    chart->setTitleBrush(QBrush(QColor(74, 39, 23)));
     chart->setAnimationOptions(QChart::SeriesAnimations);
-    chart->setBackgroundBrush(QBrush(QColor("#fffaf5")));
+    chart->setBackgroundBrush(QBrush(QColor(255, 250, 245)));
     chart->legend()->setVisible(true);
     chart->legend()->setAlignment(Qt::AlignBottom);
 
@@ -1089,7 +1909,7 @@ void MainWindow::on_pushButton_9_clicked()
 
     auto *barSet = new QBarSet("Nombre de fournisseurs");
     *barSet << countA << countB << countC << countAutre;
-    barSet->setColor(QColor("#8b5a3a"));
+    barSet->setColor(QColor(139, 90, 58));
 
     auto *barSeries = new QBarSeries();
     barSeries->append(barSet);
@@ -1097,9 +1917,9 @@ void MainWindow::on_pushButton_9_clicked()
     auto *barChart = new QChart();
     barChart->addSeries(barSeries);
     barChart->setTitle("Comparaison par qualite (Histogramme)");
-    barChart->setTitleBrush(QBrush(QColor("#4a2717")));
+    barChart->setTitleBrush(QBrush(QColor(74, 39, 23)));
     barChart->setAnimationOptions(QChart::SeriesAnimations);
-    barChart->setBackgroundBrush(QBrush(QColor("#fffaf5")));
+    barChart->setBackgroundBrush(QBrush(QColor(255, 250, 245)));
 
     QStringList categories;
     categories << "1er choix" << "2eme choix" << "3eme choix" << "Autre";
@@ -1194,7 +2014,8 @@ void MainWindow::on_pushButton_maps_clicked()
         candidates << "TABLE_FOURNISSEURS" << "FOURNISSEUR" << "FOURNISSEURS";
         candidates.removeDuplicates();
 
-        for (const QString &tableName : candidates) {
+        const QStringList candidateTables = candidates;
+        for (const QString &tableName : candidateTables) {
             QSqlQuery query;
             query.prepare(
                 QString("SELECT NOM, ADRESSE "
@@ -1217,41 +2038,17 @@ void MainWindow::on_pushButton_maps_clicked()
     }
 
     if (nomSelectionne.isEmpty()) {
-        QMessageBox::information(this, "Maps", "Selectionne un fournisseur pour l'afficher dans Google Maps.");
+        QMessageBox::information(this, "Localisation", "Selectionnez un fournisseur pour l'afficher sur la carte.");
         return;
     }
 
     const QString recherche = construireRechercheMaps(nomSelectionne, adresseSelectionnee);
     if (recherche.isEmpty()) {
-        QMessageBox::information(this, "Maps", "Selectionne un fournisseur pour l'afficher dans Google Maps.");
+        QMessageBox::information(this, "Localisation", "Selectionnez un fournisseur avec une adresse exploitable.");
         return;
     }
 
-    const QString apiKey = chargerGoogleMapsApiKey();
-    if (ouvrirCarteHtmlGoogle(apiKey, nomSelectionne, recherche)) {
-        QMessageBox::information(this, "Maps", QString("Ouverture de la carte HTML Google Maps pour: %1").arg(nomSelectionne));
-        return;
-    }
-
-    QUrl mapsUrl("https://www.google.com/maps/search/");
-    QUrlQuery query;
-    query.addQueryItem("api", "1");
-    query.addQueryItem("query", recherche);
-    query.addQueryItem("zoom", "18");
-    mapsUrl.setQuery(query);
-
-    if (!QDesktopServices::openUrl(mapsUrl)) {
-        QMessageBox::warning(this, "Maps", "Impossible d'ouvrir Google Maps dans le navigateur.");
-        return;
-    }
-
-    QMessageBox::information(
-        this,
-        "Maps",
-        QString("Ouverture de Google Maps (mode navigateur) pour: %1\n"
-                "Astuce: ajoute GOOGLE_MAPS_API_KEY ou un fichier google_maps_api_key.txt pour activer la carte HTML avec épingle nommée.")
-            .arg(nomSelectionne)
-        );
+    afficherCartePopupOpenStreetMap(this, nomSelectionne, recherche);
 }
 
 void MainWindow::on_pushButton_recommandation_clicked()
@@ -1278,6 +2075,9 @@ void MainWindow::on_pushButton_recommandation_clicked()
     budgetInput->setValue(50000.0);
     budgetInput->setSuffix(" TND");
 
+    auto *profilInput = new QComboBox(&besoinsDialog);
+    profilInput->addItems({"Equilibre IA", "Urgent (priorite delai)", "Economique (priorite budget)", "Premium qualite"});
+
     auto *delaiInput = new QDateEdit(QDate::currentDate().addDays(30), &besoinsDialog);
     delaiInput->setCalendarPopup(true);
     delaiInput->setDisplayFormat("dd/MM/yyyy");
@@ -1286,6 +2086,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
     form->addRow("Quantité demandée", quantiteInput);
     form->addRow("Budget max", budgetInput);
     form->addRow("Délai max", delaiInput);
+    form->addRow("Profil IA", profilInput);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &besoinsDialog);
     form->addRow(buttons);
@@ -1300,6 +2101,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
     const int quantite = quantiteInput->value();
     const double budget = budgetInput->value();
     const QDate dateLimite = delaiInput->date();
+    const IAProfileWeights poidsIA = profileIAFromLabel(profilInput->currentText());
 
     QSqlQuery query;
     if (m_hasAdvancedRecommendationFields) {
@@ -1369,7 +2171,27 @@ void MainWindow::on_pushButton_recommandation_clicked()
         const int bScore = scoreBudget(item.coutTotal, budget);
         const int dScore = scoreDelai(item.delai, dateLimite);
         const double fScore = std::max(0.0, std::min(100.0, fiabiliteScore));
-        item.score = static_cast<int>(std::round(0.40 * qScore + 0.30 * bScore + 0.20 * dScore + 0.10 * fScore));
+
+        item.scoreClassique = static_cast<int>(std::round(0.40 * qScore + 0.30 * bScore + 0.20 * dScore + 0.10 * fScore));
+
+        const double qNorm = borner01(static_cast<double>(qScore) / 100.0);
+        const double bNorm = borner01(static_cast<double>(bScore) / 100.0);
+        const double dNorm = borner01(static_cast<double>(dScore) / 100.0);
+        const double fNorm = borner01(fScore / 100.0);
+
+        item.pOnTime = borner01(sigmoid(-1.20 + 2.15 * dNorm + 1.35 * fNorm + 0.45 * bNorm));
+        item.pQuality = borner01(sigmoid(-1.10 + 2.35 * qNorm + 1.25 * fNorm));
+        item.pBudget = borner01(sigmoid(-1.30 + 2.50 * bNorm + 0.30 * dNorm));
+
+        const double risque = borner01(0.60 * (1.0 - fNorm) + 0.25 * (1.0 - dNorm) + 0.15 * (1.0 - bNorm));
+        const double scorePred =
+            poidsIA.wOnTime * item.pOnTime +
+            poidsIA.wQuality * item.pQuality +
+            poidsIA.wBudget * item.pBudget -
+            0.20 * risque;
+
+        item.scoreIA = static_cast<int>(std::round(100.0 * borner01(scorePred)));
+        item.explication = explicationIA(item.pOnTime, item.pQuality, item.pBudget, fNorm);
 
         candidats.append(item);
     }
@@ -1380,8 +2202,11 @@ void MainWindow::on_pushButton_recommandation_clicked()
     }
 
     std::sort(candidats.begin(), candidats.end(), [](const RecommendationItem &a, const RecommendationItem &b) {
-        if (a.score != b.score) {
-            return a.score > b.score;
+        if (a.scoreIA != b.scoreIA) {
+            return a.scoreIA > b.scoreIA;
+        }
+        if (a.scoreClassique != b.scoreClassique) {
+            return a.scoreClassique > b.scoreClassique;
         }
         return a.coutTotal < b.coutTotal;
     });
@@ -1394,15 +2219,16 @@ void MainWindow::on_pushButton_recommandation_clicked()
 
     auto *layout = new QVBoxLayout(&resultatDialog);
     auto *subtitle = new QLabel(
-        QString("Besoin: %1 | Quantite: %2 | Budget: %3 TND | Delai: %4")
+        QString("Besoin: %1 | Quantite: %2 | Budget: %3 TND | Delai: %4 | Profil: %5")
             .arg(typeCible)
             .arg(quantite)
             .arg(QString::number(budget, 'f', 2))
-            .arg(dateLimite.toString("dd/MM/yyyy")),
+            .arg(dateLimite.toString("dd/MM/yyyy"))
+            .arg(poidsIA.label),
         &resultatDialog);
 
-    auto *table = new QTableWidget(topCount, 6, &resultatDialog);
-    table->setHorizontalHeaderLabels({"ID", "Nom", "Score", "Qualite", "Delai", "Cout estime"});
+    auto *table = new QTableWidget(topCount, 9, &resultatDialog);
+    table->setHorizontalHeaderLabels({"ID", "Nom", "Score IA", "Confiance", "Score classique", "Qualite", "Delai", "Cout estime", "Explication IA"});
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
@@ -1411,18 +2237,74 @@ void MainWindow::on_pushButton_recommandation_clicked()
         const RecommendationItem &r = candidats.at(i);
         table->setItem(i, 0, new QTableWidgetItem(r.id));
         table->setItem(i, 1, new QTableWidgetItem(r.nom));
-        table->setItem(i, 2, new QTableWidgetItem(QString::number(r.score)));
-        table->setItem(i, 3, new QTableWidgetItem(r.qualite));
-        table->setItem(i, 4, new QTableWidgetItem(r.delai.isValid() ? r.delai.toString("dd/MM/yyyy") : "N/A"));
-        table->setItem(i, 5, new QTableWidgetItem(QString::number(r.coutTotal, 'f', 2) + " TND"));
+        table->setItem(i, 2, new QTableWidgetItem(QString::number(r.scoreIA)));
+
+        const int confiance = static_cast<int>(std::round(100.0 * (r.pOnTime + r.pQuality + r.pBudget) / 3.0));
+        table->setItem(i, 3, new QTableWidgetItem(QString::number(confiance) + "%"));
+        table->setItem(i, 4, new QTableWidgetItem(QString::number(r.scoreClassique)));
+        table->setItem(i, 5, new QTableWidgetItem(r.qualite));
+        table->setItem(i, 6, new QTableWidgetItem(r.delai.isValid() ? r.delai.toString("dd/MM/yyyy") : "N/A"));
+        table->setItem(i, 7, new QTableWidgetItem(QString::number(r.coutTotal, 'f', 2) + " TND"));
+        table->setItem(i, 8, new QTableWidgetItem(r.explication));
     }
 
     layout->addWidget(subtitle);
     layout->addWidget(table);
 
+    auto *buttonRow = new QHBoxLayout();
+    auto *signBtn = new QPushButton("Signer la recommandation", &resultatDialog);
+    signBtn->setToolTip("Valider le choix avec une signature manuscrite");
     auto *closeBtn = new QPushButton("Fermer", &resultatDialog);
+    connect(signBtn, &QPushButton::clicked, &resultatDialog, [this, &resultatDialog, candidats, topCount, typeCible, quantite, budget, dateLimite, poidsIA]() {
+        if (candidats.isEmpty()) {
+            QMessageBox::information(&resultatDialog, "Signature", "Aucune recommandation disponible à signer.");
+            return;
+        }
+
+        SignatureDialog signatureDialog(&resultatDialog);
+        signatureDialog.setWindowTitle(QString("Signature de %1").arg(candidats.first().nom));
+        if (signatureDialog.exec() != QDialog::Accepted) {
+            return;
+        }
+
+        QString topSelection;
+        const int limite = std::min(topCount, static_cast<int>(candidats.size()));
+        for (int i = 0; i < limite; ++i) {
+            const RecommendationItem &item = candidats.at(i);
+            topSelection += QString("%1. %2 | Score IA=%3 | Score classique=%4 | Coût=%5 TND\n")
+                                .arg(i + 1)
+                                .arg(item.nom)
+                                .arg(item.scoreIA)
+                                .arg(item.scoreClassique)
+                                .arg(QString::number(item.coutTotal, 'f', 2));
+        }
+
+        QString savedPath;
+        const QString contexte = QString(
+            "Contexte: type=%1, quantite=%2, budget=%3 TND, delai=%4, profil=%5\nTop 3:\n%6")
+            .arg(typeCible)
+            .arg(quantite)
+            .arg(QString::number(budget, 'f', 2))
+            .arg(dateLimite.toString("dd/MM/yyyy"))
+            .arg(poidsIA.label)
+            .arg(topSelection.trimmed());
+
+        if (!sauvegarderSignatureValidation(signatureDialog.signatureImage(), signatureDialog.signataire(), contexte, &savedPath)) {
+            QMessageBox::warning(&resultatDialog, "Signature", "La signature n'a pas pu être enregistrée.");
+            return;
+        }
+
+        QMessageBox::information(
+            &resultatDialog,
+            "Signature enregistrée",
+            QString("La recommandation a été signée et enregistrée.\nFichier: %1").arg(savedPath));
+    });
+
     connect(closeBtn, &QPushButton::clicked, &resultatDialog, &QDialog::accept);
-    layout->addWidget(closeBtn, 0, Qt::AlignRight);
+    buttonRow->addWidget(signBtn);
+    buttonRow->addStretch();
+    buttonRow->addWidget(closeBtn);
+    layout->addLayout(buttonRow);
 
     resultatDialog.exec();
 }
