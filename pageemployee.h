@@ -1,6 +1,6 @@
 #ifndef PAGEEMPLOYEE_H
 #define PAGEEMPLOYEE_H
-
+#include "arduino.h"
 #include <QDialog>
 #include <QVariantList>
 
@@ -41,9 +41,12 @@ private slots:
     void on_pushButton_4_clicked();   // Ouvrir chat
     void on_pushButton_8_clicked();   // Logout
     void on_btnSaveFacePhoto_clicked();
-
+    // arduino
+    void onArduinoReadyRead();
+    void verifierBadgeRFID(const QString &uid);
 private:
     Ui::pageemployee *ui;
+    Arduino arduino;
     int m_idEmployeConnecte;
 
     void setupTable();

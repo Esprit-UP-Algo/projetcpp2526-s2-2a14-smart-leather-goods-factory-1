@@ -45,6 +45,7 @@ private:
     int m_idEmploye;
 
     void setupTable();
+    void loadCommandes();
     void loadSampleData();
     void filterTable(const QString &idFilter, const QString &dateFilter);
     void updateTableColors();
@@ -52,6 +53,7 @@ private:
     void showStatistics();
     bool validateData(const QString &id, const QString &client, const QString &address,
                       const QString &montant);
+    void setupSearch();
 };
 
 #endif // COMMANDES_H

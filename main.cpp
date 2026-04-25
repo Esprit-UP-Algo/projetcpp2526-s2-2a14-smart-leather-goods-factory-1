@@ -33,8 +33,8 @@ int main(int argc, char *argv[])
         "QProgressBar::chunk { background-color: #a07a5a; }"
         );
 
-    Connection c;
-    if(!c.createconnect()){
+    Connection *c = Connection::instance();
+    if (!c->createConnect()) {
         QMessageBox::critical(nullptr, "DB", "Connexion échouée !");
         return 1;
     }

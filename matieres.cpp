@@ -1,28 +1,156 @@
-#include "matieres.h"
+#include "matieres.h" // Force recompile
 #include "ui_matieres.h"
+#include "login.h"
+#include "pageemployee.h"
+#include "commandes.h"
+#include "produitswindow.h"
+#include "fournisseurs.h"
+#include "pagemachine.h"
 #include <QMessageBox>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QLabel>
-#include <QPushButton>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QTableWidgetItem>
+#include <QFileDialog>
+#include <QDateTime>
+#include <QDialog>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QDialog>
-#include <QDateTime>
-#include <QDebug>
-#include <QPrinter>
-#include <QPainter>
-#include <QFileDialog>
 #include <QFile>
 #include <QTextStream>
 #include <QFrame>
-#include <QTabWidget>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QDateEdit>
+#include <QLabel>
+#include <QGraphicsDropShadowEffect>
+#include <QHeaderView>
+#include <QDebug>
+#include <QPieSeries>
+#include <QPieSlice>
+#include <QChart>
+#include <QChartView>
 
-#include "pageemployee.h"
-#include "login.h"
-#include "fournisseurs.h"
-#include "products.h"
-#include "pagemachine.h"
+static QString currentRoleForUser(int idEmploye)
+{
+    QSqlQuery q;
+    q.prepare("SELECT POSTE FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", idEmploye);
+    if (!q.exec() || !q.next()) return QString();
+    return q.value(0).toString().trimmed();
+}
+
+static bool denyIfRoleMismatch(QWidget *parent, int idEmploye, const QString &targetRole)
+{
+    const QString role = currentRoleForUser(idEmploye);
+    if (role.compare(targetRole, Qt::CaseInsensitive) == 0) return false;
+    QMessageBox::warning(parent, "Accès refusé",
+                         "Vous n'avez pas accès à cette page.");
+    return true;
+}
+
+static const char* DIALOG_BASE_STYLE = R"(
+QDialog {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #faf6f1, stop:0.5 #f0e8de, stop:1 #e8ddd0);
+    border: none;
+}
+QLabel#headerLabel {
+    color: #4a2517;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 8px 0;
+}
+QLabel#subHeaderLabel {
+    color: #8b6f5a;
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+QLabel {
+    color: #5b3a28;
+    font-weight: 600;
+    font-size: 12px;
+    background: transparent;
+}
+QLabel#errorLabel {
+    color: #c0392b;
+    font-size: 11px;
+    font-weight: 600;
+    font-style: italic;
+    background: transparent;
+    padding: 0 2px;
+}
+QLineEdit, QDoubleSpinBox, QDateEdit, QComboBox, QSpinBox {
+    background-color: rgba(255, 255, 255, 0.85);
+    border: 2px solid #d4c4b0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: #3a2a20;
+    font-size: 13px;
+    selection-background-color: #c9a87c;
+}
+QLineEdit:focus, QDoubleSpinBox:focus, QDateEdit:focus, QComboBox:focus, QSpinBox:focus {
+    border: 2px solid #8b6f5a;
+    background-color: white;
+}
+QLineEdit[error="true"] { border: 2px solid #e74c3c; background-color: #fdf2f2; }
+QComboBox::drop-down { border: none; padding-right: 10px; }
+QComboBox QAbstractItemView {
+    background-color: #faf6f1; border: 2px solid #d4c4b0; border-radius: 8px;
+    selection-background-color: #c9a87c; padding: 4px; color: #3a2a20;
+}
+)";
+
+static const char* BTN_SAVE_GREEN = R"(
+QPushButton#btnSave {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6d9b3a, stop:1 #8fb85a);
+    border: none; border-radius: 14px; padding: 12px 28px;
+    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
+}
+QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #7dab4a, stop:1 #9fc86a); }
+QPushButton#btnSave:pressed { background: #5a8a2a; }
+QPushButton#btnCancel {
+    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
+    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
+}
+QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
+)";
+
+static const char* BTN_SAVE_AMBER = R"(
+QPushButton#btnSave {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c47a2c, stop:1 #e09a4c);
+    border: none; border-radius: 14px; padding: 12px 28px;
+    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
+}
+QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #d48a3c, stop:1 #f0aa5c); }
+QPushButton#btnSave:pressed { background: #b06a1c; }
+QPushButton#btnCancel {
+    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
+    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
+}
+QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
+)";
+
+
+static QFrame* createSeparator() {
+    QFrame* line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setStyleSheet("background-color: #d4c4b0; max-height: 1px; margin: 8px 0;");
+    return line;
+}
+static void addShadow(QWidget* w, int blur = 20, int offsetY = 4) {
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(w);
+    shadow->setBlurRadius(blur); shadow->setOffset(0, offsetY); shadow->setColor(QColor(0,0,0,40));
+    w->setGraphicsEffect(shadow);
+}
+static void setFieldError(QLineEdit* field, QLabel* errorLabel, bool hasError, const QString& msg = "") {
+    field->setProperty("error", hasError);
+    field->style()->unpolish(field); field->style()->polish(field);
+    errorLabel->setText(hasError ? "⚠ " + msg : "");
+    errorLabel->setVisible(hasError);
+}
 
 Matieres::Matieres(int idEmploye, QWidget *parent)
     : QDialog(parent)
@@ -30,549 +158,489 @@ Matieres::Matieres(int idEmploye, QWidget *parent)
     , m_idEmploye(idEmploye)
 {
     ui->setupUi(this);
+    if (ui->groupBox) ui->groupBox->hide();
+
+    // Do NOT hide groupBox_2 if it contains the table and other components
+    if (ui->groupBox_2) {
+        ui->groupBox_2->setStyleSheet("QGroupBox { border: none; background: transparent; }");
+    }
+
+    // Premium Sidebar Setup
+    QString navBtnStyle =
+        "QPushButton {"
+        "  background: transparent; border: none; color: #c9b8a5;"
+        "  text-align: left; padding-left: 20px; font-size: 14px; font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: rgba(255, 255, 255, 0.1); color: white; border-left: 4px solid #c9a87c;"
+        "}";
+
+    QWidget *sidebar = new QWidget(this);
+    sidebar->setGeometry(0, 0, 240, 900); 
+    sidebar->setStyleSheet("background-color: #3a1f14;");
+
+    // Smart Leather Logo on Sidebar
+    QLabel *logoLab = new QLabel(sidebar); // Parent to sidebar
+    logoLab->setGeometry(20, 10, 211, 121);
+    logoLab->setPixmap(QPixmap(":/Logo.png"));
+    logoLab->setScaledContents(true);
+    logoLab->show();
+    logoLab->raise();
+    
+    QVBoxLayout *navLayout = new QVBoxLayout(sidebar);
+    navLayout->setContentsMargins(0, 160, 0, 20);
+    navLayout->setSpacing(5);
+
+    auto addNavBtn = [&](const QString &txt, const char* slot, bool active = false) {
+        QPushButton *btn = new QPushButton("  " + txt);
+        btn->setMinimumHeight(45);
+        if (active) {
+            btn->setStyleSheet(navBtnStyle + "QPushButton { background-color: rgba(255,255,255,0.1); color:white; border-left:4px solid #c9a87c; }");
+        } else {
+            btn->setStyleSheet(navBtnStyle);
+            connect(btn, SIGNAL(clicked()), this, slot);
+        }
+        navLayout->addWidget(btn);
+        return btn;
+    };
+
+    addNavBtn("Employés", SLOT(on_pushButton_6_clicked()));
+    addNavBtn("Produits", SLOT(on_pushButton_21_clicked()));
+    addNavBtn("Commandes", SLOT(on_pushButton_20_clicked()));
+    addNavBtn("Fournisseurs", SLOT(on_pushButton_22_clicked()));
+    addNavBtn("Matières", nullptr, true);
+    addNavBtn("Machines", SLOT(on_pushButton_23_clicked()));
+
+    navLayout->addStretch();
+    addNavBtn("Déconnexion", SLOT(on_pushButton_5_clicked()));
+    
+    sidebar->raise();
+    sidebar->show();
+
+    // Table and search widgets positioning (Luxury Leather default: clear the 240px sidebar)
+    if(ui->tableWidget) ui->tableWidget->setGeometry(260, 230, 1050, 490);
+    if(ui->label_8) ui->label_8->setGeometry(260, 50, 600, 60);
+    // Align search labels and edits
+    if(ui->label_9) ui->label_9->setGeometry(260, 160, 100, 31);
+    if(ui->searchIdEdit) ui->searchIdEdit->setGeometry(360, 160, 131, 31);
+    if(ui->label_10) ui->label_10->setGeometry(520, 160, 100, 31);
+    if(ui->searchTypeEdit) ui->searchTypeEdit->setGeometry(620, 160, 131, 31);
+    if(ui->pushButton_10) ui->pushButton_10->setGeometry(770, 160, 120, 31);
+    if(ui->pushButton_7) ui->pushButton_7->setGeometry(900, 160, 120, 31);
+    if(ui->pushButton_9) ui->pushButton_9->setGeometry(1030, 160, 120, 31);
+    if(ui->pushButton) ui->pushButton->setGeometry(260, 730, 150, 40);
+    if(ui->pushButton_2) ui->pushButton_2->setGeometry(420, 730, 150, 40);
+    if(ui->pushButton_3) ui->pushButton_3->setGeometry(580, 730, 150, 40);
+    if(ui->pushButton_4) ui->pushButton_4->setGeometry(740, 730, 150, 40);
+
     setupMatieresTable();
     loadMatieres();
     setupSearch();
+
 }
 
-Matieres::~Matieres()
-{
-    delete ui;
-}
-
-void Matieres::setupSearch()
-{
-    connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
-    connect(ui->searchTypeEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
-}
-
-void Matieres::filterTable()
-{
-    QString idFilter = ui->searchIdEdit->text();
-    QString typeFilter = ui->searchTypeEdit->text();
-
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        bool match = true;
-
-        if (!idFilter.isEmpty()) {
-            QString id = ui->tableWidget->item(row, 0)->text();
-            if (!id.contains(idFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        if (match && !typeFilter.isEmpty()) {
-            QString type = ui->tableWidget->item(row, 1)->text();
-            if (!type.contains(typeFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        ui->tableWidget->setRowHidden(row, !match);
-    }
-}
-
-void Matieres::on_pushButton_6_clicked()
-{
-    hide();
-    Matieres *mat = new Matieres(m_idEmploye, this);
-    mat->show();
-}
-
-void Matieres::on_pushButton_11_clicked()
-{
-    hide();
-    pageemployee *pl = new pageemployee(m_idEmploye, this);
-    pl->show();
-}
-
-void Matieres::on_pushButton_5_clicked()
-{
-    hide();
-    login *lg = new login(this);
-    lg->show();
-}
-
-void Matieres::on_pushButton_20_clicked()
-{
-    hide();
-    fournisseurs *pf = new fournisseurs(m_idEmploye, this);
-    pf->show();
-}
-
-void Matieres::on_pushButton_21_clicked()
-{
-    hide();
-    products *pd = new products(m_idEmploye, this);
-    pd->show();
-}
-
-void Matieres::on_pushButton_22_clicked()
-{
-    hide();
-    Matieres *pddd = new Matieres(m_idEmploye, this);
-    pddd->show();
-}
-
-void Matieres::on_pushButton_23_clicked()
-{
-    hide();
-    pagemachine *ss = new pagemachine(m_idEmploye, this);
-    ss->show();
-}
+Matieres::~Matieres() { delete ui; }
 
 void Matieres::setupMatieresTable()
 {
-    QStringList headers = {"ID Matière", "Type", "Couleur", "Qualité", "Prix unitaire", "Stock", "Fournisseur"};
-    ui->tableWidget->setColumnCount(headers.size());
+    ui->tableWidget->setColumnCount(10);
+    QStringList headers = {"ID", "Réf", "Type Cuir", "Qualité", "Couleur", "Épaisseur (mm)", "Prix U.", "Stock", "Seuil", "Réception"};
     ui->tableWidget->setHorizontalHeaderLabels(headers);
-
-    ui->tableWidget->setColumnWidth(0, 100);
-    ui->tableWidget->setColumnWidth(1, 120);
-    ui->tableWidget->setColumnWidth(2, 100);
-    ui->tableWidget->setColumnWidth(3, 100);
-    ui->tableWidget->setColumnWidth(4, 100);
-    ui->tableWidget->setColumnWidth(5, 80);
-    ui->tableWidget->setColumnWidth(6, 120);
-
-    ui->tableWidget->setSortingEnabled(true);
+    ui->tableWidget->horizontalHeader()->setVisible(true); // Force visibility
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setAlternatingRowColors(true);
+    ui->tableWidget->setSortingEnabled(true);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tableWidget->verticalHeader()->setVisible(false);
+
+    // Premium Styling for Table
+    ui->tableWidget->setStyleSheet(
+        "QTableWidget { background: white; border: 2px solid #c9b8a5; border-radius: 16px; gridline-color: #f5eee6; "
+        "selection-background-color: #f5eee6; selection-color: #3a1f14; }"
+    );
+
+    // Premium Styling for Horizontal Header
+    ui->tableWidget->horizontalHeader()->setStyleSheet(
+        "QHeaderView::section {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5b3020, stop:0.5 #4a2517, stop:1 #3a1a10);"
+        "    color: #f5efe8; padding: 10px; border: none; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
+        "}"
+    );
 }
 
 void Matieres::loadMatieres()
 {
     ui->tableWidget->setRowCount(0);
-
-    QList<QStringList> sampleData = {
-        {"M001", "Cuir", "Marron", "Qualité A", "45.50", "100", "Cuirs Premium"},
-        {"M002", "Tissu", "Noir", "Qualité B", "12.75", "250", "Tissus Lyon"},
-        {"M003", "Métal", "Argent", "Qualité A", "78.00", "50", "Métaux Industries"},
-        {"M004", "Plastique", "Blanc", "Qualité C", "8.50", "500", "Plastiques Modernes"},
-        {"M005", "Bois", "Chêne", "Qualité B", "32.00", "150", "Bois & Cie"}
-    };
-
-    for (const QStringList &rowData : sampleData) {
-        addMatiereToTable(rowData[0], rowData[1], rowData[2], rowData[3],
-                          rowData[4], rowData[5], rowData[6]);
+    QSqlQuery query;
+    if (!query.exec("SELECT ID_MATIERE, REF, TYPE_CUIR, QUALITE, COULEUR, EPAISSEUR, PRIX_UNITAIRE, QUANTITE_STOCK, SEUIL_MIN, TO_CHAR(DATE_RECEPTION, 'DD/MM/YYYY') "
+                    "FROM SMARTLEATHER.MATIERE_PREMIERE")) {
+        qDebug() << "Erreur loadMatieres:" << query.lastError().text();
+        return;
     }
-}
 
-void Matieres::addMatiereToTable(const QString &id, const QString &type,
-                                 const QString &couleur, const QString &qualite,
-                                 const QString &prix, const QString &stock,
-                                 const QString &fournisseur)
-{
-    int row = ui->tableWidget->rowCount();
-    ui->tableWidget->insertRow(row);
-
-    ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
-    ui->tableWidget->setItem(row, 1, new QTableWidgetItem(type));
-    ui->tableWidget->setItem(row, 2, new QTableWidgetItem(couleur));
-    ui->tableWidget->setItem(row, 3, new QTableWidgetItem(qualite));
-    ui->tableWidget->setItem(row, 4, new QTableWidgetItem(prix + " €"));
-    ui->tableWidget->setItem(row, 5, new QTableWidgetItem(stock));
-    ui->tableWidget->setItem(row, 6, new QTableWidgetItem(fournisseur));
-
-    updateRowColors(row);
-}
-
-void Matieres::updateRowColors(int row)
-{
-    QTableWidgetItem *qualiteItem = ui->tableWidget->item(row, 3);
-    if (qualiteItem) {
-        QString qualite = qualiteItem->text();
-        if (qualite.contains("A")) {
-            qualiteItem->setBackground(QColor(200, 255, 200));
-            qualiteItem->setForeground(QColor(0, 100, 0));
-        } else if (qualite.contains("B")) {
-            qualiteItem->setBackground(QColor(255, 255, 200));
-            qualiteItem->setForeground(QColor(128, 128, 0));
-        } else if (qualite.contains("C")) {
-            qualiteItem->setBackground(QColor(255, 200, 200));
-            qualiteItem->setForeground(QColor(139, 0, 0));
+    while (query.next()) {
+        int row = ui->tableWidget->rowCount();
+        ui->tableWidget->insertRow(row);
+        for (int col = 0; col < 10; col++) {
+            QString txt = query.value(col).toString();
+            if (col == 6) txt += " DT";
+            QTableWidgetItem *item = new QTableWidgetItem(txt);
+            item->setTextAlignment(Qt::AlignCenter);
+            ui->tableWidget->setItem(row, col, item);
         }
-    }
-
-    QTableWidgetItem *stockItem = ui->tableWidget->item(row, 5);
-    if (stockItem) {
-        int stock = stockItem->text().toInt();
-        if (stock < 50) {
-            stockItem->setBackground(QColor(255, 200, 200));
-        } else if (stock < 100) {
-            stockItem->setBackground(QColor(255, 255, 200));
-        }
-    }
-}
-
-void Matieres::updateMatiereInTable(int row, const QString &type,
-                                    const QString &couleur, const QString &qualite,
-                                    const QString &prix, const QString &stock,
-                                    const QString &fournisseur)
-{
-    if (row >= 0 && row < ui->tableWidget->rowCount()) {
-        ui->tableWidget->item(row, 1)->setText(type);
-        ui->tableWidget->item(row, 2)->setText(couleur);
-        ui->tableWidget->item(row, 3)->setText(qualite);
-        ui->tableWidget->item(row, 4)->setText(prix + " €");
-        ui->tableWidget->item(row, 5)->setText(stock);
-        ui->tableWidget->item(row, 6)->setText(fournisseur);
-
         updateRowColors(row);
     }
 }
 
+void Matieres::updateRowColors(int row)
+{
+    QTableWidgetItem *stockItem = ui->tableWidget->item(row, 7);
+    QTableWidgetItem *seuilItem = ui->tableWidget->item(row, 8);
+    if (!stockItem || !seuilItem) return;
+    
+    int stock = stockItem->text().toInt();
+    int seuil = seuilItem->text().toInt();
+
+    if (stock <= seuil) {
+        stockItem->setBackground(QColor(255, 200, 200));
+        stockItem->setForeground(QColor(139, 0, 0));
+    } else {
+        stockItem->setBackground(QColor(200, 255, 200));
+        stockItem->setForeground(QColor(0, 100, 0));
+    }
+}
+
+void Matieres::setupSearch()
+{
+    connect(ui->searchTypeEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
+    connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &Matieres::filterTable);
+}
+
+void Matieres::filterTable()
+{
+    QString f1 = ui->searchTypeEdit->text().trimmed(); // Type
+    QString f2 = ui->searchIdEdit->text().trimmed(); // ID
+
+    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
+        bool match = true;
+        if (!f1.isEmpty() && !ui->tableWidget->item(row, 2)->text().contains(f1, Qt::CaseInsensitive)) { match = false; }
+        if (!f2.isEmpty() && match && !ui->tableWidget->item(row, 0)->text().contains(f2, Qt::CaseInsensitive)) { match = false; }
+        ui->tableWidget->setRowHidden(row, !match);
+    }
+}
+
+void Matieres::addMatiereToTable(const QString &id, const QString &type,
+                               const QString &couleur, const QString &qualite,
+                               const QString &prix, const QString &stock,
+                               const QString &fournisseur)
+{
+    Q_UNUSED(id); Q_UNUSED(type); Q_UNUSED(couleur); Q_UNUSED(qualite);
+    Q_UNUSED(prix); Q_UNUSED(stock); Q_UNUSED(fournisseur);
+}
+
+void Matieres::updateMatiereInTable(int row, const QString &type,
+                                  const QString &couleur, const QString &qualite,
+                                  const QString &prix, const QString &stock,
+                                  const QString &fournisseur)
+{
+    Q_UNUSED(row); Q_UNUSED(type); Q_UNUSED(couleur); Q_UNUSED(qualite);
+    Q_UNUSED(prix); Q_UNUSED(stock); Q_UNUSED(fournisseur);
+}
+
+// ═══════════════════════════════════════════════
+//   AJOUTER MATIÈRE
+// ═══════════════════════════════════════════════
 void Matieres::on_pushButton_clicked()
 {
-    QDialog *ajoutDialog = new QDialog(this);
-    ajoutDialog->setWindowTitle("Nouvelle matière");
-    ajoutDialog->setFixedSize(650, 800);
-    ajoutDialog->setModal(true);
+    QDialog dialog(this);
+    dialog.setWindowTitle("Nouvelle Matière");
+    dialog.setFixedSize(460, 720);
 
-    ajoutDialog->setStyleSheet(
-        "QDialog { background-color: #f4ede6; border: 3px dashed #c9b2a2; border-radius: 20px; }"
-        "QLabel#headerLabel { color: #6b3e26; font-size: 22px; font-weight: bold; margin-bottom: 15px; }"
-        "QLabel { color: #3a2a20; font-weight: bold; font-size: 14px; }"
-        "QLineEdit, QComboBox { background-color: #fffaf5; border: 1px solid #c9b2a2; border-radius: 10px; padding: 12px; color: #3a2a20; font-size: 14px; min-height: 20px; }"
-        "QLineEdit:focus, QComboBox:focus { border: 2px solid #6b3e26; }"
-        "QPushButton { border-radius: 10px; padding: 15px; font-weight: bold; color: white; border-bottom: 3px solid rgba(0,0,0,0.2); font-size: 15px; min-width: 150px; }"
-        "QPushButton#btnSave { background-color: #6f8f3d; }"
-        "QPushButton#btnCancel { background-color: #b3a398; color: #3a2a20; }"
-        "QPushButton:pressed { margin-top: 3px; border-bottom: 1px solid rgba(0,0,0,0.2); }"
-        );
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(32, 24, 32, 20);
+    mainLayout->setSpacing(4);
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(ajoutDialog);
-    mainLayout->setContentsMargins(40, 40, 40, 40);
-    mainLayout->setSpacing(15);
-
-    QLabel *header = new QLabel("AJOUTER MATIÈRE PREMIÈRE");
+    QLabel *header = new QLabel("✦ NOUVELLE MATIÈRE PREMIÈRE");
     header->setObjectName("headerLabel");
     header->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(header);
+    mainLayout->addWidget(createSeparator());
 
-    QLineEdit *idEdit = new QLineEdit();
-    idEdit->setPlaceholderText("ID matière (ex: M001)");
-    idEdit->setAlignment(Qt::AlignCenter);
+    QLineEdit *refEdit = new QLineEdit();
+    refEdit->setPlaceholderText("ex: CUIR-001");
+    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
 
-    QLineEdit *typeEdit = new QLineEdit();
-    typeEdit->setPlaceholderText("Type (Cuir, Tissu, etc.)");
-    typeEdit->setAlignment(Qt::AlignCenter);
-
-    QLineEdit *couleurEdit = new QLineEdit();
-    couleurEdit->setPlaceholderText("Couleur");
-    couleurEdit->setAlignment(Qt::AlignCenter);
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItems({"Cuir Vachette", "Cuir Veau", "Daim", "Cuir Exotique", "Synthétique"});
 
     QComboBox *qualiteCombo = new QComboBox();
-    qualiteCombo->addItems({"Qualité A", "Qualité B", "Qualité C"});
+    qualiteCombo->addItems({"Premium", "Standard", "Economique"});
 
-    QLineEdit *prixEdit = new QLineEdit();
-    prixEdit->setPlaceholderText("Prix unitaire (€)");
-    prixEdit->setAlignment(Qt::AlignCenter);
+    QLineEdit *couleurEdit = new QLineEdit();
+    couleurEdit->setPlaceholderText("ex: Noir, Marron, Beige");
 
-    QLineEdit *stockEdit = new QLineEdit();
-    stockEdit->setPlaceholderText("Stock");
-    stockEdit->setAlignment(Qt::AlignCenter);
+    QDoubleSpinBox *epaisseurSpin = new QDoubleSpinBox();
+    epaisseurSpin->setRange(0.1, 10.0); epaisseurSpin->setSingleStep(0.1); epaisseurSpin->setDecimals(1); epaisseurSpin->setSuffix(" mm");
 
-    QLineEdit *fournisseurEdit = new QLineEdit();
-    fournisseurEdit->setPlaceholderText("Fournisseur");
-    fournisseurEdit->setAlignment(Qt::AlignCenter);
+    QDoubleSpinBox *prixSpin = new QDoubleSpinBox();
+    prixSpin->setRange(0, 99999); prixSpin->setDecimals(2); prixSpin->setSuffix(" DT");
 
-    mainLayout->addWidget(new QLabel("Identifiant :"));
-    mainLayout->addWidget(idEdit);
-    mainLayout->addWidget(new QLabel("Type :"));
-    mainLayout->addWidget(typeEdit);
-    mainLayout->addWidget(new QLabel("Couleur :"));
-    mainLayout->addWidget(couleurEdit);
-    mainLayout->addWidget(new QLabel("Qualité :"));
-    mainLayout->addWidget(qualiteCombo);
-    mainLayout->addWidget(new QLabel("Prix unitaire :"));
-    mainLayout->addWidget(prixEdit);
-    mainLayout->addWidget(new QLabel("Stock :"));
-    mainLayout->addWidget(stockEdit);
-    mainLayout->addWidget(new QLabel("Fournisseur :"));
-    mainLayout->addWidget(fournisseurEdit);
+    QSpinBox *stockSpin = new QSpinBox(); stockSpin->setRange(0, 999999);
+    QSpinBox *seuilSpin = new QSpinBox(); seuilSpin->setRange(0, 999999);
+
+    QDateEdit *receptionEdit = new QDateEdit(QDate::currentDate());
+    receptionEdit->setDisplayFormat("dd/MM/yyyy");
+    receptionEdit->setCalendarPopup(true);
+
+    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
+    
+    QHBoxLayout *c1 = new QHBoxLayout();
+    QVBoxLayout *c1a = new QVBoxLayout(); c1a->addWidget(new QLabel("TYPE CUIR")); c1a->addWidget(typeCombo);
+    QVBoxLayout *c1b = new QVBoxLayout(); c1b->addWidget(new QLabel("QUALITÉ")); c1b->addWidget(qualiteCombo);
+    c1->addLayout(c1a); c1->addLayout(c1b); mainLayout->addLayout(c1);
+
+    mainLayout->addWidget(new QLabel("COULEUR")); mainLayout->addWidget(couleurEdit);
+    
+    QHBoxLayout *c2 = new QHBoxLayout();
+    QVBoxLayout *c2a = new QVBoxLayout(); c2a->addWidget(new QLabel("ÉPAISSEUR")); c2a->addWidget(epaisseurSpin);
+    QVBoxLayout *c2b = new QVBoxLayout(); c2b->addWidget(new QLabel("PRIX UNIT.")); c2b->addWidget(prixSpin);
+    c2->addLayout(c2a); c2->addLayout(c2b); mainLayout->addLayout(c2);
+
+    QHBoxLayout *c3 = new QHBoxLayout();
+    QVBoxLayout *c3a = new QVBoxLayout(); c3a->addWidget(new QLabel("STOCK ACTUEL")); c3a->addWidget(stockSpin);
+    QVBoxLayout *c3b = new QVBoxLayout(); c3b->addWidget(new QLabel("SEUIL ALERTE")); c3b->addWidget(seuilSpin);
+    c3->addLayout(c3a); c3->addLayout(c3b); mainLayout->addLayout(c3);
+
+    mainLayout->addWidget(new QLabel("DATE RÉCEPTION")); mainLayout->addWidget(receptionEdit);
+
+    mainLayout->addSpacing(10);
+    mainLayout->addWidget(createSeparator());
 
     QHBoxLayout *btnLayout = new QHBoxLayout();
-    btnLayout->setSpacing(20);
-    QPushButton *btnSave = new QPushButton("Enregistrer");
-    btnSave->setObjectName("btnSave");
-    QPushButton *btnCancel = new QPushButton("Annuler");
-    btnCancel->setObjectName("btnCancel");
-    btnLayout->addWidget(btnSave);
-    btnLayout->addWidget(btnCancel);
+    QPushButton *btnSave = new QPushButton("  ✓  ENREGISTRER  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
+    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel);
     mainLayout->addLayout(btnLayout);
 
-    connect(btnSave, &QPushButton::clicked, [ajoutDialog, idEdit, typeEdit, couleurEdit,
-                                             qualiteCombo, prixEdit, stockEdit, fournisseurEdit, this]() {
-        if (idEdit->text().isEmpty() || typeEdit->text().isEmpty() ||
-            couleurEdit->text().isEmpty() || prixEdit->text().isEmpty() ||
-            stockEdit->text().isEmpty() || fournisseurEdit->text().isEmpty()) {
-            QMessageBox::warning(ajoutDialog, "Champs manquants",
-                                 "Veuillez remplir tous les champs obligatoires.");
-            return;
+    auto validateAll = [&]() {
+        bool allOk = true;
+        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
+        btnSave->setEnabled(allOk); return allOk;
+    };
+    btnSave->setEnabled(false);
+    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_GREEN);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QSqlQuery query;
+        query.prepare("INSERT INTO SMARTLEATHER.MATIERE_PREMIERE (ID_MATIERE, REF, TYPE_CUIR, QUALITE, COULEUR, EPAISSEUR, PRIX_UNITAIRE, QUANTITE_STOCK, SEUIL_MIN, DATE_RECEPTION) "
+                      "VALUES (SMARTLEATHER.SEQ_MATIERE.NEXTVAL, :ref, :type, :qualite, :couleur, :epaisseur, :prix, :stock, :seuil, :dateR)");
+        query.bindValue(":ref", refEdit->text().trimmed());
+        query.bindValue(":type", typeCombo->currentText());
+        query.bindValue(":qualite", qualiteCombo->currentText());
+        query.bindValue(":couleur", couleurEdit->text().trimmed());
+        query.bindValue(":epaisseur", epaisseurSpin->value());
+        query.bindValue(":prix", prixSpin->value());
+        query.bindValue(":stock", stockSpin->value());
+        query.bindValue(":seuil", seuilSpin->value());
+        query.bindValue(":dateR", receptionEdit->date());
+
+        if (query.exec()) {
+            QMessageBox::information(this, "Succès", "Matière ajoutée !");
+            loadMatieres();
+        } else {
+            QString err = query.lastError().text();
+            if (err.contains("ORA-00001")) {
+                QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
+            } else {
+                QMessageBox::critical(this, "Erreur", "L'ajout a échoué.\nErreur technique: " + err.split('\n').first());
+            }
         }
-
-        bool ok;
-        double prix = prixEdit->text().toDouble(&ok);
-        if (!ok || prix <= 0) {
-            QMessageBox::warning(ajoutDialog, "Prix invalide",
-                                 "Veuillez entrer un prix valide.");
-            return;
-        }
-
-        int stock = stockEdit->text().toInt(&ok);
-        if (!ok || stock < 0) {
-            QMessageBox::warning(ajoutDialog, "Stock invalide",
-                                 "Veuillez entrer un stock valide.");
-            return;
-        }
-
-        QString formattedPrix = QString::number(prix, 'f', 2);
-
-        addMatiereToTable(idEdit->text(),
-                          typeEdit->text(),
-                          couleurEdit->text(),
-                          qualiteCombo->currentText(),
-                          formattedPrix,
-                          QString::number(stock),
-                          fournisseurEdit->text());
-
-        QMessageBox::information(ajoutDialog, "Succès",
-                                 "La matière a été ajoutée avec succès.");
-        ajoutDialog->accept();
-    });
-
-    connect(btnCancel, &QPushButton::clicked, ajoutDialog, &QDialog::reject);
-    ajoutDialog->exec();
-    ajoutDialog->deleteLater();
+    }
 }
 
+// ═══════════════════════════════════════════════
+//   MODIFIER MATIÈRE
+// ═══════════════════════════════════════════════
 void Matieres::on_pushButton_2_clicked()
 {
     int currentRow = ui->tableWidget->currentRow();
-
-    if (currentRow < 0) {
-        QMessageBox::warning(this, "Sélection requise",
-                             "Veuillez sélectionner une matière à modifier.");
-        return;
-    }
+    if (currentRow < 0) { QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une matière."); return; }
 
     QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString type = ui->tableWidget->item(currentRow, 1)->text();
-    QString couleur = ui->tableWidget->item(currentRow, 2)->text();
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
+    QString type = ui->tableWidget->item(currentRow, 2)->text();
     QString qualite = ui->tableWidget->item(currentRow, 3)->text();
-    QString prix = ui->tableWidget->item(currentRow, 4)->text().replace(" €", "");
-    QString stock = ui->tableWidget->item(currentRow, 5)->text();
-    QString fournisseur = ui->tableWidget->item(currentRow, 6)->text();
+    QString couleur = ui->tableWidget->item(currentRow, 4)->text();
+    QString epaisseur = ui->tableWidget->item(currentRow, 5)->text();
+    QString prix = ui->tableWidget->item(currentRow, 6)->text().replace(" DT", "").trimmed();
+    QString stock = ui->tableWidget->item(currentRow, 7)->text();
+    QString seuil = ui->tableWidget->item(currentRow, 8)->text();
+    QString dateR = ui->tableWidget->item(currentRow, 9)->text();
 
-    QDialog *modifierDialog = new QDialog(this);
-    modifierDialog->setWindowTitle("Modifier matière");
-    modifierDialog->setFixedSize(650, 800);
-    modifierDialog->setModal(true);
+    QDialog dialog(this);
+    dialog.setWindowTitle("Modifier Matière");
+    dialog.setFixedSize(460, 720);
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(modifierDialog);
-    QLabel *header = new QLabel("MODIFIER MATIÈRE");
-    header->setAlignment(Qt::AlignCenter);
-    mainLayout->addWidget(header);
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(32, 24, 32, 20);
+    mainLayout->setSpacing(4);
 
-    QLineEdit *idEdit = new QLineEdit(id);
-    idEdit->setReadOnly(true);
+    QLabel *header = new QLabel("✎ MODIFIER MATIÈRE");
+    header->setObjectName("headerLabel"); header->setAlignment(Qt::AlignCenter); mainLayout->addWidget(header);
+    mainLayout->addWidget(createSeparator());
 
-    QLineEdit *typeEdit = new QLineEdit(type);
-    QLineEdit *couleurEdit = new QLineEdit(couleur);
+    QLineEdit *refEdit = new QLineEdit(ref);
+    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
 
-    QComboBox *qualiteCombo = new QComboBox();
-    qualiteCombo->addItems({"Qualité A", "Qualité B", "Qualité C"});
+    QComboBox *typeCombo = new QComboBox(); typeCombo->addItems({"Cuir Vachette", "Cuir Veau", "Daim", "Cuir Exotique", "Synthétique"});
+    typeCombo->setCurrentText(type);
+    QComboBox *qualiteCombo = new QComboBox(); qualiteCombo->addItems({"Premium", "Standard", "Economique"});
     qualiteCombo->setCurrentText(qualite);
+    QLineEdit *couleurEdit = new QLineEdit(couleur);
+    QDoubleSpinBox *epaisseurSpin = new QDoubleSpinBox(); epaisseurSpin->setRange(0.1, 10.0); epaisseurSpin->setDecimals(1); epaisseurSpin->setValue(epaisseur.toDouble());
+    QDoubleSpinBox *prixSpin = new QDoubleSpinBox(); prixSpin->setRange(0, 99999); prixSpin->setDecimals(2); prixSpin->setValue(prix.toDouble());
+    QSpinBox *stockSpin = new QSpinBox(); stockSpin->setRange(0, 999999); stockSpin->setValue(stock.toInt());
+    QSpinBox *seuilSpin = new QSpinBox(); seuilSpin->setRange(0, 999999); seuilSpin->setValue(seuil.toInt());
+    QDateEdit *receptionEdit = new QDateEdit(QDate::fromString(dateR, "dd/MM/yyyy")); receptionEdit->setDisplayFormat("dd/MM/yyyy"); receptionEdit->setCalendarPopup(true);
 
-    QLineEdit *prixEdit = new QLineEdit(prix);
-    QLineEdit *stockEdit = new QLineEdit(stock);
-    QLineEdit *fournisseurEdit = new QLineEdit(fournisseur);
+    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
+    
+    QHBoxLayout *c1 = new QHBoxLayout();
+    QVBoxLayout *c1a = new QVBoxLayout(); c1a->addWidget(new QLabel("TYPE CUIR")); c1a->addWidget(typeCombo);
+    QVBoxLayout *c1b = new QVBoxLayout(); c1b->addWidget(new QLabel("QUALITÉ")); c1b->addWidget(qualiteCombo);
+    c1->addLayout(c1a); c1->addLayout(c1b); mainLayout->addLayout(c1);
 
-    mainLayout->addWidget(idEdit);
-    mainLayout->addWidget(typeEdit);
-    mainLayout->addWidget(couleurEdit);
-    mainLayout->addWidget(qualiteCombo);
-    mainLayout->addWidget(prixEdit);
-    mainLayout->addWidget(stockEdit);
-    mainLayout->addWidget(fournisseurEdit);
+    mainLayout->addWidget(new QLabel("COULEUR")); mainLayout->addWidget(couleurEdit);
+    
+    QHBoxLayout *c2 = new QHBoxLayout();
+    QVBoxLayout *c2a = new QVBoxLayout(); c2a->addWidget(new QLabel("ÉPAISSEUR (mm)")); c2a->addWidget(epaisseurSpin);
+    QVBoxLayout *c2b = new QVBoxLayout(); c2b->addWidget(new QLabel("PRIX UNIT. (DT)")); c2b->addWidget(prixSpin);
+    c2->addLayout(c2a); c2->addLayout(c2b); mainLayout->addLayout(c2);
 
-    QPushButton *btnSave = new QPushButton("Mettre à jour");
-    QPushButton *btnCancel = new QPushButton("Annuler");
-    mainLayout->addWidget(btnSave);
-    mainLayout->addWidget(btnCancel);
+    QHBoxLayout *c3 = new QHBoxLayout();
+    QVBoxLayout *c3a = new QVBoxLayout(); c3a->addWidget(new QLabel("STOCK ACTUEL")); c3a->addWidget(stockSpin);
+    QVBoxLayout *c3b = new QVBoxLayout(); c3b->addWidget(new QLabel("SEUIL ALERTE")); c3b->addWidget(seuilSpin);
+    c3->addLayout(c3a); c3->addLayout(c3b); mainLayout->addLayout(c3);
 
-    connect(btnSave, &QPushButton::clicked, [modifierDialog, currentRow, typeEdit, couleurEdit,
-                                             qualiteCombo, prixEdit, stockEdit, fournisseurEdit, this]() {
-        if (typeEdit->text().isEmpty() || couleurEdit->text().isEmpty() ||
-            prixEdit->text().isEmpty() || stockEdit->text().isEmpty() ||
-            fournisseurEdit->text().isEmpty()) {
-            QMessageBox::warning(modifierDialog, "Champs manquants",
-                                 "Veuillez remplir tous les champs.");
-            return;
+    mainLayout->addWidget(new QLabel("DATE RÉCEPTION")); mainLayout->addWidget(receptionEdit);
+
+    mainLayout->addSpacing(10); mainLayout->addWidget(createSeparator());
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnSave = new QPushButton("  ✓  METTRE À JOUR  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
+    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel); mainLayout->addLayout(btnLayout);
+
+    auto validateAll = [&]() {
+        bool allOk = true;
+        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
+        btnSave->setEnabled(allOk); return allOk;
+    };
+    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject); connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_AMBER);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QSqlQuery query;
+        query.prepare("UPDATE SMARTLEATHER.MATIERE_PREMIERE SET REF=:ref, TYPE_CUIR=:type, QUALITE=:qualite, COULEUR=:couleur, "
+                      "EPAISSEUR=:epaisseur, PRIX_UNITAIRE=:prix, QUANTITE_STOCK=:stock, SEUIL_MIN=:seuil, DATE_RECEPTION=:dateR WHERE ID_MATIERE=:id");
+        query.bindValue(":ref", refEdit->text().trimmed());
+        query.bindValue(":type", typeCombo->currentText());
+        query.bindValue(":qualite", qualiteCombo->currentText());
+        query.bindValue(":couleur", couleurEdit->text().trimmed());
+        query.bindValue(":epaisseur", epaisseurSpin->value());
+        query.bindValue(":prix", prixSpin->value());
+        query.bindValue(":stock", stockSpin->value());
+        query.bindValue(":seuil", seuilSpin->value());
+        query.bindValue(":dateR", receptionEdit->date());
+        query.bindValue(":id", id);
+        if (query.exec()) {
+            QMessageBox::information(this, "Succès", "Matière mise à jour !");
+            loadMatieres();
+        } else {
+            QString err = query.lastError().text();
+            if (err.contains("ORA-00001")) {
+                QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
+            } else {
+                QMessageBox::critical(this, "Erreur", "La mise à jour a échoué: " + err.split('\n').first());
+            }
         }
-
-        bool ok;
-        double prix = prixEdit->text().toDouble(&ok);
-        if (!ok || prix <= 0) {
-            QMessageBox::warning(modifierDialog, "Prix invalide", "Prix invalide.");
-            return;
-        }
-
-        int stock = stockEdit->text().toInt(&ok);
-        if (!ok || stock < 0) {
-            QMessageBox::warning(modifierDialog, "Stock invalide", "Stock invalide.");
-            return;
-        }
-
-        QString formattedPrix = QString::number(prix, 'f', 2);
-
-        updateMatiereInTable(currentRow,
-                             typeEdit->text(),
-                             couleurEdit->text(),
-                             qualiteCombo->currentText(),
-                             formattedPrix,
-                             QString::number(stock),
-                             fournisseurEdit->text());
-
-        QMessageBox::information(modifierDialog, "Succès",
-                                 "La matière a été mise à jour avec succès.");
-        modifierDialog->accept();
-    });
-
-    connect(btnCancel, &QPushButton::clicked, modifierDialog, &QDialog::reject);
-    modifierDialog->exec();
-    modifierDialog->deleteLater();
+    }
 }
 
-void Matieres::on_pushButton_3_clicked()
-{
+void Matieres::on_pushButton_3_clicked() {
     int currentRow = ui->tableWidget->currentRow();
-
-    if (currentRow < 0) {
-        QMessageBox::warning(this, "Sélection requise",
-                             "Veuillez sélectionner une matière à supprimer.");
-        return;
-    }
-
+    if (currentRow < 0) { QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une matière."); return; }
     QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString type = ui->tableWidget->item(currentRow, 1)->text();
-
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "Confirmation",
-                                  QString("Voulez-vous vraiment supprimer la matière '%1' - %2 ?")
-                                      .arg(id).arg(type),
-                                  QMessageBox::Yes | QMessageBox::No);
-
-    if (reply == QMessageBox::Yes) {
-        ui->tableWidget->removeRow(currentRow);
-        QMessageBox::information(this, "Succès", "Matière supprimée avec succès.");
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
+    if (QMessageBox::question(this, "Confirmation", "Supprimer matière " + ref + " ?") == QMessageBox::Yes) {
+        QSqlQuery query;
+        query.prepare("DELETE FROM SMARTLEATHER.MATIERE_PREMIERE WHERE ID_MATIERE = :id");
+        query.bindValue(":id", id);
+        if (query.exec()) { QMessageBox::information(this, "Succès", "Matière supprimée."); loadMatieres(); }
+        else { QMessageBox::critical(this, "Erreur", "Échec: " + query.lastError().text()); }
     }
 }
 
-void Matieres::on_pushButton_4_clicked()
-{
-    ui->searchIdEdit->clear();
-    ui->searchTypeEdit->clear();
-    loadMatieres();
-    QMessageBox::information(this, "Actualisation", "Liste des matières actualisée.");
-}
+void Matieres::on_pushButton_4_clicked() { loadMatieres(); }
 
-void Matieres::on_pushButton_7_clicked()
-{
-    QString fileName = QFileDialog::getSaveFileName(this, "Exporter en Excel",
-                                                    "matieres_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
-                                                    "Fichiers CSV (*.csv)");
+void Matieres::on_pushButton_7_clicked() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Excel", "matieres.csv", "CSV (*.csv)");
     if (fileName.isEmpty()) return;
-
     QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Erreur", "Impossible de créer le fichier.");
-        return;
-    }
-
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
     QTextStream out(&file);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    out.setEncoding(QStringConverter::Utf8);
-#else
-    out.setCodec("UTF-8");
-#endif
-    out.setGenerateByteOrderMark(true);
-
-    QStringList headers = {"ID Matière", "Type", "Couleur", "Qualité", "Prix unitaire", "Stock", "Fournisseur"};
-    for (int i = 0; i < headers.size(); ++i) {
-        if (i > 0) out << ";";
-        out << headers[i];
+    for (int col = 0; col < ui->tableWidget->columnCount(); col++) {
+        out << "\"" << ui->tableWidget->horizontalHeaderItem(col)->text() << "\"";
+        if (col < ui->tableWidget->columnCount() - 1) out << ",";
     }
     out << "\n";
-
-    int visibleRows = 0;
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (ui->tableWidget->isRowHidden(row)) continue;
-
-        for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
-            if (col > 0) out << ";";
-            QString cell = ui->tableWidget->item(row, col)->text();
-            if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
-                cell.replace("\"", "\"\"");
-                cell = "\"" + cell + "\"";
-            }
-            out << cell;
+    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
+        for (int col = 0; col < ui->tableWidget->columnCount(); col++) {
+            out << "\"" << ui->tableWidget->item(row, col)->text() << "\"";
+            if (col < ui->tableWidget->columnCount() - 1) out << ",";
         }
         out << "\n";
-        visibleRows++;
     }
-
     file.close();
-    QMessageBox::information(this, "Succès",
-                             QString("Fichier CSV exporté avec succès.\n%1 ligne(s) exportée(s).")
-                                 .arg(visibleRows));
+    QMessageBox::information(this, "Export", "Données exportées vers " + fileName);
 }
 
-void Matieres::on_pushButton_9_clicked()
-{
-    int qualiteA = 0, qualiteB = 0, qualiteC = 0;
-    int stockFaible = 0, stockMoyen = 0, stockEleve = 0;
-
+void Matieres::on_pushButton_9_clicked() {
+    int faible = 0, normal = 0;
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         if (!ui->tableWidget->isRowHidden(row)) {
-            QString qualite = ui->tableWidget->item(row, 3)->text();
-            int stock = ui->tableWidget->item(row, 5)->text().toInt();
-
-            if (qualite == "Qualité A") qualiteA++;
-            else if (qualite == "Qualité B") qualiteB++;
-            else if (qualite == "Qualité C") qualiteC++;
-
-            if (stock < 50) stockFaible++;
-            else if (stock < 150) stockMoyen++;
-            else stockEleve++;
+            int stock = ui->tableWidget->item(row, 7)->text().toInt();
+            int seuil = ui->tableWidget->item(row, 8)->text().toInt();
+            if (stock <= seuil) faible++; else normal++;
         }
     }
+    QPieSeries *series = new QPieSeries();
+    if(normal>0) series->append("Stock Normal", normal);
+    if(faible>0) series->append("Sous le Seuil", faible);
 
-    int totalQualite = qualiteA + qualiteB + qualiteC;
-    int totalStock = stockFaible + stockMoyen + stockEleve;
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("État des Stocks de Matières");
+    chart->setAnimationOptions(QChart::AllAnimations);
+    QChartView *chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
 
-    if (totalQualite == 0 && totalStock == 0) {
-        QMessageBox::information(this, "Statistiques", "Aucune matière à afficher.");
-        return;
-    }
-
-    QDialog *statsDialog = new QDialog(this);
-    statsDialog->setWindowTitle("Statistiques des matières");
-    statsDialog->resize(500, 300);
-
-    QVBoxLayout *layout = new QVBoxLayout(statsDialog);
-    QLabel *label = new QLabel(
-        QString("Qualité A: %1\nQualité B: %2\nQualité C: %3\n\nStock faible: %4\nStock moyen: %5\nStock élevé: %6")
-            .arg(qualiteA).arg(qualiteB).arg(qualiteC)
-            .arg(stockFaible).arg(stockMoyen).arg(stockEleve));
-    layout->addWidget(label);
-
-    QPushButton *closeButton = new QPushButton("Fermer");
-    connect(closeButton, &QPushButton::clicked, statsDialog, &QDialog::accept);
-    layout->addWidget(closeButton);
-
-    statsDialog->exec();
-    delete statsDialog;
+    QDialog d(this); d.resize(600,400); d.setWindowTitle("Statistiques Stocks");
+    QVBoxLayout *l = new QVBoxLayout(&d); l->addWidget(chartView);
+    d.exec();
 }
+
+void Matieres::on_pushButton_6_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Employe")) return; auto *pl = new pageemployee(m_idEmploye, nullptr); pl->show(); this->close(); this->deleteLater(); }
+void Matieres::on_pushButton_21_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Produits")) return; auto *pd = new produitswindow(m_idEmploye, nullptr); pd->show(); this->close(); this->deleteLater(); }
+void Matieres::on_pushButton_20_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Commandes")) return; auto *pc = new commandes(m_idEmploye, nullptr); pc->show(); this->close(); this->deleteLater(); }
+void Matieres::on_pushButton_22_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Fournisseurs")) return; auto *pf = new fournisseurs(m_idEmploye, nullptr); pf->show(); this->close(); this->deleteLater(); }
+void Matieres::on_pushButton_23_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Machines")) return; auto *ss = new pagemachine(m_idEmploye, nullptr); ss->show(); this->close(); this->deleteLater(); }
+void Matieres::on_pushButton_5_clicked() { hide(); login *l = new login(); l->show(); }
+void Matieres::on_pushButton_11_clicked() { on_pushButton_6_clicked(); }
+

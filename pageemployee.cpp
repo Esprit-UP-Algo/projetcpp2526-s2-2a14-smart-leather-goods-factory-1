@@ -21,6 +21,9 @@
 #include <QDate>
 #include <QGridLayout>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
+#include <QTextEdit>
+#include <functional>
 
 #include <QtCharts/QChartView>
 #include <QtCharts/QPieSeries>
@@ -34,10 +37,29 @@
 #include "commandes.h"
 #include "login.h"
 #include "fournisseurs.h"
-#include "products.h"
+#include "produit.h"
+#include "produitswindow.h"
 #include "matieres.h"
 #include "pagemachine.h"
 #include "pagechat.h"
+
+static QString currentRoleForUser(int idEmploye)
+{
+    QSqlQuery q;
+    q.prepare("SELECT POSTE FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", idEmploye);
+    if (!q.exec() || !q.next()) return QString();
+    return q.value(0).toString().trimmed();
+}
+
+static bool denyIfRoleMismatch(QWidget *parent, int idEmploye, const QString &targetRole)
+{
+    const QString role = currentRoleForUser(idEmploye);
+    if (role.compare(targetRole, Qt::CaseInsensitive) == 0) return false;
+    QMessageBox::warning(parent, "Accès refusé",
+                         "Vous n'avez pas accès à cette page.");
+    return true;
+}
 
 pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     : QDialog(parent)
@@ -45,12 +67,77 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     , m_idEmployeConnecte(idEmployeConnecte)
 {
     ui->setupUi(this);
+    if (ui->groupBox) ui->groupBox->hide();
 
+    // Premium Sidebar Setup (same visual style as page machine)
+    QString navBtnStyle =
+        "QPushButton {"
+        "  background: transparent; border: none; color: #c9b8a5;"
+        "  text-align: left; padding-left: 20px; font-size: 14px; font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: rgba(255, 255, 255, 0.1); color: white; border-left: 4px solid #c9a87c;"
+        "}";
+
+    QWidget *sidebar = new QWidget(this);
+    sidebar->setGeometry(0, 0, 240, 900);
+    sidebar->setStyleSheet("background-color: #3a1f14;");
+
+    QLabel *logoLab = new QLabel(sidebar);
+    logoLab->setGeometry(20, 10, 211, 121);
+    logoLab->setPixmap(QPixmap(":/Logo.png"));
+    logoLab->setScaledContents(true);
+    logoLab->show();
+    logoLab->raise();
+
+    QVBoxLayout *navLayout = new QVBoxLayout(sidebar);
+    navLayout->setContentsMargins(0, 160, 0, 20);
+    navLayout->setSpacing(5);
+
+    auto addNavBtn = [&](const QString &txt, const std::function<void()> &handler, bool active = false) {
+        QPushButton *btn = new QPushButton("  " + txt);
+        btn->setMinimumHeight(45);
+        if (active) {
+            btn->setStyleSheet(navBtnStyle + "QPushButton { background-color: rgba(255,255,255,0.1); color:white; border-left:4px solid #c9a87c; }");
+        } else {
+            btn->setStyleSheet(navBtnStyle);
+            if (handler) {
+                connect(btn, &QPushButton::clicked, this, handler);
+            }
+        }
+        navLayout->addWidget(btn);
+        return btn;
+    };
+
+    addNavBtn("Employés", {}, true);
+    addNavBtn("Produits", [this]() { on_pushButton_21_clicked(); });
+    addNavBtn("Commandes", [this]() { on_pushButton_6_clicked(); });
+    addNavBtn("Fournisseurs", [this]() { on_pushButton_20_clicked(); });
+    addNavBtn("Matières", [this]() { on_pushButton_22_clicked(); });
+    addNavBtn("Machines", [this]() { on_pushButton_23_clicked(); });
+
+    navLayout->addStretch();
+    addNavBtn("Déconnexion", [this]() { on_pushButton_8_clicked(); });
+
+    sidebar->raise();
+    sidebar->show();
+
+    // 🔥 Connexion Arduino
+    if (arduino.connectArduino("COM3")) {  // change COM3 selon ton PC
+        connect(arduino.getSerial(), &QSerialPort::readyRead,
+                this, &pageemployee::onArduinoReadyRead);
+
+        qDebug() << "Connexion Arduino OK";
+        arduino.sendMessage("PING\n");
+    } else {
+        qDebug() << "Connexion Arduino echouee";
+    }
     qDebug() << "pageemployee opened, idEmployeConnecte =" << m_idEmployeConnecte;
 
     setupTable();
     loadEmployeesTable();
-
+    qDebug() << ">>> avant verifierBadgeRFID";
+    qDebug() << ">>> apres verifierBadgeRFID";
     connect(ui->searchIdEdit,  &QLineEdit::textChanged, this, &pageemployee::applyFilter);
     connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &pageemployee::applyFilter);
 }
@@ -339,14 +426,14 @@ void pageemployee::on_pushButton_clicked()
     // ===== ComboBox au lieu de QLineEdit =====
     QComboBox *posteCombo = new QComboBox();
     posteCombo->addItems({
-        "Responsable Stock",
-        "Service Achat",
-        "Service Technique",
-        "Service Client",
-        "Commercial",
-        "Comptable",
-        "Directeur"
+        "Produits",
+        "Fournisseurs",
+        "Machines",
+        "Commandes",
+        "Matieres",
+        "Employe"
     });
+
 
     QComboBox *niveauCombo = new QComboBox();
     niveauCombo->addItems({"BAC", "LICENCE", "MASTER"});
@@ -758,10 +845,56 @@ void pageemployee::on_pushButton_7_clicked()
     QString prenom        = ui->tableWidget->item(row, 2) ? ui->tableWidget->item(row, 2)->text() : "";
     QString cin           = ui->tableWidget->item(row, 3) ? ui->tableWidget->item(row, 3)->text() : "";
     QString dateNaissance = ui->tableWidget->item(row, 4) ? ui->tableWidget->item(row, 4)->text() : "";
-    QString poste         = ui->tableWidget->item(row, 5) ? ui->tableWidget->item(row, 5)->text() : "";
-    QString niveau        = ui->tableWidget->item(row, 6) ? ui->tableWidget->item(row, 6)->text() : "";
-    QString salaire       = ui->tableWidget->item(row, 8) ? ui->tableWidget->item(row, 8)->text() : "";
     QString email         = ui->tableWidget->item(row, 9) ? ui->tableWidget->item(row, 9)->text() : "";
+
+    // Step 1: collect leave request details from a dedicated form dialog.
+    QDialog leaveDialog(this);
+    leaveDialog.setWindowTitle("Détails de la demande de congé");
+    leaveDialog.setFixedSize(460, 330);
+
+    QVBoxLayout *leaveLayout = new QVBoxLayout(&leaveDialog);
+    leaveLayout->setContentsMargins(18, 18, 18, 18);
+    leaveLayout->setSpacing(10);
+
+    QLabel *typeLabel = new QLabel("Type de congé :");
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItems({"Congé annuel", "Congé maladie", "Congé maternité", "Congé paternité", "Congé exceptionnel"});
+
+    QLabel *dureeLabel = new QLabel("Durée demandée (jours) :");
+    QSpinBox *dureeSpin = new QSpinBox();
+    dureeSpin->setRange(1, 365);
+    dureeSpin->setValue(1);
+
+    QLabel *remarqueLabel = new QLabel("Remarques :");
+    QTextEdit *remarqueEdit = new QTextEdit();
+    remarqueEdit->setPlaceholderText("Saisir une remarque...");
+    remarqueEdit->setFixedHeight(90);
+
+    QHBoxLayout *leaveButtons = new QHBoxLayout();
+    QPushButton *btnOk = new QPushButton("Valider");
+    QPushButton *btnCancel = new QPushButton("Annuler");
+    leaveButtons->addStretch();
+    leaveButtons->addWidget(btnOk);
+    leaveButtons->addWidget(btnCancel);
+
+    leaveLayout->addWidget(typeLabel);
+    leaveLayout->addWidget(typeCombo);
+    leaveLayout->addWidget(dureeLabel);
+    leaveLayout->addWidget(dureeSpin);
+    leaveLayout->addWidget(remarqueLabel);
+    leaveLayout->addWidget(remarqueEdit);
+    leaveLayout->addLayout(leaveButtons);
+
+    connect(btnOk, &QPushButton::clicked, &leaveDialog, &QDialog::accept);
+    connect(btnCancel, &QPushButton::clicked, &leaveDialog, &QDialog::reject);
+
+    if (leaveDialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    const QString typeConge = typeCombo->currentText();
+    const int dureeJours = dureeSpin->value();
+    const QString remarque = remarqueEdit->toPlainText().trimmed();
 
     QString fileName = QFileDialog::getSaveFileName(
         this,
@@ -851,16 +984,16 @@ void pageemployee::on_pushButton_7_clicked()
     painter.drawText(leftX,  lineY1 + 2 * step, "CIN : " + cin);
     painter.drawText(leftX,  lineY1 + 3 * step, "Date de naissance : " + dateNaissance);
 
-    painter.drawText(rightX, lineY1,            "Poste : " + poste);
-    painter.drawText(rightX, lineY1 + step,     "Niveau : " + niveau);
-    painter.drawText(rightX, lineY1 + 2 * step, "Salaire : " + salaire + " DT");
+    painter.drawText(rightX, lineY1,            "Type de congé : " + typeConge);
+    painter.drawText(rightX, lineY1 + step,     "Durée demandée : " + QString::number(dureeJours) + " jour(s)");
+    painter.drawText(rightX, lineY1 + 2 * step, "Date de demande : " + QDate::currentDate().toString("dd/MM/yyyy"));
     painter.drawText(rightX, lineY1 + 3 * step, "Email : " + email);
 
     y = infoRect.bottom() + 100;
 
     painter.setFont(sectionFont);
     painter.setPen(brownDark);
-    painter.drawText(outerRect.left() + 100, y, "Objet : Demande de congé");
+    painter.drawText(outerRect.left() + 100, y, "Objet : " + typeConge);
 
     y += 70;
 
@@ -874,8 +1007,9 @@ void pageemployee::on_pushButton_7_clicked()
 
     QString paragraphe =
         "Je soussigné(e), " + nom + " " + prenom +
-        ", occupant le poste de " + poste +
-        ", sollicite par la présente l'autorisation de bénéficier d'un congé./n/n"
+        ", sollicite par la présente l'autorisation de bénéficier d'un " + typeConge +
+        " pour une durée de " + QString::number(dureeJours) + " jour(s).\n\n"
+        "Remarques : " + (remarque.isEmpty() ? QString("Aucune") : remarque) + "\n\n"
         "Je vous prie de bien vouloir examiner favorablement ma demande. "
         "Je reste à votre disposition pour toute information complémentaire.";
 
@@ -941,13 +1075,32 @@ void pageemployee::on_pushButton_9_clicked()
 
     QDialog dlg(this);
     dlg.setWindowTitle("Statistiques des employés");
-    dlg.setFixedSize(900, 620);
+    dlg.setFixedSize(960, 660);
     dlg.setStyleSheet(
-        "QDialog { background-color: #f8f4ef; }"
-        "QLabel { color: #4b2e1f; font-size: 13px; }"
-        "QFrame#card { background-color: white; border: 2px solid #d8c2ad; border-radius: 16px; }"
-        "QPushButton { background-color: #6f8f3d; color: white; border-radius: 10px; padding: 10px 22px; font-weight: bold; font-size: 14px; }"
-        "QPushButton:hover { background-color: #84a94a; }"
+        "QDialog { background-color: #f1e7dc; }"
+        "QLabel { color: #3a2a20; font-size: 13px; }"
+        "QFrame#card {"
+        "  background-color: #fffaf5;"
+        "  border: 2px solid #b08a6b;"
+        "  border-radius: 14px;"
+        "}"
+        "QFrame#rowCard {"
+        "  background-color:#fffaf5;"
+        "  border:1px solid #dcc8b7;"
+        "  border-radius:10px;"
+        "}"
+        "QPushButton {"
+        "  background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7a4a2e, stop:1 #5b2f1d);"
+        "  color: #fffaf5;"
+        "  border-radius: 10px;"
+        "  border: 2px solid #3a1f14;"
+        "  padding: 9px 24px;"
+        "  font-weight: 700;"
+        "  font-size: 14px;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8b5a3a, stop:1 #6b3e26);"
+        "}"
         );
 
     QVBoxLayout *main = new QVBoxLayout(&dlg);
@@ -956,27 +1109,27 @@ void pageemployee::on_pushButton_9_clicked()
 
     QLabel *title = new QLabel("Tableau de bord des employés");
     title->setAlignment(Qt::AlignCenter);
-    title->setStyleSheet("font-size: 24px; font-weight: bold; color: #7a451f;");
+    title->setStyleSheet("font-size: 28px; font-weight: 800; color: #5b2f1d; letter-spacing: 1px;");
     main->addWidget(title);
 
     QHBoxLayout *kpiLayout = new QHBoxLayout();
-    kpiLayout->setSpacing(12);
+    kpiLayout->setSpacing(14);
 
     auto makeCard = [](const QString &big, const QString &small) {
         QFrame *card = new QFrame();
         card->setObjectName("card");
-        card->setMinimumHeight(90);
+        card->setMinimumHeight(92);
 
         QVBoxLayout *l = new QVBoxLayout(card);
         l->setContentsMargins(15, 12, 15, 12);
 
         QLabel *bigLabel = new QLabel(big);
         bigLabel->setAlignment(Qt::AlignCenter);
-        bigLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #6b3e1a;");
+        bigLabel->setStyleSheet("font-size: 32px; font-weight: 800; color: #5b2f1d;");
 
         QLabel *smallLabel = new QLabel(small);
         smallLabel->setAlignment(Qt::AlignCenter);
-        smallLabel->setStyleSheet("font-size: 13px; color: #7b6656;");
+        smallLabel->setStyleSheet("font-size: 13px; color: #7b6656; font-weight: 600;");
 
         l->addWidget(bigLabel);
         l->addWidget(smallLabel);
@@ -1000,7 +1153,7 @@ void pageemployee::on_pushButton_9_clicked()
 
     QLabel *chartTitle = new QLabel("Répartition par statut");
     chartTitle->setAlignment(Qt::AlignCenter);
-    chartTitle->setStyleSheet("font-size: 18px; font-weight: bold; color: #6b3e1a;");
+    chartTitle->setStyleSheet("font-size: 24px; font-weight: 800; color: #5b2f1d;");
     chartLayout->addWidget(chartTitle);
 
     QPieSeries *series = new QPieSeries();
@@ -1012,7 +1165,9 @@ void pageemployee::on_pushButton_9_clicked()
         slice->setBrush(color);
         slice->setLabelVisible(true);
         double pct = total > 0 ? (value * 100.0 / total) : 0.0;
-        slice->setLabel(QString("%1/n%2%").arg(label).arg(QString::number(pct, 'f', 1)));
+        slice->setLabel(QString("%1\n%2%").arg(label).arg(QString::number(pct, 'f', 1)));
+        slice->setLabelColor(QColor("#5b2f1d"));
+        slice->setLabelFont(QFont("Segoe UI", 9, QFont::DemiBold));
     };
 
     addSlice("Actif",        nbActif,       QColor("#6f8f3d"));
@@ -1025,14 +1180,14 @@ void pageemployee::on_pushButton_9_clicked()
 
     QChart *chart = new QChart();
     chart->addSeries(series);
-    chart->setTitle("");
+    chart->setTitle(" ");
     chart->legend()->hide();
     chart->setBackgroundVisible(false);
-    chart->setMargins(QMargins(0, 0, 0, 0));
+    chart->setMargins(QMargins(6, 6, 6, 6));
 
     QChartView *chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
-    chartView->setMinimumSize(380, 320);
+    chartView->setMinimumSize(400, 340);
 
     chartLayout->addWidget(chartView);
 
@@ -1043,14 +1198,14 @@ void pageemployee::on_pushButton_9_clicked()
     detailsLayout->setSpacing(12);
 
     QLabel *detailsTitle = new QLabel("Détails des statuts");
-    detailsTitle->setStyleSheet("font-size: 18px; font-weight: bold; color: #6b3e1a;");
+    detailsTitle->setStyleSheet("font-size: 24px; font-weight: 800; color: #5b2f1d;");
     detailsLayout->addWidget(detailsTitle);
 
     auto addStatusRow = [&](const QString &label, int value, const QString &color) {
         double pct = total > 0 ? (value * 100.0 / total) : 0.0;
 
         QFrame *row = new QFrame();
-        row->setStyleSheet("background-color:#fbf8f4; border:1px solid #e6d7c8; border-radius:10px;");
+        row->setObjectName("rowCard");
         QHBoxLayout *hl = new QHBoxLayout(row);
         hl->setContentsMargins(12, 8, 12, 8);
 
@@ -1058,12 +1213,12 @@ void pageemployee::on_pushButton_9_clicked()
         dot->setStyleSheet("font-size:18px; color:" + color + ";");
 
         QLabel *name = new QLabel(label);
-        name->setStyleSheet("font-size:14px; font-weight:bold; color:#5a341c;");
+        name->setStyleSheet("font-size:17px; font-weight:800; color:#5b2f1d;");
 
         QLabel *val = new QLabel(QString("%1 employé(s)  |  %2%")
                                      .arg(value)
                                      .arg(QString::number(pct, 'f', 1)));
-        val->setStyleSheet("font-size:13px; color:#6e5a4d;");
+        val->setStyleSheet("font-size:16px; color:#6e5a4d; font-weight:600;");
 
         hl->addWidget(dot);
         hl->addWidget(name);
@@ -1100,32 +1255,47 @@ void pageemployee::on_pushButton_9_clicked()
 ========================= */
 void pageemployee::on_pushButton_6_clicked()
 {
-    hide();
-    (new commandes(m_idEmployeConnecte, this))->show();
+    if (denyIfRoleMismatch(this, m_idEmployeConnecte, "Commandes")) return;
+    auto *next = new commandes(m_idEmployeConnecte, nullptr);
+    next->show();
+    this->close();
+    this->deleteLater();
 }
 
 void pageemployee::on_pushButton_20_clicked()
 {
-    hide();
-    (new fournisseurs(m_idEmployeConnecte, this))->show();
+    if (denyIfRoleMismatch(this, m_idEmployeConnecte, "Fournisseurs")) return;
+    auto *next = new fournisseurs(m_idEmployeConnecte, nullptr);
+    next->show();
+    this->close();
+    this->deleteLater();
 }
 
 void pageemployee::on_pushButton_21_clicked()
 {
-    hide();
-    (new products(m_idEmployeConnecte, this))->show();
+    if (denyIfRoleMismatch(this, m_idEmployeConnecte, "Produits")) return;
+    auto *next = new produitswindow(m_idEmployeConnecte, nullptr);
+    next->show();
+    this->close();
+    this->deleteLater();
 }
 
 void pageemployee::on_pushButton_22_clicked()
 {
-    hide();
-    (new Matieres(m_idEmployeConnecte, this))->show();
+    if (denyIfRoleMismatch(this, m_idEmployeConnecte, "Matieres")) return;
+    auto *next = new Matieres(m_idEmployeConnecte, nullptr);
+    next->show();
+    this->close();
+    this->deleteLater();
 }
 
 void pageemployee::on_pushButton_23_clicked()
 {
-    hide();
-    (new pagemachine(m_idEmployeConnecte, this))->show();
+    if (denyIfRoleMismatch(this, m_idEmployeConnecte, "Machines")) return;
+    auto *next = new pagemachine(m_idEmployeConnecte, nullptr);
+    next->show();
+    this->close();
+    this->deleteLater();
 }
 
 void pageemployee::on_pushButton_4_clicked()
@@ -1138,9 +1308,10 @@ void pageemployee::on_pushButton_4_clicked()
 
 void pageemployee::on_pushButton_5_clicked()
 {
-    hide();
-    login *lg = new login(this);
+    auto *lg = new login(nullptr);
     lg->show();
+    this->close();
+    this->deleteLater();
 }
 
 void pageemployee::on_pushButton_8_clicked()
@@ -1154,5 +1325,41 @@ void pageemployee::on_pushButton_8_clicked()
         login *lg = new login();
         lg->show();
         this->close();
+    }
+}
+void pageemployee::onArduinoReadyRead()
+{
+    QString msg = arduino.readMessage();
+    qDebug() << "Message Arduino reçu :" << msg;
+
+    if (msg.startsWith("UID:")) {
+        QString uid = msg.section(':', 1, 1).trimmed();
+        verifierBadgeRFID(uid);
+    }
+}
+void pageemployee::verifierBadgeRFID(const QString &uid)
+{
+    qDebug() << ">>> verifierBadgeRFID appelee avec UID/CIN =" << uid;
+
+    QSqlQuery query;
+    query.prepare("SELECT NOM, POSTE FROM SMARTLEATHER.EMPLOYE WHERE CIN = :uid");
+    query.bindValue(":uid", uid);
+
+    if (!query.exec()) {
+        qDebug() << "Erreur SQL verifierBadgeRFID =" << query.lastError().text();
+        return;
+    }
+
+    if (query.next()) {
+        QString nom = query.value(0).toString().trimmed();
+        QString poste = query.value(1).toString().trimmed();
+
+        QString reponse = "VALID;" + nom + ";" + poste + "\n";
+        qDebug() << "Badge valide :" << reponse;
+
+        arduino.sendMessage(reponse);
+    } else {
+        qDebug() << "Aucun employe trouve pour CIN =" << uid;
+        arduino.sendMessage("INVALID\n");
     }
 }

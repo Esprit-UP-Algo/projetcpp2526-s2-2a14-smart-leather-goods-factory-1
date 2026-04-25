@@ -3,7 +3,8 @@
 #include "ui_login.h"
 #include "commandes.h"
 #include "faceid.h"
-#include "products.h"
+#include "produit.h"
+#include "produitswindow.h"
 #include "fournisseurs.h"
 #include "pagemachine.h"
 #include "matieres.h"
@@ -63,7 +64,7 @@ void login::redirigerSelonRole(int idEmp)
     QWidget *fenetre = nullptr;
 
     if (role == "Produits") {
-        fenetre = new products(idEmp);
+        fenetre = new produitswindow(idEmp);
     }
     else if (role == "Fournisseurs") {
         fenetre = new fournisseurs(idEmp);
@@ -183,25 +184,39 @@ login::login(QWidget *parent)
         loadingDialog->hide();
         ui->btnFaceId->setEnabled(true);
 
-        QMessageBox msgBox(this); // ou nullptr si tu veux sans parent
-msgBox.setIcon(QMessageBox::Warning);
-msgBox.setWindowTitle("Face ID");
-msgBox.setText("Reconnaissance échouée.");
-msgBox.setStyleSheet(
-    "QMessageBox {"
-    "  background-color: #f7efe7;"
-    "  color: #2c1f15;"
-    "}"
-    "QMessageBox QLabel {"
-    "  color: #2c1f15;"
-    "}"
-    "QMessageBox QPushButton {"
-    "  background-color: #d8b39d;"
-    "  color: black;"
-    "  border-radius: 8px;"
-    "}"
-);
-msgBox.exec();
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setWindowTitle("Face ID");
+        msgBox.setText("Reconnaissance échouée.");
+        msgBox.setInformativeText("Aucun visage valide n'a été détecté.");
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setDefaultButton(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "  font-size: 14px;"
+            "  font-family: Segoe UI;"
+            "}"
+            "QMessageBox QLabel {"
+            "  background: transparent;"
+            "  color: #2c1f15;"
+            "}"
+            "QMessageBox QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: #2c1f15;"
+            "  border-radius: 10px;"
+            "  padding: 6px 15px;"
+            "  min-width: 80px;"
+            "}"
+            "QMessageBox QPushButton:hover {"
+            "  background-color: #c89b7b;"
+            "}"
+            "QMessageBox QPushButton:pressed {"
+            "  background-color: #b5835a;"
+            "}"
+            );
+        msgBox.exec();
     });
 
     QSqlQuery test;
@@ -292,11 +307,39 @@ bool login::verifierLoginFaceId(const QString &cin)
         int idEmp = query.value(0).toInt();
         QString nom = query.value(1).toString();
 
-        QMessageBox::information(
-            this,
-            "Face ID",
-            "Face ID reconnu\nBienvenue " + nom
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Information);
+        msgBox.setWindowTitle("Face ID");
+        msgBox.setText("Face ID reconnu avec succès.");
+        msgBox.setInformativeText("Bienvenue, " + nom + ".");
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.setDefaultButton(QMessageBox::Ok);
+        msgBox.setStyleSheet(
+            "QMessageBox {"
+            "  background-color: #f7efe7;"
+            "  color: #2c1f15;"
+            "  font-size: 14px;"
+            "  font-family: Segoe UI;"
+            "}"
+            "QMessageBox QLabel {"
+            "  background: transparent;"
+            "  color: #2c1f15;"
+            "}"
+            "QMessageBox QPushButton {"
+            "  background-color: #d8b39d;"
+            "  color: #2c1f15;"
+            "  border-radius: 10px;"
+            "  padding: 6px 15px;"
+            "  min-width: 80px;"
+            "}"
+            "QMessageBox QPushButton:hover {"
+            "  background-color: #c89b7b;"
+            "}"
+            "QMessageBox QPushButton:pressed {"
+            "  background-color: #b5835a;"
+            "}"
             );
+        msgBox.exec();
 
         redirigerSelonRole(idEmp);
 

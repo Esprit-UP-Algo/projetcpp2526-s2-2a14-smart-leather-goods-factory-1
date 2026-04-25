@@ -1,29 +1,159 @@
-#include "pagemachine.h"
+#include "pagemachine.h" // Force recompile
 #include "ui_pagemachine.h"
+#include "login.h"
+#include "pageemployee.h"
+#include "commandes.h"
+#include "produitswindow.h"
+#include "fournisseurs.h"
+#include "matieres.h"
+#include "smtp.h"
+
 #include <QMessageBox>
-#include <QLineEdit>
-#include <QComboBox>
-#include <QLabel>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QDialog>
-#include <QDebug>
-#include <QSpinBox>
-#include <QPrinter>
-#include <QPainter>
+#include <QSqlError>
+#include <QSqlQuery>
+#include <QTableWidgetItem>
 #include <QFileDialog>
 #include <QDateTime>
+#include <QDialog>
+#include <QSslSocket>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QFile>
 #include <QTextStream>
 #include <QFrame>
-#include <QTabWidget>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QLabel>
+#include <QGraphicsDropShadowEffect>
+#include <QHeaderView>
+#include <QDebug>
+#include <QPieSeries>
+#include <QPieSlice>
+#include <QChart>
+#include <QChartView>
+#include <QPrinter>
+#include <QPainter>
 
-#include "commandes.h"
-#include "pageemployee.h"
-#include "fournisseurs.h"
-#include "products.h"
-#include "matieres.h"
+static QString currentRoleForUser(int idEmploye)
+{
+    QSqlQuery q;
+    q.prepare("SELECT POSTE FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", idEmploye);
+    if (!q.exec() || !q.next()) return QString();
+    return q.value(0).toString().trimmed();
+}
+
+static bool denyIfRoleMismatch(QWidget *parent, int idEmploye, const QString &targetRole)
+{
+    const QString role = currentRoleForUser(idEmploye);
+    if (role.compare(targetRole, Qt::CaseInsensitive) == 0) return false;
+    QMessageBox::warning(parent, "Accès refusé",
+                         "Vous n'avez pas accès à cette page.");
+    return true;
+}
+
+static const char* DIALOG_BASE_STYLE = R"(
+QDialog {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #faf6f1, stop:0.5 #f0e8de, stop:1 #e8ddd0);
+    border: none;
+}
+QLabel#headerLabel {
+    color: #4a2517;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 8px 0;
+}
+QLabel#subHeaderLabel {
+    color: #8b6f5a;
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+QLabel {
+    color: #5b3a28;
+    font-weight: 600;
+    font-size: 12px;
+    background: transparent;
+}
+QLabel#errorLabel {
+    color: #c0392b;
+    font-size: 11px;
+    font-weight: 600;
+    font-style: italic;
+    background: transparent;
+    padding: 0 2px;
+}
+QLineEdit, QSpinBox, QComboBox {
+    background-color: rgba(255, 255, 255, 0.85);
+    border: 2px solid #d4c4b0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: #3a2a20;
+    font-size: 13px;
+    selection-background-color: #c9a87c;
+}
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
+    border: 2px solid #8b6f5a;
+    background-color: white;
+}
+QLineEdit[error="true"] { border: 2px solid #e74c3c; background-color: #fdf2f2; }
+QComboBox::drop-down { border: none; padding-right: 10px; }
+QComboBox QAbstractItemView {
+    background-color: #faf6f1; border: 2px solid #d4c4b0; border-radius: 8px;
+    selection-background-color: #c9a87c; padding: 4px; color: #3a2a20;
+}
+)";
+
+static const char* BTN_SAVE_GREEN = R"(
+QPushButton#btnSave {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6d9b3a, stop:1 #8fb85a);
+    border: none; border-radius: 14px; padding: 12px 28px;
+    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
+}
+QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #7dab4a, stop:1 #9fc86a); }
+QPushButton#btnSave:pressed { background: #5a8a2a; }
+QPushButton#btnCancel {
+    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
+    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
+}
+QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
+)";
+
+static const char* BTN_SAVE_AMBER = R"(
+QPushButton#btnSave {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c47a2c, stop:1 #e09a4c);
+    border: none; border-radius: 14px; padding: 12px 28px;
+    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
+}
+QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #d48a3c, stop:1 #f0aa5c); }
+QPushButton#btnSave:pressed { background: #b06a1c; }
+QPushButton#btnCancel {
+    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
+    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
+}
+QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
+)";
+
+static QFrame* createSeparator() {
+    QFrame* line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setStyleSheet("background-color: #d4c4b0; max-height: 1px; margin: 8px 0;");
+    return line;
+}
+static void addShadow(QWidget* w, int blur = 20, int offsetY = 4) {
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(w);
+    shadow->setBlurRadius(blur); shadow->setOffset(0, offsetY); shadow->setColor(QColor(0,0,0,40));
+    w->setGraphicsEffect(shadow);
+}
+static void setFieldError(QLineEdit* field, QLabel* errorLabel, bool hasError, const QString& msg = "") {
+    field->setProperty("error", hasError);
+    field->style()->unpolish(field); field->style()->polish(field);
+    errorLabel->setText(hasError ? "⚠ " + msg : "");
+    errorLabel->setVisible(hasError);
+}
 
 pagemachine::pagemachine(int idEmploye, QWidget *parent)
     : QDialog(parent)
@@ -31,482 +161,605 @@ pagemachine::pagemachine(int idEmploye, QWidget *parent)
     , m_idEmploye(idEmploye)
 {
     ui->setupUi(this);
+    if (ui->groupBox) ui->groupBox->hide();
+
+    // Premium Sidebar Setup
+    QString navBtnStyle =
+        "QPushButton {"
+        "  background: transparent; border: none; color: #c9b8a5;"
+        "  text-align: left; padding-left: 20px; font-size: 14px; font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: rgba(255, 255, 255, 0.1); color: white; border-left: 4px solid #c9a87c;"
+        "}";
+
+    QWidget *sidebar = new QWidget(this);
+    sidebar->setGeometry(0, 0, 240, 900); 
+    sidebar->setStyleSheet("background-color: #3a1f14;");
+
+    // Smart Leather Logo on Sidebar
+    QLabel *logoLab = new QLabel(sidebar); // Parent to sidebar
+    logoLab->setGeometry(20, 10, 211, 121);
+    logoLab->setPixmap(QPixmap(":/Logo.png"));
+    logoLab->setScaledContents(true);
+    logoLab->show();
+    logoLab->raise();
+    
+    QVBoxLayout *navLayout = new QVBoxLayout(sidebar);
+    navLayout->setContentsMargins(0, 160, 0, 20);
+    navLayout->setSpacing(5);
+
+    auto addNavBtn = [&](const QString &txt, const char* slot, bool active = false) {
+        QPushButton *btn = new QPushButton("  " + txt);
+        btn->setMinimumHeight(45);
+        if (active) {
+            btn->setStyleSheet(navBtnStyle + "QPushButton { background-color: rgba(255,255,255,0.1); color:white; border-left:4px solid #c9a87c; }");
+        } else {
+            btn->setStyleSheet(navBtnStyle);
+            connect(btn, SIGNAL(clicked()), this, slot);
+        }
+        navLayout->addWidget(btn);
+        return btn;
+    };
+
+    addNavBtn("Employés", SLOT(on_pushButton_6_clicked()));
+    addNavBtn("Produits", SLOT(on_pushButton_21_clicked()));
+    addNavBtn("Commandes", SLOT(on_pushButton_20_clicked()));
+    addNavBtn("Fournisseurs", SLOT(on_pushButton_22_clicked()));
+    addNavBtn("Matières", SLOT(on_pushButton_23_clicked()));
+    addNavBtn("Machines", nullptr, true);
+
+    navLayout->addStretch();
+    addNavBtn("Déconnexion", SLOT(on_pushButton_11_clicked()));
+    
+    sidebar->raise();
+    sidebar->show();
+ 
     setupMachinesTable();
     loadMachines();
-    setupSearch();
-}
+    
+    // Check SSL Support for Email feature
+    bool supportsSsl = QSslSocket::supportsSsl();
+    qDebug() << "======= DEBUG SYSTEM =======";
+    qDebug() << "Supports SSL:" << supportsSsl;
+    qDebug() << "SSL Version:" << QSslSocket::sslLibraryBuildVersionString();
+    qDebug() << "============================";
 
-pagemachine::~pagemachine()
-{
-    delete ui;
-}
-
-void pagemachine::setupSearch()
-{
-    connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &pagemachine::filterTable);
-    connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &pagemachine::filterTable);
-}
-
-void pagemachine::filterTable()
-{
-    QString idFilter = ui->searchIdEdit->text();
-    QString nomFilter = ui->searchNomEdit->text();
-
-    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        bool match = true;
-
-        if (!idFilter.isEmpty()) {
-            QString id = ui->tableWidget->item(row, 0)->text();
-            if (!id.contains(idFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        if (match && !nomFilter.isEmpty()) {
-            QString nom = ui->tableWidget->item(row, 1)->text();
-            if (!nom.contains(nomFilter, Qt::CaseInsensitive)) {
-                match = false;
-            }
-        }
-
-        ui->tableWidget->setRowHidden(row, !match);
+    if (!supportsSsl) {
+        QMessageBox::critical(this, "SSL Manquant", 
+            "Votre système ne possède pas les bibliothèques OpenSSL nécessaires (libeay32.dll / ssleay32.dll).\n"
+            "L'envoi d'emails sera IMPOSSIBLE tant qu'elles ne sont pas installées.");
     }
+
+    // Customize search UI for State filter
+    // Customize search UI for State filter
+    if (ui->label_9) ui->label_9->setText("REF MACHINE :");
+    if (ui->label_10) ui->label_10->setText("ÉTAT :");
+    
+    if (ui->searchNomEdit) {
+        ui->searchNomEdit->hide();
+        QComboBox *etatSearch = new QComboBox(this);
+        etatSearch->setObjectName("searchEtatCombo");
+        etatSearch->setGeometry(ui->searchNomEdit->geometry());
+        etatSearch->addItems({"Tous", "Active", "Inactive", "En maintenance", "En panne"});
+        etatSearch->show();
+        connect(etatSearch, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &pagemachine::filterTable);
+    }
+    
+    // Connect original UI buttons for refined features
+    connect(ui->pushButton_10, &QPushButton::clicked, this, &pagemachine::filterTable); // Recherche
+    ui->pushButton_7->setText("Exporter PDF"); // Repurpose the main Exporter button
+
+    setupSearch();
+
 }
+
+pagemachine::~pagemachine() { delete ui; }
 
 void pagemachine::setupMachinesTable()
 {
-    QStringList headers = {"ID Machine", "Nom Machine", "Type Machine", "État Machine",
-                           "Capacité", "Fréquence", "Niveau de Charge"};
-    ui->tableWidget->setColumnCount(headers.size());
+    ui->tableWidget->setColumnCount(8);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(7, QHeaderView::Stretch);          // Niveau Charge
+    
+    ui->tableWidget->verticalHeader()->setVisible(false);
+    ui->tableWidget->verticalHeader()->setDefaultSectionSize(40);
+
+    // Labels last to override any defaults
+    QStringList headers = {"ID", "Réf", "Nom", "Type", "État", "Capacité", "Fréquence", "Charge (%)"};
     ui->tableWidget->setHorizontalHeaderLabels(headers);
+    ui->tableWidget->horizontalHeader()->setVisible(true);
 
-    ui->tableWidget->setColumnWidth(0, 100);
-    ui->tableWidget->setColumnWidth(1, 150);
-    ui->tableWidget->setColumnWidth(2, 150);
-    ui->tableWidget->setColumnWidth(3, 120);
-    ui->tableWidget->setColumnWidth(4, 100);
-    ui->tableWidget->setColumnWidth(5, 100);
-    ui->tableWidget->setColumnWidth(6, 120);
+    // Styling the Table Grid and Background
+    ui->tableWidget->setStyleSheet(
+        "QTableWidget { "
+        "    background-color: #ffffff; "
+        "    gridline-color: #d4c4b0; "
+        "    border: 1px solid #d4c4b0; "
+        "    alternate-background-color: #faf6f1; "
+        "    selection-background-color: #e8ddd0; "
+        "    selection-color: #3a1f14; "
+        "    border-radius: 8px;"
+        "}"
+    );
 
-    ui->tableWidget->setSortingEnabled(true);
-    ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
-    ui->tableWidget->setAlternatingRowColors(true);
+    // Premium Styling for Horizontal Header (Column Titles)
+    ui->tableWidget->horizontalHeader()->setStyleSheet(
+        "QHeaderView::section {"
+        "    background: #5b3020;"
+        "    color: #f5efe8; "
+        "    padding: 8px; "
+        "    border: 1px solid #4a2517; "
+        "    font-weight: bold; "
+        "    font-size: 11px; "
+        "}"
+    );
 }
 
 void pagemachine::loadMachines()
 {
+    ui->tableWidget->setSortingEnabled(false); // Disable sorting during refill
     ui->tableWidget->setRowCount(0);
-
-    QList<QStringList> sampleData = {
-        {"M001", "Fraiseuse CNC", "Fraiseuse", "Fonctionnelle", "500 unités/h", "50 Hz", "75"},
-        {"M002", "Tour automatique", "Tour", "Maintenance", "300 unités/h", "60 Hz", "45"},
-        {"M003", "Perceuse colonne", "Perceuse", "Fonctionnelle", "200 unités/h", "50 Hz", "90"},
-        {"M004", "Presse hydraulique", "Presse", "En panne", "1000 unités/h", "50 Hz", "0"},
-        {"M005", "Scie circulaire", "Scie", "Fonctionnelle", "400 unités/h", "60 Hz", "60"},
-        {"M006", "Rectifieuse", "Rectifieuse", "Arrêtée", "150 unités/h", "50 Hz", "0"},
-        {"M007", "Imprimante 3D", "Imprimante 3D", "Fonctionnelle", "50 unités/h", "60 Hz", "30"}
-    };
-
-    for (const QStringList &rowData : sampleData) {
-        addMachineToTable(rowData[0], rowData[1], rowData[2], rowData[3],
-                          rowData[4], rowData[5], rowData[6]);
+    QSqlQuery query;
+    if (!query.exec("SELECT ID_MACHINE, REF, NOM, TYPE, ETAT, CAPACITE, FREQUENCE, NIVEAU_DE_CHARGE "
+                    "FROM SMARTLEATHER.MACHINE")) {
+        qDebug() << "Erreur loadMachines:" << query.lastError().text();
+        ui->tableWidget->setSortingEnabled(true);
+        return;
     }
-}
 
-void pagemachine::addMachineToTable(const QString &id, const QString &nom,
-                                    const QString &type, const QString &etat,
-                                    const QString &capacite, const QString &frequence,
-                                    const QString &niveauCharge)
-{
-    int row = ui->tableWidget->rowCount();
-    ui->tableWidget->insertRow(row);
-
-    ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
-    ui->tableWidget->setItem(row, 1, new QTableWidgetItem(nom));
-    ui->tableWidget->setItem(row, 2, new QTableWidgetItem(type));
-    ui->tableWidget->setItem(row, 3, new QTableWidgetItem(etat));
-    ui->tableWidget->setItem(row, 4, new QTableWidgetItem(capacite));
-    ui->tableWidget->setItem(row, 5, new QTableWidgetItem(frequence));
-    ui->tableWidget->setItem(row, 6, new QTableWidgetItem(niveauCharge + "%"));
-
-    updateRowColors(row);
+    while (query.next()) {
+        int row = ui->tableWidget->rowCount();
+        ui->tableWidget->insertRow(row);
+        
+        qDebug() << "SQL Trace Row" << row << "(ID=" << query.value(0).toString() << "):";
+        for (int col = 0; col < 8; col++) {
+            QString txt = query.value(col).toString();
+            qDebug() << "  Col" << col << "=" << txt;
+            QTableWidgetItem *item = new QTableWidgetItem(txt);
+            item->setTextAlignment(Qt::AlignCenter);
+            ui->tableWidget->setItem(row, col, item);
+        }
+        updateRowColors(row);
+    }
+    ui->tableWidget->setSortingEnabled(true); // Re-enable sorting
+    ui->tableWidget->sortByColumn(1, Qt::AscendingOrder); // Default sort by REF
 }
 
 void pagemachine::updateRowColors(int row)
 {
-    QTableWidgetItem *etatItem = ui->tableWidget->item(row, 3);
-    if (etatItem) {
-        QString etat = etatItem->text();
-        if (etat == "Fonctionnelle") {
-            etatItem->setBackground(QColor(200, 255, 200));
-            etatItem->setForeground(QColor(0, 100, 0));
-        } else if (etat == "En panne") {
-            etatItem->setBackground(QColor(255, 200, 200));
-            etatItem->setForeground(QColor(139, 0, 0));
-        } else if (etat == "Maintenance") {
-            etatItem->setBackground(QColor(255, 255, 200));
-            etatItem->setForeground(QColor(128, 128, 0));
-        } else if (etat == "Arrêtée") {
-            etatItem->setBackground(QColor(200, 200, 200));
-            etatItem->setForeground(QColor(70, 70, 70));
-        }
+    QTableWidgetItem *etatItem = ui->tableWidget->item(row, 4);
+    if (!etatItem) return;
+    QString etat = etatItem->text();
+    if (etat == "En maintenance" || etat == "En panne") { 
+        etatItem->setBackground(QColor(255, 230, 230)); 
+        etatItem->setForeground(QColor(139, 0, 0)); 
+        etatItem->setFont(QFont("Segoe UI", -1, QFont::Bold));
     }
+    else if (etat == "Active") { 
+        etatItem->setBackground(QColor(230, 255, 230)); 
+        etatItem->setForeground(QColor(0, 100, 0)); 
+    }
+    else if (etat == "Inactive") { 
+        etatItem->setBackground(QColor(245, 245, 245)); 
+        etatItem->setForeground(QColor(100, 100, 100)); 
+    }
+}
 
-    QTableWidgetItem *chargeItem = ui->tableWidget->item(row, 6);
-    if (chargeItem) {
-        QString chargeStr = chargeItem->text();
-        chargeStr.remove("%");
-        int charge = chargeStr.toInt();
-        if (charge > 80) {
-            chargeItem->setBackground(QColor(255, 200, 200));
-        } else if (charge > 50) {
-            chargeItem->setBackground(QColor(255, 255, 200));
-        } else {
-            chargeItem->setBackground(QColor(200, 255, 200));
-        }
+void pagemachine::setupSearch()
+{
+    connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &pagemachine::filterTable);
+    connect(ui->searchIdEdit, &QLineEdit::textChanged, this, &pagemachine::filterTable);
+}
+
+void pagemachine::filterTable()
+{
+    QString fRef = ui->searchIdEdit->text().trimmed();
+    QComboBox *etatSearch = findChild<QComboBox*>("searchEtatCombo");
+    QString fEtat = (etatSearch && etatSearch->currentIndex() > 0) ? etatSearch->currentText() : "";
+
+    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
+        bool match = true;
+        if (!fRef.isEmpty() && !ui->tableWidget->item(row, 1)->text().contains(fRef, Qt::CaseInsensitive)) { match = false; }
+        if (match && !fEtat.isEmpty() && ui->tableWidget->item(row, 4)->text() != fEtat) { match = false; }
+        ui->tableWidget->setRowHidden(row, !match);
     }
+}
+
+void pagemachine::addMachineToTable(const QString &id, const QString &nom,
+                                   const QString &type, const QString &etat,
+                                   const QString &capacite, const QString &frequence,
+                                   const QString &niveauCharge)
+{
+    Q_UNUSED(id); Q_UNUSED(nom); Q_UNUSED(type); Q_UNUSED(etat);
+    Q_UNUSED(capacite); Q_UNUSED(frequence); Q_UNUSED(niveauCharge);
 }
 
 void pagemachine::updateMachineInTable(int row, const QString &nom,
-                                       const QString &type, const QString &etat,
-                                       const QString &capacite, const QString &frequence,
-                                       const QString &niveauCharge)
+                                      const QString &type, const QString &etat,
+                                      const QString &capacite, const QString &frequence,
+                                      const QString &niveauCharge)
 {
-    if (row >= 0 && row < ui->tableWidget->rowCount()) {
-        ui->tableWidget->item(row, 1)->setText(nom);
-        ui->tableWidget->item(row, 2)->setText(type);
-        ui->tableWidget->item(row, 3)->setText(etat);
-        ui->tableWidget->item(row, 4)->setText(capacite);
-        ui->tableWidget->item(row, 5)->setText(frequence);
-        ui->tableWidget->item(row, 6)->setText(niveauCharge + "%");
+    Q_UNUSED(row); Q_UNUSED(nom); Q_UNUSED(type); Q_UNUSED(etat);
+    Q_UNUSED(capacite); Q_UNUSED(frequence); Q_UNUSED(niveauCharge);
+}
 
-        updateRowColors(row);
+// ═══════════════════════════════════════════════
+//   AJOUTER MACHINE
+// ═══════════════════════════════════════════════
+void pagemachine::on_pushButton_clicked()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Nouvelle Machine");
+    dialog.setFixedSize(440, 680);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(32, 24, 32, 20);
+    mainLayout->setSpacing(4);
+
+    QLabel *header = new QLabel("✦ NOUVELLE MACHINE");
+    header->setObjectName("headerLabel");
+    header->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(header);
+    mainLayout->addWidget(createSeparator());
+
+    QLineEdit *refEdit = new QLineEdit();
+    refEdit->setPlaceholderText("ex: MAC-2026-001");
+    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
+
+    QLineEdit *nomEdit = new QLineEdit();
+    nomEdit->setPlaceholderText("ex: Presse Hydra 500");
+    QLabel *nomError = new QLabel(); nomError->setObjectName("errorLabel"); nomError->setVisible(false);
+
+    QComboBox *typeCombo = new QComboBox();
+    typeCombo->addItems({"Presse", "Découpeuse", "Couseuse", "Teinture", "Séchage"});
+
+    QComboBox *etatCombo = new QComboBox();
+    etatCombo->addItems({"Active", "Inactive", "En maintenance", "En panne"});
+
+    QSpinBox *capaciteSpin = new QSpinBox(); capaciteSpin->setRange(1, 10000);
+    QSpinBox *frequenceSpin = new QSpinBox(); frequenceSpin->setRange(1, 1000);
+    QSpinBox *chargeSpin = new QSpinBox(); chargeSpin->setRange(0, 100); chargeSpin->setSuffix(" %");
+
+    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
+    mainLayout->addWidget(new QLabel("NOM MACHINE")); mainLayout->addWidget(nomEdit); mainLayout->addWidget(nomError);
+    
+    QHBoxLayout *c1 = new QHBoxLayout();
+    QVBoxLayout *c1a = new QVBoxLayout(); c1a->addWidget(new QLabel("TYPE")); c1a->addWidget(typeCombo);
+    QVBoxLayout *c1b = new QVBoxLayout(); c1b->addWidget(new QLabel("ÉTAT")); c1b->addWidget(etatCombo);
+    c1->addLayout(c1a); c1->addLayout(c1b); mainLayout->addLayout(c1);
+
+    QHBoxLayout *c2 = new QHBoxLayout();
+    QVBoxLayout *c2a = new QVBoxLayout(); c2a->addWidget(new QLabel("CAPACITÉ")); c2a->addWidget(capaciteSpin);
+    QVBoxLayout *c2b = new QVBoxLayout(); c2b->addWidget(new QLabel("FRÉQUENCE (Hz)")); c2b->addWidget(frequenceSpin);
+    c2->addLayout(c2a); c2->addLayout(c2b); mainLayout->addLayout(c2);
+
+    mainLayout->addWidget(new QLabel("NIVEAU DE CHARGE")); mainLayout->addWidget(chargeSpin);
+
+    mainLayout->addSpacing(10);
+    mainLayout->addWidget(createSeparator());
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnSave = new QPushButton("  ✓  ENREGISTRER  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
+    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel);
+    mainLayout->addLayout(btnLayout);
+
+    auto validateAll = [&]() {
+        bool allOk = true;
+        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
+        QString valNom = nomEdit->text().trimmed();
+        if (valNom.isEmpty()) { 
+            setFieldError(nomEdit, nomError, true, "Obligatoire"); allOk = false; 
+        } else if (!QRegularExpression("^[A-Za-zÀ-ÿ\\s']+$").match(valNom).hasMatch()) {
+            setFieldError(nomEdit, nomError, true, "Lettres uniquement"); allOk = false;
+        } else setFieldError(nomEdit, nomError, false);
+        btnSave->setEnabled(allOk); return allOk;
+    };
+    btnSave->setEnabled(false);
+    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
+    QObject::connect(nomEdit, &QLineEdit::textChanged, validateAll);
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_GREEN);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QSqlQuery query;
+        query.prepare("INSERT INTO SMARTLEATHER.MACHINE (ID_MACHINE, REF, NOM, TYPE, ETAT, CAPACITE, FREQUENCE, NIVEAU_DE_CHARGE, ID_EMPLOYE) "
+                      "VALUES (SMARTLEATHER.SEQ_MACHINE.NEXTVAL, :ref, :nom, :type, :etat, :cap, :freq, :charge, :idemp)");
+        query.bindValue(":ref", refEdit->text().trimmed());
+        query.bindValue(":nom", nomEdit->text().trimmed());
+        query.bindValue(":type", typeCombo->currentText());
+        query.bindValue(":etat", etatCombo->currentText());
+        query.bindValue(":cap", capaciteSpin->value());
+        query.bindValue(":freq", frequenceSpin->value());
+        query.bindValue(":charge", chargeSpin->value());
+        query.bindValue(":idemp", m_idEmploye);
+
+        if (query.exec()) { 
+            QMessageBox::information(this, "Succès", "Machine ajoutée !"); 
+            
+            // Advanced Feature: Email Alert if "En panne"
+            if (etatCombo->currentText() == "En panne") {
+                QString admEmail = "eyadkhil@aiesec.net"; 
+                Smtp *smtp = new Smtp("dkhileya5@gmail.com", "bfnedrbmyguthysx");
+                QString subject = "⚠️ ALERTE : Machine " + refEdit->text().trimmed() + " en panne";
+                QString body = "La machine " + nomEdit->text().trimmed() + " (Réf: " + refEdit->text().trimmed() + ") vient d'être signalée EN PANNE.\n\nVeuillez intervenir rapidement.";
+                
+                connect(smtp, &Smtp::status, [this](const QString &msg){
+                    QMessageBox::information(this, "Email", msg);
+                });
+                connect(smtp, &Smtp::error, [this](const QString &err){
+                    QMessageBox::critical(this, "Erreur Email", err);
+                });
+
+                smtp->sendMail("eyadkhil5@gmail.com", admEmail, subject, body);
+                
+                QMessageBox::information(this, "Mail Envoyé", "Alerte : Un email contenant la référence et le nom de la machine a été envoyé à l'administration.");
+            }
+            
+            loadMachines(); 
+        }
+        else {
+            QString err = query.lastError().text();
+            if (err.contains("ORA-00001")) {
+                QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
+            } else {
+                QMessageBox::critical(this, "Erreur", "L'ajout a échoué.\nErreur technique: " + err.split('\n').first());
+            }
+        }
     }
 }
 
-void pagemachine::on_pushButton_6_clicked()
-{
-    hide();
-    commandes *lg = new commandes(m_idEmploye, this);
-    lg->show();
-}
-
-void pagemachine::on_pushButton_11_clicked()
-{
-    hide();
-    pageemployee *pl = new pageemployee(m_idEmploye, this);
-    pl->show();
-}
-
-void pagemachine::on_pushButton_20_clicked()
-{
-    hide();
-    fournisseurs *pf = new fournisseurs(m_idEmploye, this);
-    pf->show();
-}
-
-void pagemachine::on_pushButton_21_clicked()
-{
-    hide();
-    products *pd = new products(m_idEmploye, this);
-    pd->show();
-}
-
-void pagemachine::on_pushButton_22_clicked()
-{
-    hide();
-    Matieres *mm = new Matieres(m_idEmploye, this);
-    mm->show();
-}
-
-void pagemachine::on_pushButton_23_clicked()
-{
-    hide();
-    pagemachine *ss = new pagemachine(m_idEmploye, this);
-    ss->show();
-}
-
-void pagemachine::on_pushButton_clicked()
-{
-    QDialog *ajoutDialog = new QDialog(this);
-    ajoutDialog->setWindowTitle("Ajouter une machine");
-    ajoutDialog->setFixedSize(650, 800);
-    ajoutDialog->setModal(true);
-
-    QVBoxLayout *mainLayout = new QVBoxLayout(ajoutDialog);
-
-    QLabel *header = new QLabel("AJOUTER UNE MACHINE");
-    header->setAlignment(Qt::AlignCenter);
-    mainLayout->addWidget(header);
-
-    QLineEdit *idEdit = new QLineEdit();
-    idEdit->setPlaceholderText("ID machine");
-
-    QLineEdit *nomEdit = new QLineEdit();
-    nomEdit->setPlaceholderText("Nom de la machine");
-
-    QComboBox *typeCombo = new QComboBox();
-    typeCombo->addItems({"Fraiseuse", "Tour", "Perceuse", "Presse", "Scie", "Rectifieuse", "Imprimante 3D", "Autre"});
-
-    QComboBox *etatCombo = new QComboBox();
-    etatCombo->addItems({"Fonctionnelle", "Maintenance", "En panne", "Arrêtée"});
-
-    QLineEdit *capaciteEdit = new QLineEdit();
-    capaciteEdit->setPlaceholderText("Capacité");
-
-    QLineEdit *frequenceEdit = new QLineEdit();
-    frequenceEdit->setPlaceholderText("Fréquence");
-
-    QSpinBox *chargeSpinBox = new QSpinBox();
-    chargeSpinBox->setRange(0, 100);
-    chargeSpinBox->setSuffix(" %");
-
-    mainLayout->addWidget(idEdit);
-    mainLayout->addWidget(nomEdit);
-    mainLayout->addWidget(typeCombo);
-    mainLayout->addWidget(etatCombo);
-    mainLayout->addWidget(capaciteEdit);
-    mainLayout->addWidget(frequenceEdit);
-    mainLayout->addWidget(chargeSpinBox);
-
-    QPushButton *btnSave = new QPushButton("Enregistrer");
-    QPushButton *btnCancel = new QPushButton("Annuler");
-    mainLayout->addWidget(btnSave);
-    mainLayout->addWidget(btnCancel);
-
-    connect(btnSave, &QPushButton::clicked, [ajoutDialog, idEdit, nomEdit, typeCombo,
-                                             etatCombo, capaciteEdit, frequenceEdit,
-                                             chargeSpinBox, this]() {
-        if (idEdit->text().isEmpty() || nomEdit->text().isEmpty() ||
-            capaciteEdit->text().isEmpty() || frequenceEdit->text().isEmpty()) {
-            QMessageBox::warning(ajoutDialog, "Champs manquants",
-                                 "Veuillez remplir tous les champs obligatoires.");
-            return;
-        }
-
-        addMachineToTable(idEdit->text(),
-                          nomEdit->text(),
-                          typeCombo->currentText(),
-                          etatCombo->currentText(),
-                          capaciteEdit->text(),
-                          frequenceEdit->text(),
-                          QString::number(chargeSpinBox->value()));
-
-        QMessageBox::information(ajoutDialog, "Succès",
-                                 "La machine a été ajoutée avec succès.");
-        ajoutDialog->accept();
-    });
-
-    connect(btnCancel, &QPushButton::clicked, ajoutDialog, &QDialog::reject);
-    ajoutDialog->exec();
-    ajoutDialog->deleteLater();
-}
-
+// ═══════════════════════════════════════════════
+//   MODIFIER MACHINE
+// ═══════════════════════════════════════════════
 void pagemachine::on_pushButton_2_clicked()
 {
     int currentRow = ui->tableWidget->currentRow();
-
-    if (currentRow < 0) {
-        QMessageBox::warning(this, "Sélection requise",
-                             "Veuillez sélectionner une machine à modifier.");
-        return;
-    }
+    if (currentRow < 0) { QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une machine."); return; }
 
     QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString nom = ui->tableWidget->item(currentRow, 1)->text();
-    QString type = ui->tableWidget->item(currentRow, 2)->text();
-    QString etat = ui->tableWidget->item(currentRow, 3)->text();
-    QString capacite = ui->tableWidget->item(currentRow, 4)->text();
-    QString frequence = ui->tableWidget->item(currentRow, 5)->text();
-    QString niveauCharge = ui->tableWidget->item(currentRow, 6)->text();
-    niveauCharge.remove("%");
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
+    QString nom = ui->tableWidget->item(currentRow, 2)->text();
+    QString type = ui->tableWidget->item(currentRow, 3)->text();
+    QString etat = ui->tableWidget->item(currentRow, 4)->text();
+    int cap = ui->tableWidget->item(currentRow, 5)->text().toInt();
+    int freq = ui->tableWidget->item(currentRow, 6)->text().toInt();
+    int charge = ui->tableWidget->item(currentRow, 7)->text().replace(" %", "").toInt();
 
-    QDialog *modifierDialog = new QDialog(this);
-    QVBoxLayout *mainLayout = new QVBoxLayout(modifierDialog);
+    QDialog dialog(this);
+    dialog.setWindowTitle("Modifier Machine");
+    dialog.setFixedSize(440, 680);
 
-    QLineEdit *idEdit = new QLineEdit(id);
-    idEdit->setReadOnly(true);
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(32, 24, 32, 20);
+    mainLayout->setSpacing(4);
 
+    QLabel *header = new QLabel("✎ MODIFIER MACHINE");
+    header->setObjectName("headerLabel"); header->setAlignment(Qt::AlignCenter); mainLayout->addWidget(header);
+    mainLayout->addWidget(createSeparator());
+
+    QLineEdit *refEdit = new QLineEdit(ref);
+    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
     QLineEdit *nomEdit = new QLineEdit(nom);
+    QLabel *nomError = new QLabel(); nomError->setObjectName("errorLabel"); nomError->setVisible(false);
 
-    QComboBox *typeCombo = new QComboBox();
-    typeCombo->addItems({"Fraiseuse", "Tour", "Perceuse", "Presse", "Scie", "Rectifieuse", "Imprimante 3D", "Autre"});
+    QComboBox *typeCombo = new QComboBox(); typeCombo->addItems({"Presse", "Découpeuse", "Couseuse", "Teinture", "Séchage"});
     typeCombo->setCurrentText(type);
-
-    QComboBox *etatCombo = new QComboBox();
-    etatCombo->addItems({"Fonctionnelle", "Maintenance", "En panne", "Arrêtée"});
+    QComboBox *etatCombo = new QComboBox(); etatCombo->addItems({"Active", "Inactive", "En maintenance", "En panne"});
     etatCombo->setCurrentText(etat);
 
-    QLineEdit *capaciteEdit = new QLineEdit(capacite);
-    QLineEdit *frequenceEdit = new QLineEdit(frequence);
+    QSpinBox *capaciteSpin = new QSpinBox(); capaciteSpin->setRange(1, 10000); capaciteSpin->setValue(cap);
+    QSpinBox *frequenceSpin = new QSpinBox(); frequenceSpin->setRange(1, 1000); frequenceSpin->setValue(freq);
+    QSpinBox *chargeSpin = new QSpinBox(); chargeSpin->setRange(0, 100); chargeSpin->setValue(charge); chargeSpin->setSuffix(" %");
 
-    QSpinBox *chargeSpinBox = new QSpinBox();
-    chargeSpinBox->setRange(0, 100);
-    chargeSpinBox->setValue(niveauCharge.toInt());
-    chargeSpinBox->setSuffix(" %");
+    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
+    mainLayout->addWidget(new QLabel("NOM MACHINE")); mainLayout->addWidget(nomEdit); mainLayout->addWidget(nomError);
+    
+    QHBoxLayout *c1 = new QHBoxLayout();
+    QVBoxLayout *c1a = new QVBoxLayout(); c1a->addWidget(new QLabel("TYPE")); c1a->addWidget(typeCombo);
+    QVBoxLayout *c1b = new QVBoxLayout(); c1b->addWidget(new QLabel("ÉTAT")); c1b->addWidget(etatCombo);
+    c1->addLayout(c1a); c1->addLayout(c1b); mainLayout->addLayout(c1);
 
-    mainLayout->addWidget(idEdit);
-    mainLayout->addWidget(nomEdit);
-    mainLayout->addWidget(typeCombo);
-    mainLayout->addWidget(etatCombo);
-    mainLayout->addWidget(capaciteEdit);
-    mainLayout->addWidget(frequenceEdit);
-    mainLayout->addWidget(chargeSpinBox);
+    QHBoxLayout *c2 = new QHBoxLayout();
+    QVBoxLayout *c2a = new QVBoxLayout(); c2a->addWidget(new QLabel("CAPACITÉ")); c2a->addWidget(capaciteSpin);
+    QVBoxLayout *c2b = new QVBoxLayout(); c2b->addWidget(new QLabel("FRÉQUENCE (Hz)")); c2b->addWidget(frequenceSpin);
+    c2->addLayout(c2a); c2->addLayout(c2b); mainLayout->addLayout(c2);
 
-    QPushButton *btnSave = new QPushButton("Mettre à jour");
-    QPushButton *btnCancel = new QPushButton("Annuler");
-    mainLayout->addWidget(btnSave);
-    mainLayout->addWidget(btnCancel);
+    mainLayout->addWidget(new QLabel("NIVEAU DE CHARGE")); mainLayout->addWidget(chargeSpin);
 
-    connect(btnSave, &QPushButton::clicked, [modifierDialog, currentRow, nomEdit, typeCombo,
-                                             etatCombo, capaciteEdit, frequenceEdit,
-                                             chargeSpinBox, this]() {
-        if (nomEdit->text().isEmpty() || capaciteEdit->text().isEmpty() || frequenceEdit->text().isEmpty()) {
-            QMessageBox::warning(modifierDialog, "Champs manquants", "Veuillez remplir tous les champs.");
-            return;
+    mainLayout->addSpacing(10); mainLayout->addWidget(createSeparator());
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnSave = new QPushButton("  ✓  METTRE À JOUR  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
+    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel); mainLayout->addLayout(btnLayout);
+
+    auto validateAll = [&]() {
+        bool allOk = true;
+        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
+        QString valNom = nomEdit->text().trimmed();
+        if (valNom.isEmpty()) { 
+            setFieldError(nomEdit, nomError, true, "Obligatoire"); allOk = false; 
+        } else if (!QRegularExpression("^[A-Za-zÀ-ÿ\\s']+$").match(valNom).hasMatch()) {
+            setFieldError(nomEdit, nomError, true, "Lettres uniquement"); allOk = false;
+        } else setFieldError(nomEdit, nomError, false);
+        btnSave->setEnabled(allOk); return allOk;
+    };
+    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
+    QObject::connect(nomEdit, &QLineEdit::textChanged, validateAll);
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject); connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_AMBER);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QSqlQuery query;
+        query.prepare("UPDATE SMARTLEATHER.MACHINE SET REF=:ref, NOM=:nom, TYPE=:type, ETAT=:etat, "
+                      "CAPACITE=:cap, FREQUENCE=:freq, NIVEAU_DE_CHARGE=:charge WHERE ID_MACHINE=:id");
+        query.bindValue(":ref", refEdit->text().trimmed());
+        query.bindValue(":nom", nomEdit->text().trimmed());
+        query.bindValue(":type", typeCombo->currentText());
+        query.bindValue(":etat", etatCombo->currentText());
+        query.bindValue(":cap", capaciteSpin->value());
+        query.bindValue(":freq", frequenceSpin->value());
+        query.bindValue(":charge", chargeSpin->value());
+        query.bindValue(":id", id);
+
+        if (query.exec()) { 
+            QMessageBox::information(this, "Succès", "Machine modifiée !"); 
+            
+            // Advanced Feature: Email Alert if "En panne"
+            if (etatCombo->currentText() == "En panne") {
+                QString admEmail = "eyadkhil@aiesec.net"; 
+                Smtp *smtp = new Smtp("dkhileya5@gmail.com", "bfnedrbmyguthysx");
+                QString subject = "⚠️ ALERTE : Machine " + refEdit->text().trimmed() + " en panne";
+                QString body = "La machine " + nomEdit->text().trimmed() + " (Réf: " + refEdit->text().trimmed() + ") vient d'être signalée EN PANNE.\n\nVeuillez intervenir rapidement.";
+                
+                connect(smtp, &Smtp::status, [this](const QString &msg){
+                    QMessageBox::information(this, "Email", msg);
+                });
+                connect(smtp, &Smtp::error, [this](const QString &err){
+                    QMessageBox::critical(this, "Erreur Email", err);
+                });
+
+                smtp->sendMail("eyadkhil5@gmail.com", admEmail, subject, body);
+                
+                QMessageBox::information(this, "Mail Envoyé", "Alerte : Un email contenant la référence et le nom de la machine a été envoyé à l'administration.");
+            }
+            
+            loadMachines(); 
         }
-
-        updateMachineInTable(currentRow,
-                             nomEdit->text(),
-                             typeCombo->currentText(),
-                             etatCombo->currentText(),
-                             capaciteEdit->text(),
-                             frequenceEdit->text(),
-                             QString::number(chargeSpinBox->value()));
-
-        QMessageBox::information(modifierDialog, "Succès",
-                                 "La machine a été mise à jour avec succès.");
-        modifierDialog->accept();
-    });
-
-    connect(btnCancel, &QPushButton::clicked, modifierDialog, &QDialog::reject);
-    modifierDialog->exec();
-    modifierDialog->deleteLater();
+        else {
+            QString err = query.lastError().text();
+            if (err.contains("ORA-00001")) {
+                QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
+            } else {
+                QMessageBox::critical(this, "Erreur", "La modification a échoué.\nErreur technique: " + err.split('\n').first());
+            }
+        }
+    }
 }
 
-void pagemachine::on_pushButton_3_clicked()
-{
+void pagemachine::on_pushButton_3_clicked() {
     int currentRow = ui->tableWidget->currentRow();
+    if (currentRow < 0) { QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une machine."); return; }
+    QString id = ui->tableWidget->item(currentRow, 0)->text();
+    QString nom = ui->tableWidget->item(currentRow, 2)->text();
+    if (QMessageBox::question(this, "Confirmation", "Supprimer machine " + nom + " ?") == QMessageBox::Yes) {
+        QSqlQuery query;
+        query.prepare("DELETE FROM SMARTLEATHER.MACHINE WHERE ID_MACHINE = :id");
+        query.bindValue(":id", id);
+        if (query.exec()) { QMessageBox::information(this, "Succès", "Machine supprimée."); loadMachines(); }
+        else { QMessageBox::critical(this, "Erreur", "Échec: " + query.lastError().text()); }
+    }
+}
 
+void pagemachine::on_pushButton_4_clicked() { loadMachines(); }
+
+void pagemachine::on_pushButton_7_clicked() {
+    int currentRow = ui->tableWidget->currentRow();
     if (currentRow < 0) {
-        QMessageBox::warning(this, "Sélection requise",
-                             "Veuillez sélectionner une machine à supprimer.");
+        QMessageBox::warning(this, "Sélection Requise", "Veuillez sélectionner une machine.");
         return;
     }
 
-    QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString nom = ui->tableWidget->item(currentRow, 1)->text();
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
+    QString nom = ui->tableWidget->item(currentRow, 2)->text();
+    QString type = ui->tableWidget->item(currentRow, 3)->text();
+    QString etat = ui->tableWidget->item(currentRow, 4)->text();
+    QString cap = ui->tableWidget->item(currentRow, 5)->text();
+    QString freq = ui->tableWidget->item(currentRow, 6)->text();
+    QString charge = ui->tableWidget->item(currentRow, 7)->text();
 
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "Confirmation",
-                                  QString("Voulez-vous vraiment supprimer la machine '%1' (ID: %2) ?")
-                                      .arg(nom).arg(id),
-                                  QMessageBox::Yes | QMessageBox::No);
-
-    if (reply == QMessageBox::Yes) {
-        ui->tableWidget->removeRow(currentRow);
-        QMessageBox::information(this, "Succès", "Machine supprimée avec succès.");
-    }
-}
-
-void pagemachine::on_pushButton_4_clicked()
-{
-    ui->searchIdEdit->clear();
-    ui->searchNomEdit->clear();
-    loadMachines();
-    QMessageBox::information(this, "Actualisation", "Liste des machines actualisée.");
-}
-
-void pagemachine::on_pushButton_7_clicked()
-{
-    QString fileName = QFileDialog::getSaveFileName(this, "Exporter en Excel",
-                                                    "machines_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
-                                                    "Fichiers CSV (*.csv)");
+    QString fileName = QFileDialog::getSaveFileName(this, "Exporter PDF", "Diagnostic_" + ref + ".pdf", "PDF (*.pdf)");
     if (fileName.isEmpty()) return;
 
-    QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Erreur", "Impossible de créer le fichier.");
-        return;
-    }
+    QPrinter printer(QPrinter::ScreenResolution); // Fixed at 96 DPI for reliability
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setPageSize(QPageSize(QPageSize::A4));
+    printer.setOutputFileName(fileName);
 
-    QTextStream out(&file);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    out.setEncoding(QStringConverter::Utf8);
-#else
-    out.setCodec("UTF-8");
-#endif
-    out.setGenerateByteOrderMark(true);
+    QPainter painter(&printer);
+    if (!painter.isActive()) return;
 
-    QStringList headers = {"ID Machine", "Nom Machine", "Type Machine", "État Machine",
-                           "Capacité", "Fréquence", "Niveau de Charge"};
-    for (int i = 0; i < headers.size(); ++i) {
-        if (i > 0) out << ";";
-        out << headers[i];
-    }
-    out << "\n";
+    int x = 50;
+    int y = 50;
 
-    int visibleRows = 0;
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (ui->tableWidget->isRowHidden(row)) continue;
+    // Content
+    painter.setFont(QFont("Arial", 16, QFont::Bold));
+    painter.drawText(x, y, "FICHE DE DIAGNOSTIC MACHINE");
+    y += 50;
 
-        for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
-            if (col > 0) out << ";";
-            QString cell = ui->tableWidget->item(row, col)->text();
-            if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
-                cell.replace("\"", "\"\"");
-                cell = "\"" + cell + "\"";
-            }
-            out << cell;
-        }
-        out << "\n";
-        visibleRows++;
-    }
+    painter.setFont(QFont("Arial", 11, QFont::Normal));
+    painter.drawText(x, y, "Date: " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
+    y += 40;
 
-    file.close();
-    QMessageBox::information(this, "Succès",
-                             QString("Fichier CSV exporté avec succès.\n%1 ligne(s) exportée(s).")
-                                 .arg(visibleRows));
+    auto drawRow = [&](const QString& label, const QString& value, int &currY) {
+        painter.setFont(QFont("Arial", 10, QFont::Bold));
+        painter.drawText(x, currY, label + ":");
+        painter.setFont(QFont("Arial", 10, QFont::Normal));
+        painter.drawText(x + 180, currY, value);
+        currY += 30;
+    };
+
+    drawRow("Reference", ref, y);
+    drawRow("Nom", nom, y);
+    drawRow("Type", type, y);
+    drawRow("Etat", etat, y);
+    drawRow("Capacite", cap, y);
+    drawRow("Frequence", freq, y);
+    drawRow("Niveau Charge", charge, y);
+
+    y += 40;
+    painter.setFont(QFont("Arial", 10, QFont::Bold));
+    painter.drawText(x, y, "Observations:");
+    y += 20;
+    painter.drawRect(x, y, 400, 100); // Simple box for notes
+
+    painter.end();
+    QMessageBox::information(this, "Succès", "Document généré !");
 }
 
-void pagemachine::on_pushButton_9_clicked()
-{
-    int fonctionnelle = 0, maintenance = 0, panne = 0, arretee = 0;
-    int chargeFaible = 0, chargeMoyenne = 0, chargeElevee = 0;
-
+void pagemachine::on_pushButton_9_clicked() {
+    int op = 0, maint = 0, arret = 0, panne = 0;
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         if (!ui->tableWidget->isRowHidden(row)) {
-            QString etat = ui->tableWidget->item(row, 3)->text();
-            QString chargeStr = ui->tableWidget->item(row, 6)->text();
-            chargeStr.remove("%");
-            int charge = chargeStr.toInt();
-
-            if (etat == "Fonctionnelle") fonctionnelle++;
-            else if (etat == "Maintenance") maintenance++;
-            else if (etat == "En panne") panne++;
-            else if (etat == "Arrêtée") arretee++;
-
-            if (charge < 30) chargeFaible++;
-            else if (charge < 70) chargeMoyenne++;
-            else chargeElevee++;
+            QString e = ui->tableWidget->item(row, 4)->text();
+            if (e == "Active") op++; 
+            else if (e == "En maintenance") maint++; 
+            else if (e == "En panne") panne++;
+            else arret++;
         }
     }
+    QPieSeries *series = new QPieSeries();
+    if(op>0) { QPieSlice *s = series->append("Active", op); s->setBrush(QColor(110, 155, 58)); }
+    if(maint>0) { QPieSlice *s = series->append("Maintenance", maint); s->setBrush(QColor(230, 150, 50)); }
+    if(panne>0) { QPieSlice *s = series->append("En Panne", panne); s->setBrush(QColor(192, 57, 43)); s->setExploded(); }
+    if(arret>0) { QPieSlice *s = series->append("Inactive", arret); s->setBrush(QColor(127, 140, 141)); }
 
-    QDialog *statsDialog = new QDialog(this);
-    statsDialog->setWindowTitle("Statistiques des machines");
-    QVBoxLayout *layout = new QVBoxLayout(statsDialog);
+    QChart *chart = new QChart(); 
+    chart->addSeries(series); 
+    chart->setTitle("📊 État du Parc Machines");
+    chart->setAnimationOptions(QChart::SeriesAnimations);
+    chart->legend()->setAlignment(Qt::AlignBottom);
 
-    QLabel *label = new QLabel(
-        QString("Fonctionnelle: %1\nMaintenance: %2\nEn panne: %3\nArrêtée: %4\n\nCharge faible: %5\nCharge moyenne: %6\nCharge élevée: %7")
-            .arg(fonctionnelle).arg(maintenance).arg(panne).arg(arretee)
-            .arg(chargeFaible).arg(chargeMoyenne).arg(chargeElevee));
-    layout->addWidget(label);
-
-    QPushButton *closeButton = new QPushButton("Fermer");
-    connect(closeButton, &QPushButton::clicked, statsDialog, &QDialog::accept);
-    layout->addWidget(closeButton);
-
-    statsDialog->exec();
-    delete statsDialog;
+    QChartView *chartView = new QChartView(chart); 
+    chartView->setRenderHint(QPainter::Antialiasing);
+    
+    QDialog d(this); 
+    d.resize(800, 550); 
+    d.setWindowTitle("Statistiques Machines");
+    d.setStyleSheet("background-color: #faf6f1;");
+    QVBoxLayout *l = new QVBoxLayout(&d); 
+    l->addWidget(chartView); 
+    d.exec();
 }
+
+
+void pagemachine::on_pushButton_6_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Employe")) return; auto *pl = new pageemployee(m_idEmploye, nullptr); pl->show(); this->close(); this->deleteLater(); }
+void pagemachine::on_pushButton_21_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Produits")) return; auto *pd = new produitswindow(m_idEmploye, nullptr); pd->show(); this->close(); this->deleteLater(); }
+void pagemachine::on_pushButton_20_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Commandes")) return; auto *pc = new commandes(m_idEmploye, nullptr); pc->show(); this->close(); this->deleteLater(); }
+void pagemachine::on_pushButton_22_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Fournisseurs")) return; auto *pf = new fournisseurs(m_idEmploye, nullptr); pf->show(); this->close(); this->deleteLater(); }
+void pagemachine::on_pushButton_23_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Matieres")) return; auto *mm = new Matieres(m_idEmploye, nullptr); mm->show(); this->close(); this->deleteLater(); }
+void pagemachine::on_pushButton_11_clicked() { auto *l = new login(); l->show(); this->close(); this->deleteLater(); }
+

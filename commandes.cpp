@@ -1,14 +1,14 @@
-#include "commandes.h"
+#include "commandes.h" // Force recompile
 #include "ui_commandes.h"
-#include "ajout.h"
-#include "modifier.h"
 #include "login.h"
 #include "pageemployee.h"
 #include "fournisseurs.h"
-#include "products.h"
+#include "produitswindow.h"
 #include "matieres.h"
 #include "pagemachine.h"
 #include <QMessageBox>
+#include <QSqlError>
+#include <QSqlQuery>
 #include <QTableWidgetItem>
 #include <QPrinter>
 #include <QPainter>
@@ -16,9 +16,143 @@
 #include <QDateTime>
 #include <QDialog>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QFile>
 #include <QTextStream>
 #include <QFrame>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QDateEdit>
+#include <QLabel>
+#include <QGraphicsDropShadowEffect>
+#include <QHeaderView>
+#include <QDebug>
+#include <QPieSeries>
+#include <QPieSlice>
+#include <QChart>
+#include <QChartView>
+
+static QString currentRoleForUser(int idEmploye)
+{
+    QSqlQuery q;
+    q.prepare("SELECT POSTE FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", idEmploye);
+    if (!q.exec() || !q.next()) return QString();
+    return q.value(0).toString().trimmed();
+}
+
+static bool denyIfRoleMismatch(QWidget *parent, int idEmploye, const QString &targetRole)
+{
+    const QString role = currentRoleForUser(idEmploye);
+    if (role.compare(targetRole, Qt::CaseInsensitive) == 0) return false;
+    QMessageBox::warning(parent, "Accès refusé",
+                         "Vous n'avez pas accès à cette page.");
+    return true;
+}
+
+static const char* DIALOG_BASE_STYLE = R"(
+QDialog {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #faf6f1, stop:0.5 #f0e8de, stop:1 #e8ddd0);
+    border: none;
+}
+QLabel#headerLabel {
+    color: #4a2517;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 8px 0;
+}
+QLabel#subHeaderLabel {
+    color: #8b6f5a;
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+}
+QLabel {
+    color: #5b3a28;
+    font-weight: 600;
+    font-size: 12px;
+    background: transparent;
+}
+QLabel#errorLabel {
+    color: #c0392b;
+    font-size: 11px;
+    font-weight: 600;
+    font-style: italic;
+    background: transparent;
+    padding: 0 2px;
+}
+QLineEdit, QDoubleSpinBox, QDateEdit, QComboBox, QSpinBox {
+    background-color: rgba(255, 255, 255, 0.85);
+    border: 2px solid #d4c4b0;
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: #3a2a20;
+    font-size: 13px;
+    selection-background-color: #c9a87c;
+}
+QLineEdit:focus, QDoubleSpinBox:focus, QDateEdit:focus, QComboBox:focus, QSpinBox:focus {
+    border: 2px solid #8b6f5a;
+    background-color: white;
+}
+QLineEdit[error="true"] { border: 2px solid #e74c3c; background-color: #fdf2f2; }
+QComboBox::drop-down { border: none; padding-right: 10px; }
+QComboBox QAbstractItemView {
+    background-color: #faf6f1; border: 2px solid #d4c4b0; border-radius: 8px;
+    selection-background-color: #c9a87c; padding: 4px; color: #3a2a20;
+}
+)";
+
+static const char* BTN_SAVE_GREEN = R"(
+QPushButton#btnSave {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6d9b3a, stop:1 #8fb85a);
+    border: none; border-radius: 14px; padding: 12px 28px;
+    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
+}
+QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #7dab4a, stop:1 #9fc86a); }
+QPushButton#btnSave:pressed { background: #5a8a2a; }
+QPushButton#btnCancel {
+    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
+    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
+}
+QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
+)";
+
+static const char* BTN_SAVE_AMBER = R"(
+QPushButton#btnSave {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #c47a2c, stop:1 #e09a4c);
+    border: none; border-radius: 14px; padding: 12px 28px;
+    font-weight: 700; font-size: 13px; color: white; letter-spacing: 1px;
+}
+QPushButton#btnSave:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #d48a3c, stop:1 #f0aa5c); }
+QPushButton#btnSave:pressed { background: #b06a1c; }
+QPushButton#btnCancel {
+    background: transparent; border: 2px solid #c9b8a5; border-radius: 14px;
+    padding: 12px 28px; font-weight: 600; font-size: 13px; color: #8b7a6a; letter-spacing: 1px;
+}
+QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
+)";
+
+
+static QFrame* createSeparator() {
+    QFrame* line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setStyleSheet("background-color: #d4c4b0; max-height: 1px; margin: 8px 0;");
+    return line;
+}
+static void addShadow(QWidget* w, int blur = 20, int offsetY = 4) {
+    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(w);
+    shadow->setBlurRadius(blur); shadow->setOffset(0, offsetY); shadow->setColor(QColor(0,0,0,40));
+    w->setGraphicsEffect(shadow);
+}
+static void setFieldError(QLineEdit* field, QLabel* errorLabel, bool hasError, const QString& msg = "") {
+    field->setProperty("error", hasError);
+    field->style()->unpolish(field); field->style()->polish(field);
+    errorLabel->setText(hasError ? "⚠ " + msg : "");
+    errorLabel->setVisible(hasError);
+}
 
 commandes::commandes(int idEmploye, QWidget *parent)
     : QMainWindow(parent)
@@ -26,8 +160,64 @@ commandes::commandes(int idEmploye, QWidget *parent)
     , m_idEmploye(idEmploye)
 {
     ui->setupUi(this);
+    if (ui->groupBox_2) ui->groupBox_2->hide();
+
+    // Premium Sidebar Setup
+    QString navBtnStyle =
+        "QPushButton {"
+        "  background: transparent; border: none; color: #c9b8a5;"
+        "  text-align: left; padding-left: 20px; font-size: 14px; font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "  background-color: rgba(255, 255, 255, 0.1); color: white; border-left: 4px solid #c9a87c;"
+        "}";
+
+    QWidget *sidebar = new QWidget(this);
+    sidebar->setGeometry(0, 0, 240, 900); 
+    sidebar->setStyleSheet("background-color: #3a1f14;");
+
+    // Smart Leather Logo on Sidebar
+    QLabel *logoLab = new QLabel(sidebar); // Parent to sidebar
+    logoLab->setGeometry(20, 10, 211, 121);
+    logoLab->setPixmap(QPixmap(":/Logo.png"));
+    logoLab->setScaledContents(true);
+    logoLab->show();
+    logoLab->raise();
+    
+    QVBoxLayout *navLayout = new QVBoxLayout(sidebar);
+    navLayout->setContentsMargins(0, 160, 0, 20);
+    navLayout->setSpacing(5);
+
+    auto addNavBtn = [&](const QString &txt, const char* slot, bool active = false) {
+        QPushButton *btn = new QPushButton("  " + txt);
+        btn->setMinimumHeight(45);
+        if (active) {
+            btn->setStyleSheet(navBtnStyle + "QPushButton { background-color: rgba(255,255,255,0.1); color:white; border-left:4px solid #c9a87c; }");
+        } else {
+            btn->setStyleSheet(navBtnStyle);
+            connect(btn, SIGNAL(clicked()), this, slot);
+        }
+        navLayout->addWidget(btn);
+        return btn;
+    };
+
+    addNavBtn("Employés", SLOT(on_pushButton_11_clicked()));
+    addNavBtn("Produits", SLOT(on_pushButton_21_clicked()));
+    addNavBtn("Commandes", nullptr, true);
+    addNavBtn("Fournisseurs", SLOT(on_pushButton_12_clicked()));
+    addNavBtn("Matières", SLOT(on_pushButton_22_clicked()));
+    addNavBtn("Machines", SLOT(on_pushButton_23_clicked()));
+
+    navLayout->addStretch();
+    addNavBtn("Déconnexion", SLOT(on_pushButton_5_clicked()));
+    
+    sidebar->raise();
+    sidebar->show();
+
     setupTable();
-    loadSampleData();
+    loadCommandes();
+    setupSearch();
+
 }
 
 commandes::~commandes()
@@ -37,531 +227,408 @@ commandes::~commandes()
 
 void commandes::setupTable()
 {
-    ui->tableWidget->setColumnCount(8);
-    QStringList headers = {"ID Commande", "Client", "Adresse", "Date Commande",
-                           "Date Livraison", "État", "Montant", "Mode Paiement"};
+    ui->tableWidget->setColumnCount(9);
+    QStringList headers = {"ID", "Réf", "Client", "Adresse", "Date C.", "Livraison P.", "Montant", "Paiement", "État"};
     ui->tableWidget->setHorizontalHeaderLabels(headers);
-
+    ui->tableWidget->horizontalHeader()->setVisible(true); // Force visibility
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
     ui->tableWidget->setAlternatingRowColors(true);
     ui->tableWidget->setSortingEnabled(true);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->tableWidget->verticalHeader()->setVisible(false);
 
-    ui->tableWidget->setColumnWidth(0, 100);
-    ui->tableWidget->setColumnWidth(1, 150);
-    ui->tableWidget->setColumnWidth(2, 200);
-    ui->tableWidget->setColumnWidth(3, 120);
-    ui->tableWidget->setColumnWidth(4, 120);
-    ui->tableWidget->setColumnWidth(5, 100);
-    ui->tableWidget->setColumnWidth(6, 100);
-    ui->tableWidget->setColumnWidth(7, 120);
+    // Premium Styling for Table
+    ui->tableWidget->setStyleSheet(
+        "QTableWidget { background: white; border: 2px solid #c9b8a5; border-radius: 16px; gridline-color: #f5eee6; "
+        "selection-background-color: #f5eee6; selection-color: #3a1f14; }"
+    );
+
+    // Premium Styling for Horizontal Header
+    ui->tableWidget->horizontalHeader()->setStyleSheet(
+        "QHeaderView::section {"
+        "    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #5b3020, stop:0.5 #4a2517, stop:1 #3a1a10);"
+        "    color: #f5efe8; padding: 10px; border: none; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
+        "}"
+    );
 }
 
-void commandes::loadSampleData()
+void commandes::loadCommandes()
 {
     ui->tableWidget->setRowCount(0);
-
-    QList<QStringList> sampleData = {
-        {"C001", "Jean Dupont", "15 Rue des Tanneurs, Paris", "15/06/2024", "22/06/2024", "En attente", "1250.00", "Carte bancaire"},
-        {"C002", "Marie Martin", "8 Avenue de la République, Lyon", "16/06/2024", "23/06/2024", "Confirmée", "890.50", "Espèces"},
-        {"C003", "Pierre Durand", "23 Boulevard Saint-Germain, Paris", "17/06/2024", "24/06/2024", "Livrée", "2340.00", "Virement"},
-        {"C004", "Sophie Lefebvre", "5 Rue de la Paix, Marseille", "18/06/2024", "25/06/2024", "Annulée", "450.00", "Carte bancaire"},
-        {"C005", "Lucas Moreau", "12 Place Bellecour, Lyon", "19/06/2024", "26/06/2024", "En préparation", "1675.50", "PayPal"}
-    };
-
-    for (const QStringList &rowData : sampleData) {
-        int row = ui->tableWidget->rowCount();
-        ui->tableWidget->insertRow(row);
-
-        for (int col = 0; col < rowData.size(); col++) {
-            QString text = rowData[col];
-            if (col == 6) text += " €";
-            ui->tableWidget->setItem(row, col, new QTableWidgetItem(text));
-        }
+    QSqlQuery query;
+    if (!query.exec("SELECT ID_COMMANDE, REF, NOM_CLIENT, ADRESSE_LIVRAISON, TO_CHAR(DATE_COMMANDE, 'DD/MM/YYYY'), "
+                    "TO_CHAR(DATE_LIVRAISON_PREVUE, 'DD/MM/YYYY'), MONTANT_TOTAL, MODE_PAIEMENT, ETAT_COMMANDE "
+                    "FROM SMARTLEATHER.COMMANDE")) {
+        qDebug() << "Erreur loadCommandes:" << query.lastError().text();
+        return;
     }
 
+    while (query.next()) {
+        int row = ui->tableWidget->rowCount();
+        ui->tableWidget->insertRow(row);
+        for (int col = 0; col < 9; col++) {
+            QString text = query.value(col).toString();
+            if (col == 6) text += " DT";
+            QTableWidgetItem *item = new QTableWidgetItem(text);
+            item->setTextAlignment(Qt::AlignCenter);
+            ui->tableWidget->setItem(row, col, item);
+        }
+    }
     updateTableColors();
 }
 
 void commandes::updateTableColors()
 {
     for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
-        QTableWidgetItem *etatItem = ui->tableWidget->item(row, 5);
+        QTableWidgetItem *etatItem = ui->tableWidget->item(row, 8);
         if (!etatItem) continue;
-
         QString etat = etatItem->text();
+        if (etat == "Livrée") { etatItem->setBackground(QColor(200, 255, 200)); etatItem->setForeground(QColor(0, 100, 0)); }
+        else if (etat == "Annulée") { etatItem->setBackground(QColor(255, 200, 200)); etatItem->setForeground(QColor(139, 0, 0)); }
+        else if (etat == "En attente") { etatItem->setBackground(QColor(255, 255, 200)); etatItem->setForeground(QColor(128, 128, 0)); }
+        else if (etat == "En cours") { etatItem->setBackground(QColor(200, 230, 255)); etatItem->setForeground(QColor(0, 0, 139)); }
+    }
+}
 
-        if (etat == "Livrée") {
-            etatItem->setBackground(QColor(200, 255, 200));
-            etatItem->setForeground(QColor(0, 100, 0));
-        } else if (etat == "Annulée") {
-            etatItem->setBackground(QColor(255, 200, 200));
-            etatItem->setForeground(QColor(139, 0, 0));
-        } else if (etat == "En attente") {
-            etatItem->setBackground(QColor(255, 255, 200));
-            etatItem->setForeground(QColor(128, 128, 0));
-        } else if (etat == "Confirmée") {
-            etatItem->setBackground(QColor(200, 230, 255));
-            etatItem->setForeground(QColor(0, 0, 139));
-        } else if (etat == "En préparation") {
-            etatItem->setBackground(QColor(255, 200, 230));
-            etatItem->setForeground(QColor(139, 0, 139));
+// ═══════════════════════════════════════════════
+//   AJOUTER COMMANDE
+// ═══════════════════════════════════════════════
+void commandes::on_pushButton_clicked()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle("Nouvelle Commande");
+    dialog.setFixedSize(440, 680);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(32, 24, 32, 20);
+    mainLayout->setSpacing(4);
+
+    QLabel *header = new QLabel("✦ NOUVELLE COMMANDE");
+    header->setObjectName("headerLabel");
+    header->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(header);
+    mainLayout->addWidget(createSeparator());
+
+    QLineEdit *refEdit = new QLineEdit();
+    refEdit->setPlaceholderText("ex: CMD-2026-001");
+    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
+
+    QLineEdit *clientEdit = new QLineEdit();
+    clientEdit->setPlaceholderText("ex: Maison du Cuir");
+    QLabel *clientError = new QLabel(); clientError->setObjectName("errorLabel"); clientError->setVisible(false);
+
+    QLineEdit *adresseEdit = new QLineEdit();
+    adresseEdit->setPlaceholderText("ex: 12 Rue de Paris");
+    QLabel *addrError = new QLabel(); addrError->setObjectName("errorLabel"); addrError->setVisible(false);
+
+    QDoubleSpinBox *montantSpin = new QDoubleSpinBox();
+    montantSpin->setRange(0, 9999999);
+    montantSpin->setValue(0.0);
+    montantSpin->setDecimals(2);
+    montantSpin->setSuffix(" DT");
+
+    QComboBox *etatCombo = new QComboBox();
+    etatCombo->addItems({"En attente", "En cours", "Livrée", "Annulée"});
+
+    QComboBox *modeCombo = new QComboBox();
+    modeCombo->addItems({"Espèces", "Virement", "Chèque", "Carte"});
+
+    QDateEdit *dateCmdEdit = new QDateEdit(QDate::currentDate());
+    dateCmdEdit->setDisplayFormat("dd/MM/yyyy");
+    dateCmdEdit->setCalendarPopup(true);
+
+    QDateEdit *dateLivEdit = new QDateEdit(QDate::currentDate().addDays(7));
+    dateLivEdit->setDisplayFormat("dd/MM/yyyy");
+    dateLivEdit->setCalendarPopup(true);
+
+    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
+    mainLayout->addWidget(new QLabel("NOM CLIENT")); mainLayout->addWidget(clientEdit); mainLayout->addWidget(clientError);
+    mainLayout->addWidget(new QLabel("ADRESSE LIVRAISON")); mainLayout->addWidget(adresseEdit); mainLayout->addWidget(addrError);
+    mainLayout->addWidget(new QLabel("MONTANT TOTAL")); mainLayout->addWidget(montantSpin);
+    
+    QHBoxLayout *comboLayout = new QHBoxLayout();
+    QVBoxLayout *eCol = new QVBoxLayout(); eCol->addWidget(new QLabel("ÉTAT")); eCol->addWidget(etatCombo);
+    QVBoxLayout *mCol = new QVBoxLayout(); mCol->addWidget(new QLabel("PAIEMENT")); mCol->addWidget(modeCombo);
+    comboLayout->addLayout(eCol); comboLayout->addLayout(mCol);
+    mainLayout->addLayout(comboLayout);
+
+    QHBoxLayout *dateLayout = new QHBoxLayout();
+    QVBoxLayout *cCol = new QVBoxLayout(); cCol->addWidget(new QLabel("DATE COMMANDE")); cCol->addWidget(dateCmdEdit);
+    QVBoxLayout *lCol = new QVBoxLayout(); lCol->addWidget(new QLabel("DATE LIVR. PRÉVUE")); lCol->addWidget(dateLivEdit);
+    dateLayout->addLayout(cCol); dateLayout->addLayout(lCol);
+    mainLayout->addLayout(dateLayout);
+
+    mainLayout->addSpacing(10);
+    mainLayout->addWidget(createSeparator());
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnSave = new QPushButton("  ✓  ENREGISTRER  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
+    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel);
+    mainLayout->addLayout(btnLayout);
+
+    auto validateAll = [&]() {
+        bool allOk = true;
+        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
+        if (clientEdit->text().trimmed().isEmpty()) { setFieldError(clientEdit, clientError, true, "Obligatoire"); allOk = false; } else setFieldError(clientEdit, clientError, false);
+        if (adresseEdit->text().trimmed().isEmpty()) { setFieldError(adresseEdit, addrError, true, "Obligatoire"); allOk = false; } else setFieldError(adresseEdit, addrError, false);
+        btnSave->setEnabled(allOk); return allOk;
+    };
+    btnSave->setEnabled(false);
+    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
+    QObject::connect(clientEdit, &QLineEdit::textChanged, validateAll);
+    QObject::connect(adresseEdit, &QLineEdit::textChanged, validateAll);
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_GREEN);
+
+    if (dialog.exec() == QDialog::Accepted) {
+        QSqlQuery query;
+        query.prepare("INSERT INTO SMARTLEATHER.COMMANDE (ID_COMMANDE, REF, NOM_CLIENT, ADRESSE_LIVRAISON, MONTANT_TOTAL, ETAT_COMMANDE, MODE_PAIEMENT, DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ID_EMPLOYE) "
+                      "VALUES (SMARTLEATHER.SEQ_COMMANDE.NEXTVAL, :ref, :client, :addr, :montant, :etat, :mode, :datec, :datel, :idemp)");
+        query.bindValue(":ref", refEdit->text().trimmed());
+        query.bindValue(":client", clientEdit->text().trimmed());
+        query.bindValue(":addr", adresseEdit->text().trimmed());
+        query.bindValue(":montant", montantSpin->value());
+        query.bindValue(":etat", etatCombo->currentText());
+        query.bindValue(":mode", modeCombo->currentText());
+        query.bindValue(":datec", dateCmdEdit->date());
+        query.bindValue(":datel", dateLivEdit->date());
+        query.bindValue(":idemp", m_idEmploye);
+
+        if (query.exec()) {
+            QMessageBox::information(this, "Succès", "Commande ajoutée !");
+            loadCommandes();
+        } else {
+            QString err = query.lastError().text();
+            if (err.contains("ORA-00001")) {
+                QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
+            } else {
+                QMessageBox::critical(this, "Erreur", "L'ajout a échoué.\nErreur technique: " + err.split('\n').first());
+            }
         }
     }
 }
 
-bool commandes::validateData(const QString &id, const QString &client,
-                             const QString &address, const QString &montant)
-{
-    if (id.isEmpty() || client.isEmpty() || address.isEmpty() || montant.isEmpty()) {
-        QMessageBox::warning(this, "Champs manquants", "Veuillez remplir tous les champs obligatoires.");
-        return false;
-    }
-
-    bool ok;
-    double montantValue = montant.toDouble(&ok);
-    if (!ok || montantValue <= 0) {
-        QMessageBox::warning(this, "Montant invalide", "Veuillez entrer un montant valide (nombre positif).");
-        return false;
-    }
-
-    return true;
-}
-
-void commandes::on_pushButton_clicked()
-{
-    Ajout dialog(this);
-
-    if (dialog.exec() == QDialog::Accepted) {
-        QString id = dialog.getId();
-        QString client = dialog.getClient();
-        QString address = dialog.getAddress();
-        QString dateCommande = dialog.getDateCommande();
-        QString dateLivraison = dialog.getDateLivraison();
-        QString etat = dialog.getEtat();
-        QString montant = dialog.getMontant();
-        QString modePaiement = dialog.getModePaiement();
-
-        if (!validateData(id, client, address, montant)) return;
-
-        int row = ui->tableWidget->rowCount();
-        ui->tableWidget->insertRow(row);
-
-        ui->tableWidget->setItem(row, 0, new QTableWidgetItem(id));
-        ui->tableWidget->setItem(row, 1, new QTableWidgetItem(client));
-        ui->tableWidget->setItem(row, 2, new QTableWidgetItem(address));
-        ui->tableWidget->setItem(row, 3, new QTableWidgetItem(dateCommande));
-        ui->tableWidget->setItem(row, 4, new QTableWidgetItem(dateLivraison));
-        ui->tableWidget->setItem(row, 5, new QTableWidgetItem(etat));
-        ui->tableWidget->setItem(row, 6, new QTableWidgetItem(montant + " €"));
-        ui->tableWidget->setItem(row, 7, new QTableWidgetItem(modePaiement));
-
-        updateTableColors();
-        QMessageBox::information(this, "Succès", "✅ Commande ajoutée avec succès !");
-    }
-}
-
+// ═══════════════════════════════════════════════
+//   MODIFIER COMMANDE
+// ═══════════════════════════════════════════════
 void commandes::on_pushButton_2_clicked()
 {
     int currentRow = ui->tableWidget->currentRow();
-
     if (currentRow < 0) {
         QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une commande à modifier.");
         return;
     }
 
     QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString client = ui->tableWidget->item(currentRow, 1)->text();
-    QString address = ui->tableWidget->item(currentRow, 2)->text();
-    QString dateCommande = ui->tableWidget->item(currentRow, 3)->text();
-    QString dateLivraison = ui->tableWidget->item(currentRow, 4)->text();
-    QString etat = ui->tableWidget->item(currentRow, 5)->text();
-    QString montant = ui->tableWidget->item(currentRow, 6)->text().replace(" €", "");
-    QString modePaiement = ui->tableWidget->item(currentRow, 7)->text();
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
+    QString client = ui->tableWidget->item(currentRow, 2)->text();
+    QString addr = ui->tableWidget->item(currentRow, 3)->text();
+    QString dateCStr = ui->tableWidget->item(currentRow, 4)->text();
+    QString dateLStr = ui->tableWidget->item(currentRow, 5)->text();
+    QString montantStr = ui->tableWidget->item(currentRow, 6)->text().replace(" DT", "").trimmed();
+    QString paiement = ui->tableWidget->item(currentRow, 7)->text();
+    QString etat = ui->tableWidget->item(currentRow, 8)->text();
 
-    Modifier dialog(this);
-    dialog.setInitialData(id, client, address, dateCommande, dateLivraison, etat, montant, modePaiement);
+    QDialog dialog(this);
+    dialog.setWindowTitle("Modifier Commande");
+    dialog.setFixedSize(440, 680);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(&dialog);
+    mainLayout->setContentsMargins(32, 24, 32, 20);
+    mainLayout->setSpacing(4);
+
+    QLabel *header = new QLabel("✎ MODIFIER COMMANDE");
+    header->setObjectName("headerLabel"); header->setAlignment(Qt::AlignCenter); mainLayout->addWidget(header);
+    mainLayout->addWidget(createSeparator());
+
+    QLineEdit *refEdit = new QLineEdit(ref);
+    QLabel *refError = new QLabel(); refError->setObjectName("errorLabel"); refError->setVisible(false);
+    QLineEdit *clientEdit = new QLineEdit(client);
+    QLabel *clientError = new QLabel(); clientError->setObjectName("errorLabel"); clientError->setVisible(false);
+    QLineEdit *adresseEdit = new QLineEdit(addr);
+    QLabel *addrError = new QLabel(); addrError->setObjectName("errorLabel"); addrError->setVisible(false);
+
+    QDoubleSpinBox *montantSpin = new QDoubleSpinBox(); montantSpin->setRange(0, 9999999);
+    montantSpin->setValue(montantStr.toDouble()); montantSpin->setDecimals(2); montantSpin->setSuffix(" DT");
+
+    QComboBox *etatCombo = new QComboBox(); etatCombo->addItems({"En attente", "En cours", "Livrée", "Annulée"});
+    etatCombo->setCurrentText(etat);
+    QComboBox *modeCombo = new QComboBox(); modeCombo->addItems({"Espèces", "Virement", "Chèque", "Carte"});
+    modeCombo->setCurrentText(paiement);
+
+    QDateEdit *dateCmdEdit = new QDateEdit(QDate::fromString(dateCStr, "dd/MM/yyyy")); dateCmdEdit->setDisplayFormat("dd/MM/yyyy"); dateCmdEdit->setCalendarPopup(true);
+    QDateEdit *dateLivEdit = new QDateEdit(QDate::fromString(dateLStr, "dd/MM/yyyy")); dateLivEdit->setDisplayFormat("dd/MM/yyyy"); dateLivEdit->setCalendarPopup(true);
+
+    mainLayout->addWidget(new QLabel("RÉFÉRENCE")); mainLayout->addWidget(refEdit); mainLayout->addWidget(refError);
+    mainLayout->addWidget(new QLabel("NOM CLIENT")); mainLayout->addWidget(clientEdit); mainLayout->addWidget(clientError);
+    mainLayout->addWidget(new QLabel("ADRESSE LIVRAISON")); mainLayout->addWidget(adresseEdit); mainLayout->addWidget(addrError);
+    mainLayout->addWidget(new QLabel("MONTANT TOTAL")); mainLayout->addWidget(montantSpin);
+    
+    QHBoxLayout *coLayout = new QHBoxLayout();
+    QVBoxLayout *coC1 = new QVBoxLayout(); coC1->addWidget(new QLabel("ÉTAT")); coC1->addWidget(etatCombo);
+    QVBoxLayout *coC2 = new QVBoxLayout(); coC2->addWidget(new QLabel("PAIEMENT")); coC2->addWidget(modeCombo);
+    coLayout->addLayout(coC1); coLayout->addLayout(coC2); mainLayout->addLayout(coLayout);
+
+    QHBoxLayout *dtLayout = new QHBoxLayout();
+    QVBoxLayout *dtC1 = new QVBoxLayout(); dtC1->addWidget(new QLabel("DATE COMMANDE")); dtC1->addWidget(dateCmdEdit);
+    QVBoxLayout *dtC2 = new QVBoxLayout(); dtC2->addWidget(new QLabel("LIVRAISON")); dtC2->addWidget(dateLivEdit);
+    dtLayout->addLayout(dtC1); dtLayout->addLayout(dtC2); mainLayout->addLayout(dtLayout);
+
+    mainLayout->addSpacing(10); mainLayout->addWidget(createSeparator());
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnSave = new QPushButton("  ✓  METTRE À JOUR  "); btnSave->setObjectName("btnSave"); addShadow(btnSave, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER"); btnCancel->setObjectName("btnCancel");
+    btnLayout->addWidget(btnSave); btnLayout->addWidget(btnCancel); mainLayout->addLayout(btnLayout);
+
+    auto validateAll = [&]() {
+        bool allOk = true;
+        if (refEdit->text().trimmed().isEmpty()) { setFieldError(refEdit, refError, true, "Obligatoire"); allOk = false; } else setFieldError(refEdit, refError, false);
+        if (clientEdit->text().trimmed().isEmpty()) { setFieldError(clientEdit, clientError, true, "Obligatoire"); allOk = false; } else setFieldError(clientEdit, clientError, false);
+        if (adresseEdit->text().trimmed().isEmpty()) { setFieldError(adresseEdit, addrError, true, "Obligatoire"); allOk = false; } else setFieldError(adresseEdit, addrError, false);
+        btnSave->setEnabled(allOk); return allOk;
+    };
+    QObject::connect(refEdit, &QLineEdit::textChanged, validateAll);
+    QObject::connect(clientEdit, &QLineEdit::textChanged, validateAll);
+    QObject::connect(adresseEdit, &QLineEdit::textChanged, validateAll);
+    connect(btnCancel, &QPushButton::clicked, &dialog, &QDialog::reject); connect(btnSave, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_AMBER);
 
     if (dialog.exec() == QDialog::Accepted) {
-        ui->tableWidget->item(currentRow, 1)->setText(dialog.getClient());
-        ui->tableWidget->item(currentRow, 2)->setText(dialog.getAddress());
-        ui->tableWidget->item(currentRow, 3)->setText(dialog.getDateCommande());
-        ui->tableWidget->item(currentRow, 4)->setText(dialog.getDateLivraison());
-        ui->tableWidget->item(currentRow, 5)->setText(dialog.getEtat());
-        ui->tableWidget->item(currentRow, 6)->setText(dialog.getMontant() + " €");
-        ui->tableWidget->item(currentRow, 7)->setText(dialog.getModePaiement());
-
-        updateTableColors();
-        QMessageBox::information(this, "Succès", "✅ Commande mise à jour avec succès !");
+        QSqlQuery query;
+        query.prepare("UPDATE SMARTLEATHER.COMMANDE SET REF=:ref, NOM_CLIENT=:client, ADRESSE_LIVRAISON=:addr, "
+                      "MONTANT_TOTAL=:montant, ETAT_COMMANDE=:etat, MODE_PAIEMENT=:mode, DATE_COMMANDE=:datec, DATE_LIVRAISON_PREVUE=:datel WHERE ID_COMMANDE=:id");
+        query.bindValue(":ref", refEdit->text().trimmed());
+        query.bindValue(":client", clientEdit->text().trimmed());
+        query.bindValue(":addr", adresseEdit->text().trimmed());
+        query.bindValue(":montant", montantSpin->value());
+        query.bindValue(":etat", etatCombo->currentText());
+        query.bindValue(":mode", modeCombo->currentText());
+        query.bindValue(":datec", dateCmdEdit->date());
+        query.bindValue(":datel", dateLivEdit->date());
+        query.bindValue(":id", id);
+            if (query.exec()) {
+                QMessageBox::information(this, "Succès", "Commande mise à jour !");
+                loadCommandes();
+            } else {
+                QString err = query.lastError().text();
+                if (err.contains("ORA-00001")) {
+                    QMessageBox::critical(this, "Référence Existante", "Cette référence existe déjà. Veuillez en choisir une autre.");
+                } else {
+                    QMessageBox::critical(this, "Erreur", "La modification a échoué.\nErreur technique: " + err.split('\n').first());
+                }
+            }
     }
 }
 
-void commandes::on_pushButton_3_clicked()
-{
+void commandes::on_pushButton_3_clicked() {
     int currentRow = ui->tableWidget->currentRow();
-
-    if (currentRow < 0) {
-        QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une commande à supprimer.");
-        return;
-    }
-
+    if (currentRow < 0) { QMessageBox::warning(this, "Sélection", "Veuillez sélectionner une commande."); return; }
     QString id = ui->tableWidget->item(currentRow, 0)->text();
-    QString client = ui->tableWidget->item(currentRow, 1)->text();
-
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "Confirmation de suppression",
-                                  QString("Voulez-vous vraiment supprimer la commande %1 de %2 ?")
-                                      .arg(id).arg(client),
-                                  QMessageBox::Yes | QMessageBox::No);
-
-    if (reply == QMessageBox::Yes) {
-        ui->tableWidget->removeRow(currentRow);
-        QMessageBox::information(this, "Succès", "✅ Commande supprimée avec succès !");
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
+    if (QMessageBox::question(this, "Confirmation", "Supprimer la commande " + ref + " ?") == QMessageBox::Yes) {
+        QSqlQuery query;
+        query.prepare("DELETE FROM SMARTLEATHER.COMMANDE WHERE ID_COMMANDE = :id");
+        query.bindValue(":id", id);
+        if (query.exec()) { QMessageBox::information(this, "Succès", "Commande supprimée."); loadCommandes(); }
+        else { QMessageBox::critical(this, "Erreur", "Échec: " + query.lastError().text()); }
     }
 }
 
-void commandes::on_pushButton_4_clicked()
-{
-    ui->lineEdit_5->clear();
-    ui->lineEdit_6->clear();
-    loadSampleData();
-    QMessageBox::information(this, "Actualisation", "✅ Liste des commandes actualisée !");
-}
-
-void commandes::filterTable(const QString &idFilter, const QString &dateFilter)
-{
+void commandes::on_pushButton_4_clicked() { loadCommandes(); }
+void commandes::filterTable(const QString &idFilter, const QString &dateFilter) {
     for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
         bool match = true;
-
         if (!idFilter.isEmpty()) {
-            QString id = ui->tableWidget->item(row, 0)->text();
-            if (!id.contains(idFilter, Qt::CaseInsensitive)) {
+            if (!ui->tableWidget->item(row, 0)->text().contains(idFilter, Qt::CaseInsensitive) &&
+                !ui->tableWidget->item(row, 1)->text().contains(idFilter, Qt::CaseInsensitive) &&
+                !ui->tableWidget->item(row, 2)->text().contains(idFilter, Qt::CaseInsensitive)) {
                 match = false;
             }
         }
-
-        if (match && !dateFilter.isEmpty()) {
-            QString date = ui->tableWidget->item(row, 3)->text();
-            if (!date.contains(dateFilter)) {
-                match = false;
-            }
+        if (!dateFilter.isEmpty() && match) {
+            if (!ui->tableWidget->item(row, 4)->text().contains(dateFilter)) { match = false; }
         }
-
         ui->tableWidget->setRowHidden(row, !match);
     }
 }
+void commandes::on_pushButton_10_clicked() { filterTable(ui->lineEdit_5->text(), ui->lineEdit_6->text()); }
+void commandes::on_lineEdit_5_textChanged(const QString &text) { filterTable(text, ui->lineEdit_6->text()); }
+void commandes::on_lineEdit_6_textChanged(const QString &text) { filterTable(ui->lineEdit_5->text(), text); }
 
-void commandes::on_pushButton_10_clicked()
-{
-    QString idFilter = ui->lineEdit_5->text();
-    QString dateFilter = ui->lineEdit_6->text();
-    filterTable(idFilter, dateFilter);
-}
-
-void commandes::on_lineEdit_5_textChanged(const QString &text)
-{
-    QString dateFilter = ui->lineEdit_6->text();
-    filterTable(text, dateFilter);
-}
-
-void commandes::on_lineEdit_6_textChanged(const QString &text)
-{
-    QString idFilter = ui->lineEdit_5->text();
-    filterTable(idFilter, text);
-}
-
-void commandes::on_pushButton_7_clicked()
-{
-    QString fileName = QFileDialog::getSaveFileName(this, "Exporter en Excel",
-                                                    "commandes_" + QDate::currentDate().toString("yyyyMMdd") + ".csv",
-                                                    "Fichiers CSV (*.csv)");
+void commandes::on_pushButton_7_clicked() {
+    QString fileName = QFileDialog::getSaveFileName(this, "Excel", "commandes.csv", "CSV (*.csv)");
     if (fileName.isEmpty()) return;
-
     QFile file(fileName);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Erreur", "Impossible de créer le fichier.");
-        return;
-    }
-
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) return;
     QTextStream out(&file);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-    out.setEncoding(QStringConverter::Utf8);
-#else
-    out.setCodec("UTF-8");
-#endif
-    out.setGenerateByteOrderMark(true);
-
-    QStringList headers = {"ID Commande", "Client", "Adresse", "Date Commande",
-                           "Date Livraison", "État", "Montant", "Mode Paiement"};
-    for (int i = 0; i < headers.size(); ++i) {
-        if (i > 0) out << ";";
-        out << headers[i];
+    for (int col = 0; col < ui->tableWidget->columnCount(); col++) {
+        out << "\"" << ui->tableWidget->horizontalHeaderItem(col)->text() << "\"";
+        if (col < ui->tableWidget->columnCount() - 1) out << ",";
     }
     out << "\n";
-
-    int visibleRows = 0;
-    for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
-        if (ui->tableWidget->isRowHidden(row)) continue;
-
-        for (int col = 0; col < ui->tableWidget->columnCount(); ++col) {
-            if (col > 0) out << ";";
-            QString cell = ui->tableWidget->item(row, col)->text();
-            if (cell.contains(';') || cell.contains('"') || cell.contains('\n')) {
-                cell.replace("\"", "\"\"");
-                cell = "\"" + cell + "\"";
-            }
-            out << cell;
+    for (int row = 0; row < ui->tableWidget->rowCount(); row++) {
+        for (int col = 0; col < ui->tableWidget->columnCount(); col++) {
+            out << "\"" << ui->tableWidget->item(row, col)->text() << "\"";
+            if (col < ui->tableWidget->columnCount() - 1) out << ",";
         }
         out << "\n";
-        visibleRows++;
     }
-
     file.close();
-
-    QMessageBox::information(this, "Succès",
-                             QString("✅ Fichier CSV exporté avec succès !\n%1 ligne(s) exportée(s).")
-                                 .arg(visibleRows));
+    QMessageBox::information(this, "Export", "Données exportées vers " + fileName);
 }
-
-void commandes::exportToPDF()
-{
-}
-
-void commandes::on_pushButton_9_clicked()
-{
-    showStatistics();
-}
-
-void commandes::showStatistics()
-{
-    int enAttente = 0, confirmee = 0, enPreparation = 0, livree = 0, annulee = 0;
+void commandes::on_pushButton_9_clicked() { showStatistics(); }
+void commandes::showStatistics() {
+    int enAttente = 0, enPreparation = 0, livree = 0, annulee = 0;
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         if (!ui->tableWidget->isRowHidden(row)) {
-            QString etat = ui->tableWidget->item(row, 5)->text();
+            QString etat = ui->tableWidget->item(row, 8)->text();
             if (etat == "En attente") enAttente++;
-            else if (etat == "Confirmée") confirmee++;
-            else if (etat == "En préparation") enPreparation++;
+            else if (etat == "En cours") enPreparation++;
             else if (etat == "Livrée") livree++;
             else if (etat == "Annulée") annulee++;
         }
     }
+    QPieSeries *series = new QPieSeries();
+    if(enAttente>0) series->append("En attente", enAttente);
+    if(enPreparation>0) series->append("En cours", enPreparation);
+    if(livree>0) series->append("Livrée", livree);
+    if(annulee>0) series->append("Annulée", annulee);
 
-    int total = enAttente + confirmee + enPreparation + livree + annulee;
-    if (total == 0) {
-        QMessageBox::information(this, "Statistiques", "Aucune commande à afficher.");
-        return;
-    }
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("Répartition par État");
+    chart->setAnimationOptions(QChart::AllAnimations);
+    QChartView *chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
 
-    int maxCount = qMax(qMax(qMax(qMax(enAttente, confirmee), enPreparation), livree), annulee);
-    maxCount = qMax(maxCount, 1);
-    const int maxBarHeight = 200;
-
-    QDialog *statsDialog = new QDialog(this);
-    statsDialog->setWindowTitle("Statistiques des commandes");
-    statsDialog->resize(850, 600);
-    statsDialog->setStyleSheet(
-        "QDialog {"
-        "   background-color: #f1e7dc;"
-        "   border: 2px dashed #b08a6b;"
-        "   border-radius: 20px;"
-        "}"
-        );
-
-    QVBoxLayout *mainLayout = new QVBoxLayout(statsDialog);
-    mainLayout->setContentsMargins(25, 25, 25, 25);
-    mainLayout->setSpacing(20);
-
-    QFrame *headerFrame = new QFrame();
-    headerFrame->setStyleSheet(
-        "QFrame {"
-        "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b3e26, stop:1 #4a2717);"
-        "   border: 2px solid #b08a6b;"
-        "   border-radius: 15px;"
-        "   padding: 10px;"
-        "}"
-        );
-    QHBoxLayout *headerLayout = new QHBoxLayout(headerFrame);
-
-    QLabel *titleLabel = new QLabel("📊 STATISTIQUES DES COMMANDES");
-    titleLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #fffaf5;");
-    headerLayout->addWidget(titleLabel);
-
-    headerLayout->addStretch();
-
-    QLabel *totalLabel = new QLabel(QString("Total: %1").arg(total));
-    totalLabel->setStyleSheet(
-        "font-size: 20px; font-weight: bold; color: #fffaf5;"
-        "background-color: #8b5a2b; padding: 8px 20px; border-radius: 30px;"
-        "border: 1px solid #c49a6c;"
-        );
-    headerLayout->addWidget(totalLabel);
-
-    mainLayout->addWidget(headerFrame);
-
-    QFrame *chartFrame = new QFrame();
-    chartFrame->setStyleSheet(
-        "QFrame {"
-        "   background-color: #fffaf5;"
-        "   border: 2px solid #b08a6b;"
-        "   border-radius: 20px;"
-        "   padding: 20px;"
-        "}"
-        );
-    QHBoxLayout *chartLayout = new QHBoxLayout(chartFrame);
-    chartLayout->setSpacing(20);
-    chartLayout->setAlignment(Qt::AlignBottom);
-
-    struct StatusData {
-        QString name;
-        int count;
-        QColor color;
-        QString icon;
-    };
-
-    QList<StatusData> statuses = {
-        {"En attente", enAttente, QColor(212, 172, 130), "⏳"},
-        {"Confirmée", confirmee, QColor(107, 62, 38), "✅"},
-        {"En préparation", enPreparation, QColor(160, 110, 70), "⚙️"},
-        {"Livrée", livree, QColor(74, 39, 23), "📦"},
-        {"Annulée", annulee, QColor(180, 90, 50), "❌"}
-    };
-
-    for (const StatusData &sd : statuses) {
-        if (sd.count == 0) continue;
-
-        double percent = 100.0 * sd.count / total;
-        int barHeight = (sd.count * maxBarHeight) / maxCount;
-        if (barHeight < 10 && sd.count > 0) barHeight = 10;
-
-        QWidget *barContainer = new QWidget();
-        QVBoxLayout *barLayout = new QVBoxLayout(barContainer);
-        barLayout->setSpacing(8);
-        barLayout->setAlignment(Qt::AlignHCenter);
-
-        QLabel *countLabel = new QLabel(QString::number(sd.count));
-        countLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #3a2a20;");
-        countLabel->setAlignment(Qt::AlignCenter);
-        barLayout->addWidget(countLabel);
-
-        QLabel *percentLabel = new QLabel(QString("%1%").arg(percent, 0, 'f', 1));
-        percentLabel->setStyleSheet("font-size: 14px; color: #5b2f1d; font-weight: bold;");
-        percentLabel->setAlignment(Qt::AlignCenter);
-        barLayout->addWidget(percentLabel);
-
-        QFrame *bar = new QFrame();
-        bar->setFixedWidth(80);
-        bar->setFixedHeight(barHeight);
-        bar->setStyleSheet(QString(R"(
-            QFrame {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                            stop:0 %1,
-                                            stop:1 %2);
-                border: 2px solid #3a1f14;
-                border-radius: 12px;
-                border-bottom: 4px solid #2a150e;
-            }
-        )").arg(sd.color.lighter(110).name()).arg(sd.color.name()));
-        barLayout->addWidget(bar, 0, Qt::AlignCenter);
-
-        QLabel *nameLabel = new QLabel(sd.icon + " " + sd.name);
-        nameLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #3a2a20;");
-        nameLabel->setAlignment(Qt::AlignCenter);
-        nameLabel->setWordWrap(true);
-        barLayout->addWidget(nameLabel);
-
-        barLayout->addStretch();
-        chartLayout->addWidget(barContainer);
-    }
-
-    mainLayout->addWidget(chartFrame, 1);
-
-    QPushButton *closeButton = new QPushButton("Fermer");
-    closeButton->setCursor(Qt::PointingHandCursor);
-    closeButton->setStyleSheet(
-        "QPushButton {"
-        "   background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7a4a2e, stop:1 #5b2f1d);"
-        "   border: 2px solid #3a1f14;"
-        "   border-radius: 20px;"
-        "   padding: 12px 40px;"
-        "   font-weight: bold;"
-        "   font-size: 16px;"
-        "   color: #fffaf5;"
-        "   border-bottom: 4px solid #2a150e;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #8b5a3a, stop:1 #6b3e26);"
-        "}"
-        "QPushButton:pressed {"
-        "   margin-top: 2px;"
-        "   border-bottom: 2px solid #2a150e;"
-        "}"
-        );
-    connect(closeButton, &QPushButton::clicked, statsDialog, &QDialog::accept);
-    mainLayout->addWidget(closeButton, 0, Qt::AlignCenter);
-
-    statsDialog->exec();
-    delete statsDialog;
+    QDialog d(this); d.resize(600,400); d.setWindowTitle("Statistiques");
+    QVBoxLayout *l = new QVBoxLayout(&d); l->addWidget(chartView);
+    d.exec();
 }
+bool commandes::validateData(const QString &id, const QString &client, const QString &addr, const QString &montant) {
+    Q_UNUSED(id); Q_UNUSED(client); Q_UNUSED(addr); Q_UNUSED(montant);
+    return true;
+}
+void commandes::exportToPDF() {}
 
-void commandes::on_pushButton_5_clicked()
+void commandes::on_pushButton_5_clicked() { auto *l = new login(); l->show(); this->close(); this->deleteLater(); }
+void commandes::on_pushButton_11_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Employe")) return; auto *pl = new pageemployee(m_idEmploye, nullptr); pl->show(); this->close(); this->deleteLater(); }
+void commandes::on_pushButton_12_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Fournisseurs")) return; auto *pf = new fournisseurs(m_idEmploye, nullptr); pf->show(); this->close(); this->deleteLater(); }
+void commandes::on_pushButton_19_clicked() { on_pushButton_11_clicked(); }
+void commandes::on_pushButton_20_clicked() { on_pushButton_12_clicked(); }
+void commandes::on_pushButton_21_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Produits")) return; auto *pd = new produitswindow(m_idEmploye, nullptr); pd->show(); this->close(); this->deleteLater(); }
+void commandes::on_pushButton_22_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Matieres")) return; auto *mm = new Matieres(m_idEmploye, nullptr); mm->show(); this->close(); this->deleteLater(); }
+void commandes::on_pushButton_23_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Machines")) return; auto *ss = new pagemachine(m_idEmploye, nullptr); ss->show(); this->close(); this->deleteLater(); }
+void commandes::on_pushButton_17_clicked() { on_pushButton_5_clicked(); }
+
+void commandes::setupSearch()
 {
-    hide();
-    login *lg = new login(this);
-    lg->show();
+    connect(ui->lineEdit_5, &QLineEdit::textChanged, this, [this](const QString &text){ on_lineEdit_5_textChanged(text); });
+    connect(ui->lineEdit_6, &QLineEdit::textChanged, this, [this](const QString &text){ on_lineEdit_6_textChanged(text); });
 }
 
-void commandes::on_pushButton_11_clicked()
-{
-    hide();
-    pageemployee *pl = new pageemployee(m_idEmploye, this);
-    pl->show();
-}
-
-void commandes::on_pushButton_12_clicked()
-{
-    hide();
-    fournisseurs *pf = new fournisseurs(m_idEmploye, this);
-    pf->show();
-}
-
-void commandes::on_pushButton_19_clicked()
-{
-    hide();
-    pageemployee *pl = new pageemployee(m_idEmploye, this);
-    pl->show();
-}
-
-void commandes::on_pushButton_20_clicked()
-{
-    hide();
-    fournisseurs *pf = new fournisseurs(m_idEmploye, this);
-    pf->show();
-}
-
-void commandes::on_pushButton_21_clicked()
-{
-    hide();
-    products *pd = new products(m_idEmploye, this);
-    pd->show();
-}
-
-void commandes::on_pushButton_22_clicked()
-{
-    hide();
-    Matieres *mm = new Matieres(m_idEmploye, this);
-    mm->show();
-}
-
-void commandes::on_pushButton_23_clicked()
-{
-    hide();
-    pagemachine *ss = new pagemachine(m_idEmploye, this);
-    ss->show();
-}
-
-void commandes::on_pushButton_17_clicked()
-{
-    hide();
-    login *lg = new login(this);
-    lg->show();
-}

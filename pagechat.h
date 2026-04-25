@@ -48,8 +48,8 @@ private:
     pageemployee *m_pageEmployee;
     QNetworkAccessManager *m_network;
 
-    QString m_appId ="";// "3ACA12C5-32A0-40FD-A225-F22BD8E8EF2E";
-    QString m_apiToken ="";// "88c406c33a15f992372f5ae68bad7bd3ddf7c208";
+    QString m_appId = "3ACA12C5-32A0-40FD-A225-F22BD8E8EF2E";
+    QString m_apiToken = "88c406c33a15f992372f5ae68bad7bd3ddf7c208";
     QString m_channelUrl = "internal-chat";
 
     bool m_userReady = false;

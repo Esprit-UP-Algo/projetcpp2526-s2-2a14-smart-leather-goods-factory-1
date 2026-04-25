@@ -1,5 +1,5 @@
-QT       += core gui sql
-QT       += core gui charts printsupport network
+QT       += core gui sql charts printsupport network
+QT += core gui sql charts printsupport network serialport
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -26,6 +26,7 @@ QMAKE_CXXFLAGS += -fno-keep-inline-dllexport
 SOURCES += \
     ajout.cpp \
     connection.cpp \
+    arduino.cpp \
     faceid.cpp \
     fournisseurs.cpp \
     login.cpp \
@@ -36,11 +37,16 @@ SOURCES += \
     pagechat.cpp \
     pageemployee.cpp \
     pagemachine.cpp \
-    products.cpp \
-    qcustomplot.cpp
+    produitswindow.cpp \
+    produit.cpp \
+    ajout_produit.cpp \
+    modifier_produit.cpp \
+    qcustomplot.cpp \
+    smtp.cpp
 
 HEADERS += \
     ajout.h \
+    arduino.h \
     commandes.h \
     connection.h \
     faceid.h \
@@ -51,8 +57,12 @@ HEADERS += \
     pagechat.h \
     pageemployee.h \
     pagemachine.h \
-    products.h \
-    qcustomplot.h
+    produitswindow.h \
+    produit.h \
+    ajout_produit.h \
+    modifier_produit.h \
+    qcustomplot.h \
+    smtp.h
 
 FORMS += \
     commandes.ui \
@@ -62,7 +72,7 @@ FORMS += \
     pagechat.ui \
     pageemployee.ui \
     pagemachine.ui \
-    products.ui
+    produitswindow.ui
 
 RESOURCES += \
     logo.qrc
