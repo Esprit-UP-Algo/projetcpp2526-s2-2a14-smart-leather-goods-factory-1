@@ -36,7 +36,15 @@
 #include <QPainter>
 #include <QCalendarWidget>
 #include <QTimeEdit>
+#include <QDateEdit>
+#include <QRegularExpression>
 #include <QTextCharFormat>
+#include <QBarSeries>
+#include <QBarSet>
+#include <QBarCategoryAxis>
+#include <QValueAxis>
+#include <QScrollArea>
+
 
 static const char* DIALOG_BASE_STYLE = R"(
 QDialog {
@@ -92,6 +100,23 @@ QComboBox QAbstractItemView {
 }
 )";
 
+static void addShadow(QWidget* w, int blur=20, int off=4) {
+    QGraphicsDropShadowEffect *e = new QGraphicsDropShadowEffect();
+    e->setBlurRadius(blur); e->setXOffset(0); e->setYOffset(off);
+    e->setColor(QColor(0,0,0,80)); w->setGraphicsEffect(e);
+}
+
+static QWidget* createSeparator() {
+    QWidget* s = new QWidget(); s->setFixedHeight(2);
+    s->setStyleSheet("background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 transparent, stop:0.5 #dcd1c5, stop:1 transparent);");
+    return s;
+}
+
+static void setFieldError(QWidget* w, QLabel* err, bool visible, const QString &msg="") {
+    w->setStyleSheet(visible ? "border: 2px solid #d9534f; background: #fff5f5; border-radius:10px; padding:10px;" : "");
+    err->setText(msg); err->setVisible(visible);
+}
+
 static const char* BTN_SAVE_GREEN = R"(
 QPushButton#btnSave {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #6d9b3a, stop:1 #8fb85a);
@@ -121,24 +146,6 @@ QPushButton#btnCancel {
 }
 QPushButton#btnCancel:hover { background: rgba(0,0,0,0.04); border-color: #a0907e; color: #5b4a3a; }
 )";
-
-static QFrame* createSeparator() {
-    QFrame* line = new QFrame();
-    line->setFrameShape(QFrame::HLine);
-    line->setStyleSheet("background-color: #d4c4b0; max-height: 1px; margin: 8px 0;");
-    return line;
-}
-static void addShadow(QWidget* w, int blur = 20, int offsetY = 4) {
-    QGraphicsDropShadowEffect* shadow = new QGraphicsDropShadowEffect(w);
-    shadow->setBlurRadius(blur); shadow->setOffset(0, offsetY); shadow->setColor(QColor(0,0,0,40));
-    w->setGraphicsEffect(shadow);
-}
-static void setFieldError(QLineEdit* field, QLabel* errorLabel, bool hasError, const QString& msg = "") {
-    field->setProperty("error", hasError);
-    field->style()->unpolish(field); field->style()->polish(field);
-    errorLabel->setText(hasError ? "⚠ " + msg : "");
-    errorLabel->setVisible(hasError);
-}
 
 pagemachine::pagemachine(int idEmploye, QWidget *parent)
     : QDialog(parent)
@@ -242,6 +249,15 @@ pagemachine::pagemachine(int idEmploye, QWidget *parent)
     // Initial check right away, then every minute
     checkUpcomingMaintenance();
     m_reminderTimer->start(60000);
+
+    // --- Arduino Integration ---
+    int ret = A.connect_arduino();
+    if(ret == 0) {
+        qDebug() << "Arduino connected on:" << A.getarduino_port_name();
+        connect(A.getserial(), &QSerialPort::readyRead, this, &pagemachine::update_label);
+    } else {
+        qDebug() << "Arduino not found or connection failed (" << ret << ")";
+    }
 }
 
 pagemachine::~pagemachine() { delete ui; }
@@ -653,18 +669,120 @@ void pagemachine::on_pushButton_7_clicked() {
         return;
     }
 
-    QString ref = ui->tableWidget->item(currentRow, 1)->text();
-    QString nom = ui->tableWidget->item(currentRow, 2)->text();
-    QString type = ui->tableWidget->item(currentRow, 3)->text();
-    QString etat = ui->tableWidget->item(currentRow, 4)->text();
-    QString cap = ui->tableWidget->item(currentRow, 5)->text();
-    QString freq = ui->tableWidget->item(currentRow, 6)->text();
+    QString ref    = ui->tableWidget->item(currentRow, 1)->text();
+    QString nom    = ui->tableWidget->item(currentRow, 2)->text();
+    QString type   = ui->tableWidget->item(currentRow, 3)->text();
+    QString etat   = ui->tableWidget->item(currentRow, 4)->text();
+    QString cap    = ui->tableWidget->item(currentRow, 5)->text();
+    QString freq   = ui->tableWidget->item(currentRow, 6)->text();
     QString charge = ui->tableWidget->item(currentRow, 7)->text();
 
-    QString fileName = QFileDialog::getSaveFileName(this, "Exporter PDF", "Diagnostic_" + ref + ".pdf", "PDF (*.pdf)");
+    // ── ÉTAPE 1 : Popup saisie date de diagnostic ──
+    QDialog datePicker(this);
+    datePicker.setWindowTitle("Planifier le Diagnostic");
+    datePicker.setFixedSize(480, 400);
+
+    QVBoxLayout *dpLayout = new QVBoxLayout(&datePicker);
+    dpLayout->setContentsMargins(35, 30, 35, 25);
+    dpLayout->setSpacing(12);
+
+    QLabel *dpHeader = new QLabel("FICHE DE DIAGNOSTIC");
+    dpHeader->setObjectName("headerLabel");
+    dpHeader->setAlignment(Qt::AlignCenter);
+    dpLayout->addWidget(dpHeader);
+
+    QLabel *dpSub = new QLabel("Machine : <b>" + nom + "</b>  -  Ref : <b>" + ref + "</b>");
+    dpSub->setAlignment(Qt::AlignCenter);
+    dpSub->setStyleSheet("color: #8b6f5a; font-size: 13px; background: transparent;");
+    dpLayout->addWidget(dpSub);
+
+    dpLayout->addWidget(createSeparator());
+
+    QLabel *lDate = new QLabel("DATE DU DIAGNOSTIC");
+    lDate->setStyleSheet("color: #5b3a28; font-weight: 700; font-size: 12px; background: transparent;");
+    QDateEdit *diagDateEdit = new QDateEdit(QDate::currentDate());
+    diagDateEdit->setCalendarPopup(true);
+    diagDateEdit->setMinimumDate(QDate::currentDate());
+    diagDateEdit->setMinimumHeight(42);
+    dpLayout->addWidget(lDate);
+    dpLayout->addWidget(diagDateEdit);
+
+    QLabel *lTime = new QLabel("HEURE DU DIAGNOSTIC");
+    lTime->setStyleSheet("color: #5b3a28; font-weight: 700; font-size: 12px; background: transparent;");
+    QTimeEdit *diagTimeEdit = new QTimeEdit(QTime(9, 0));
+    diagTimeEdit->setMinimumTime(QTime(8, 0));
+    diagTimeEdit->setMaximumTime(QTime(18, 0));
+    diagTimeEdit->setMinimumHeight(42);
+    dpLayout->addWidget(lTime);
+    dpLayout->addWidget(diagTimeEdit);
+
+    QLabel *lDesc = new QLabel("TYPE D'INTERVENTION");
+    lDesc->setStyleSheet("color: #5b3a28; font-weight: 700; font-size: 12px; background: transparent;");
+    QLineEdit *descEdit = new QLineEdit();
+    descEdit->setPlaceholderText("Ex: Controle general, Revision moteur...");
+    descEdit->setMinimumHeight(42);
+    QLabel *descError = new QLabel("Champ obligatoire - lettres uniquement");
+    descError->setStyleSheet("color: #c0392b; font-size: 11px; font-style: italic; background: transparent;");
+    descError->setVisible(false);
+    dpLayout->addWidget(lDesc);
+    dpLayout->addWidget(descEdit);
+    dpLayout->addWidget(descError);
+
+    dpLayout->addWidget(createSeparator());
+
+    QHBoxLayout *dpBtns = new QHBoxLayout();
+    QPushButton *btnConfirm = new QPushButton("  CONFIRMER & EXPORTER  ");
+    btnConfirm->setObjectName("btnSave");
+    btnConfirm->setMinimumHeight(44);
+    addShadow(btnConfirm, 15, 3);
+    QPushButton *btnCancel = new QPushButton("ANNULER");
+    btnCancel->setObjectName("btnCancel");
+    btnCancel->setMinimumHeight(44);
+    dpBtns->addWidget(btnConfirm);
+    dpBtns->addWidget(btnCancel);
+    dpLayout->addLayout(dpBtns);
+
+    // -- Validation en temps reel --
+    btnConfirm->setEnabled(false);
+    QObject::connect(descEdit, &QLineEdit::textChanged, [&](const QString &txt) {
+        bool lettersOnly = QRegularExpression("^[A-Za-z\\s]+$").match(txt.trimmed()).hasMatch();
+        bool valid = !txt.trimmed().isEmpty() && lettersOnly;
+        btnConfirm->setEnabled(valid);
+        descError->setVisible(!txt.trimmed().isEmpty() && !lettersOnly);
+        descEdit->setStyleSheet((!txt.trimmed().isEmpty() && !lettersOnly)
+            ? "border: 2px solid #d9534f; background: #fff5f5; border-radius:10px; padding:10px;"
+            : "");
+    });
+
+    connect(btnCancel,  &QPushButton::clicked, &datePicker, &QDialog::reject);
+    connect(btnConfirm, &QPushButton::clicked, &datePicker, &QDialog::accept);
+    datePicker.setStyleSheet(QString(DIALOG_BASE_STYLE) + BTN_SAVE_GREEN);
+
+    if (datePicker.exec() != QDialog::Accepted) return;
+
+    QDate   diagDate = diagDateEdit->date();
+    QTime   diagTime = diagTimeEdit->time();
+    QString diagDesc = descEdit->text().trimmed().isEmpty()
+                       ? "Diagnostic general" : descEdit->text().trimmed();
+
+    // ── ÉTAPE 2 : Sauvegarde automatique dans l'agenda ──
+    QString agendaFile = QApplication::applicationDirPath() + "/agenda_maintenance.txt";
+    QFile agFile(agendaFile);
+    if (agFile.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&agFile);
+        out << diagDate.toString("yyyy-MM-dd") << "|"
+            << diagTime.toString("HH:mm")      << "|"
+            << ref + " - " + nom               << "|"
+            << diagDesc                         << "\n";
+        agFile.close();
+    }
+
+    // ── ÉTAPE 3 : Choix fichier PDF ──
+    QString fileName = QFileDialog::getSaveFileName(this, "Exporter le Diagnostic PDF",
+        "Diagnostic_" + ref + "_" + diagDate.toString("yyyyMMdd") + ".pdf", "PDF (*.pdf)");
     if (fileName.isEmpty()) return;
 
-    QPrinter printer(QPrinter::ScreenResolution); // Fixed at 96 DPI for reliability
+    QPrinter printer(QPrinter::ScreenResolution);
     printer.setOutputFormat(QPrinter::PdfFormat);
     printer.setPageSize(QPageSize(QPageSize::A4));
     printer.setOutputFileName(fileName);
@@ -672,78 +790,280 @@ void pagemachine::on_pushButton_7_clicked() {
     QPainter painter(&printer);
     if (!painter.isActive()) return;
 
-    int x = 50;
-    int y = 50;
+    int pageW = printer.pageRect(QPrinter::DevicePixel).width();
+    int pageH = printer.pageRect(QPrinter::DevicePixel).height();
+    int x = 60;
+    int y = 60;
 
-    // Content
-    painter.setFont(QFont("Arial", 16, QFont::Bold));
-    painter.drawText(x, y, "FICHE DE DIAGNOSTIC MACHINE");
-    y += 50;
+    // En-tête foncé
+    painter.setBrush(QColor("#3a1f14"));
+    painter.setPen(Qt::NoPen);
+    painter.drawRect(0, 0, pageW, 120);
+    painter.setPen(QPen(Qt::white));
+    painter.setFont(QFont("Arial", 20, QFont::Bold));
+    painter.drawText(x, 55, "SMART LEATHER FACTORY");
+    painter.setFont(QFont("Arial", 12));
+    painter.drawText(x, 83, "Fiche de Diagnostic Machine");
+    painter.setFont(QFont("Arial", 10));
+    painter.drawText(x, 108, "Genere le : " + QDateTime::currentDateTime().toString("dd/MM/yyyy a HH:mm"));
 
-    painter.setFont(QFont("Arial", 11, QFont::Normal));
-    painter.drawText(x, y, "Date: " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
-    y += 40;
+    y = 155;
+
+    // Bandeau date diagnostic
+    painter.setBrush(QColor("#faf0e6"));
+    painter.setPen(QPen(QColor("#c9a87c"), 1.5));
+    painter.drawRect(x - 10, y - 18, pageW - 2*x + 20, 58);
+    painter.setPen(QPen(QColor("#4a2517")));
+    painter.setFont(QFont("Arial", 12, QFont::Bold));
+    painter.drawText(x + 5, y + 5, "Date du Diagnostic : "
+                     + diagDate.toString("dd/MM/yyyy") + "  a  " + diagTime.toString("HH:mm"));
+    painter.setFont(QFont("Arial", 10));
+    painter.drawText(x + 5, y + 26, "Type d'intervention : " + diagDesc);
+    y += 72;
+
+    // Séparateur
+    painter.setPen(QPen(QColor("#c9a87c"), 1.5));
+    painter.drawLine(x, y, pageW - x, y);
+    y += 22;
+
+    // Titre section
+    painter.setFont(QFont("Arial", 13, QFont::Bold));
+    painter.setPen(QPen(QColor("#3a1f14")));
+    painter.drawText(x, y, "INFORMATIONS MACHINE");
+    y += 28;
+    painter.setPen(QPen(QColor("#cccccc"), 0.8));
+    painter.drawLine(x, y, x + 280, y);
+    y += 18;
 
     auto drawRow = [&](const QString& label, const QString& value, int &currY) {
         painter.setFont(QFont("Arial", 10, QFont::Bold));
-        painter.drawText(x, currY, label + ":");
+        painter.setPen(QPen(QColor("#5b3a28")));
+        painter.drawText(x, currY, label + " :");
         painter.setFont(QFont("Arial", 10, QFont::Normal));
-        painter.drawText(x + 180, currY, value);
-        currY += 30;
+        painter.setPen(QPen(QColor("#222222")));
+        painter.drawText(x + 210, currY, value);
+        currY += 32;
     };
 
-    drawRow("Reference", ref, y);
-    drawRow("Nom", nom, y);
-    drawRow("Type", type, y);
-    drawRow("Etat", etat, y);
-    drawRow("Capacite", cap, y);
-    drawRow("Frequence", freq, y);
-    drawRow("Niveau Charge", charge, y);
+    drawRow("Reference",        ref,           y);
+    drawRow("Nom",                 nom,           y);
+    drawRow("Type",                type,          y);
+    drawRow("Etat",             etat,          y);
+    drawRow("Capacite",         cap,           y);
+    drawRow("Frequence (Hz)",   freq,          y);
+    drawRow("Niveau de Charge",    charge + " %", y);
 
-    y += 40;
-    painter.setFont(QFont("Arial", 10, QFont::Bold));
-    painter.drawText(x, y, "Observations:");
+    // Observations
+    y += 18;
+    painter.setPen(QPen(QColor("#c9a87c"), 1.5));
+    painter.drawLine(x, y, pageW - x, y);
     y += 20;
-    painter.drawRect(x, y, 400, 100); // Simple box for notes
+    painter.setFont(QFont("Arial", 13, QFont::Bold));
+    painter.setPen(QPen(QColor("#3a1f14")));
+    painter.drawText(x, y, "OBSERVATIONS");
+    y += 18;
+    painter.setPen(QPen(QColor("#aaaaaa"), 0.8));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(x, y, pageW - 2*x, 120);
+
+    // Pied de page
+    painter.setBrush(QColor("#f5efe8"));
+    painter.setPen(Qt::NoPen);
+    painter.drawRect(0, pageH - 58, pageW, 58);
+    painter.setPen(QPen(QColor("#8b6f5a")));
+    painter.setFont(QFont("Arial", 9));
+    painter.drawText(x, pageH - 34, "(c) Smart Leather Goods Factory  --  Document genere automatiquement");
+    painter.drawText(x, pageH - 17, "Conservez ce document dans le dossier de maintenance de la machine.");
 
     painter.end();
-    QMessageBox::information(this, "Succès", "Document généré !");
+
+    QMessageBox::information(this, "Succes",
+        "Fiche de diagnostic exportee !"
+        "\n\nDate planifiee : " + diagDate.toString("dd/MM/yyyy") + " a " + diagTime.toString("HH:mm") +
+        "\n\nLa date a ete automatiquement ajoutee a l'agenda de maintenance.");
 }
+
+void pagemachine::update_label()
+{
+    data = A.read_from_arduino();
+    QString msg = QString::fromStdString(data.toStdString()).trimmed();
+    
+    if (msg.startsWith("ALERTE:")) {
+        QString machineRef = msg.mid(7);
+        qDebug() << "ARDUINO ALERTE RECEIVED FOR MACHINE:" << machineRef;
+
+        QSqlQuery query;
+        query.prepare("UPDATE MACHINE SET ETAT = 'En panne' WHERE REF = :ref");
+        query.bindValue(":ref", machineRef);
+        
+        if (query.exec()) {
+            loadMachines(); // Refresh table
+            QMessageBox::critical(this, "ALERTE SÉCURITÉ", 
+                "Surchauffe détectée sur la machine " + machineRef + " !\nL'état a été mis à jour : EN PANNE.");
+            
+            // Optional: send email here if wanted
+        } else {
+            qDebug() << "SQL Error during Arduino alert update:" << query.lastError().text();
+        }
+    }
+}
+
 
 void pagemachine::on_pushButton_9_clicked() {
     int op = 0, maint = 0, arret = 0, panne = 0;
+    QMap<QString, QVector<double>> loadByType;
+    int total = 0;
+
     for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
         if (!ui->tableWidget->isRowHidden(row)) {
+            total++;
             QString e = ui->tableWidget->item(row, 4)->text();
+            QString type = ui->tableWidget->item(row, 3)->text();
+            double load = ui->tableWidget->item(row, 7)->text().replace(" %", "").toDouble();
+            
             if (e == "Active") op++; 
             else if (e == "En maintenance") maint++; 
             else if (e == "En panne") panne++;
             else arret++;
+
+            loadByType[type].append(load);
         }
     }
-    QPieSeries *series = new QPieSeries();
-    if(op>0) { QPieSlice *s = series->append("Active", op); s->setBrush(QColor(110, 155, 58)); }
-    if(maint>0) { QPieSlice *s = series->append("Maintenance", maint); s->setBrush(QColor(230, 150, 50)); }
-    if(panne>0) { QPieSlice *s = series->append("En Panne", panne); s->setBrush(QColor(192, 57, 43)); s->setExploded(); }
-    if(arret>0) { QPieSlice *s = series->append("Inactive", arret); s->setBrush(QColor(127, 140, 141)); }
 
-    QChart *chart = new QChart(); 
-    chart->addSeries(series); 
-    chart->setTitle("📊 État du Parc Machines");
-    chart->setAnimationOptions(QChart::SeriesAnimations);
-    chart->legend()->setAlignment(Qt::AlignBottom);
-
-    QChartView *chartView = new QChartView(chart); 
-    chartView->setRenderHint(QPainter::Antialiasing);
-    
     QDialog d(this); 
-    d.resize(800, 550); 
-    d.setWindowTitle("Statistiques Machines");
-    d.setStyleSheet("background-color: #faf6f1;");
-    QVBoxLayout *l = new QVBoxLayout(&d); 
-    l->addWidget(chartView); 
+    d.setWindowTitle("Tableau de Bord - Statistiques Machines");
+    d.resize(1100, 750); 
+    d.setStyleSheet(DIALOG_BASE_STYLE);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(&d);
+    mainLayout->setContentsMargins(30, 30, 30, 30);
+    mainLayout->setSpacing(25);
+
+    // --- Header ---
+    QHBoxLayout *headerLayout = new QHBoxLayout();
+    QLabel *titleLabel = new QLabel("📊 DASHBOARD ANALYTIQUE - PARC MACHINES");
+    titleLabel->setStyleSheet("font-size: 26px; font-weight: 800; color: #4a2517; letter-spacing: 1px;");
+    headerLayout->addWidget(titleLabel);
+    headerLayout->addStretch();
+    
+    QLabel *dateLabel = new QLabel(QDateTime::currentDateTime().toString("dd MMMM yyyy - HH:mm"));
+    dateLabel->setStyleSheet("color: #8b6f5a; font-size: 14px; font-weight: 600;");
+    headerLayout->addWidget(dateLabel);
+    mainLayout->addLayout(headerLayout);
+
+    mainLayout->addWidget(createSeparator());
+
+    // --- KPI Cards row ---
+    QHBoxLayout *cardsLayout = new QHBoxLayout();
+    
+    auto createCard = [&](const QString &title, const QString &val, const QString &color, const QString &icon) {
+        QFrame *card = new QFrame();
+        card->setStyleSheet(QString("QFrame { background-color: white; border-radius: 15px; border-bottom: 5px solid %1; }").arg(color));
+        card->setMinimumHeight(120);
+        addShadow(card, 20, 5);
+
+        QVBoxLayout *cl = new QVBoxLayout(card);
+        QLabel *lIcon = new QLabel(icon); lIcon->setStyleSheet(QString("font-size: 24px; color: %1;").arg(color));
+        QLabel *lTitle = new QLabel(title); lTitle->setStyleSheet("font-size: 13px; font-weight: 700; color: #8b6f5a; text-transform: uppercase;");
+        QLabel *lVal = new QLabel(val); lVal->setStyleSheet(QString("font-size: 32px; font-weight: 800; color: %1;").arg("#3a1f14"));
+
+        cl->addWidget(lIcon);
+        cl->addWidget(lTitle);
+        cl->addWidget(lVal);
+        return card;
+    };
+
+    cardsLayout->addWidget(createCard("Total Machines", QString::number(total), "#5b3020", "🏭"));
+    cardsLayout->addWidget(createCard("Machines Actives", QString::number(op), "#27ae60", "✅"));
+    cardsLayout->addWidget(createCard("En Maintenance", QString::number(maint), "#f39c12", "🛠️"));
+    cardsLayout->addWidget(createCard("En Panne", QString::number(panne), "#e74c3c", "⚠️"));
+    mainLayout->addLayout(cardsLayout);
+
+    // --- Charts Section ---
+    QHBoxLayout *chartsRow = new QHBoxLayout();
+
+    // 1. Pie Chart (Status)
+    QPieSeries *pieSeries = new QPieSeries();
+    if(op>0)    { QPieSlice *s = pieSeries->append("Active", op); s->setBrush(QColor("#2ecc71")); }
+    if(maint>0) { QPieSlice *s = pieSeries->append("Maintenance", maint); s->setBrush(QColor("#f1c40f")); }
+    if(panne>0) { QPieSlice *s = pieSeries->append("Panne", panne); s->setBrush(QColor("#e74c3c")); s->setExploded(); }
+    if(arret>0) { QPieSlice *s = pieSeries->append("Inactive", arret); s->setBrush(QColor("#95a5a6")); }
+
+    for (QPieSlice *slice : pieSeries->slices()) {
+        slice->setLabelVisible(true);
+        slice->setLabelPosition(QPieSlice::LabelOutside);
+        slice->setLabel(QString("%1 (%2%)").arg(slice->label()).arg(100 * slice->percentage(), 0, 'f', 1));
+    }
+
+    QChart *pieChart = new QChart();
+    pieChart->addSeries(pieSeries);
+    pieChart->setTitle("Répartition par État");
+    pieChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
+    pieChart->setAnimationOptions(QChart::AllAnimations);
+    pieChart->legend()->setAlignment(Qt::AlignBottom);
+    pieChart->setBackgroundVisible(false);
+
+    QChartView *pieView = new QChartView(pieChart);
+    pieView->setRenderHint(QPainter::Antialiasing);
+    pieView->setMinimumHeight(400);
+    pieView->setStyleSheet("background: white; border-radius: 15px;");
+    addShadow(pieView, 15, 3);
+    chartsRow->addWidget(pieView);
+
+    // 2. Bar Chart (Load by Type)
+    QBarSeries *barSeries = new QBarSeries();
+    QBarSet *setLoad = new QBarSet("Charge Moyenne (%)");
+    setLoad->setBrush(QColor("#3498db"));
+    
+    QStringList categories;
+    for (auto it = loadByType.begin(); it != loadByType.end(); ++it) {
+        categories << it.key();
+        double avg = 0;
+        for (double v : it.value()) avg += v;
+        avg /= it.value().size();
+        *setLoad << avg;
+    }
+    barSeries->append(setLoad);
+
+    QChart *barChart = new QChart();
+    barChart->addSeries(barSeries);
+    barChart->setTitle("Charge Moyenne par Type de Machine");
+    barChart->setTitleFont(QFont("Segoe UI", 12, QFont::Bold));
+    barChart->setAnimationOptions(QChart::SeriesAnimations);
+    barChart->setBackgroundVisible(false);
+
+    QBarCategoryAxis *axisX = new QBarCategoryAxis();
+    axisX->append(categories);
+    barChart->addAxis(axisX, Qt::AlignBottom);
+    barSeries->attachAxis(axisX);
+
+    QValueAxis *axisY = new QValueAxis();
+    axisY->setRange(0, 100);
+    axisY->setTitleText("Charge (%)");
+    barChart->addAxis(axisY, Qt::AlignLeft);
+    barSeries->attachAxis(axisY);
+
+    QChartView *barView = new QChartView(barChart);
+    barView->setRenderHint(QPainter::Antialiasing);
+    barView->setMinimumHeight(400);
+    barView->setStyleSheet("background: white; border-radius: 15px;");
+    addShadow(barView, 15, 3);
+    chartsRow->addWidget(barView);
+
+    mainLayout->addLayout(chartsRow);
+
+    // --- Footer ---
+    QPushButton *btnClose = new QPushButton("      FERMER LE DASHBOARD      ");
+    btnClose->setStyleSheet(
+        "QPushButton { background-color: #5b3020; color: white; padding: 12px; border-radius: 12px; font-weight: bold; } "
+        "QPushButton:hover { background-color: #7a4a2e; }"
+    );
+    connect(btnClose, &QPushButton::clicked, &d, &QDialog::accept);
+    mainLayout->addWidget(btnClose, 0, Qt::AlignCenter);
+
     d.exec();
 }
+
 
 
 // ═══════════════════════════════════════════════

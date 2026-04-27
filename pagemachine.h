@@ -5,6 +5,8 @@
 #include <QTableWidgetItem>
 #include <QTimer>
 #include <QSet>
+#include "arduino.h"
+
 
 namespace Ui {
 class pagemachine;
@@ -37,6 +39,8 @@ private slots:
     void loadMachines();
 
     void checkUpcomingMaintenance();
+    void update_label();
+
 
 private:
     Ui::pagemachine *ui;
@@ -44,6 +48,9 @@ private:
     
     QTimer *m_reminderTimer;
     QSet<QString> m_notifiedTasks;
+    Arduino A;
+    QByteArray data;
+
 
     void addMachineToTable(const QString &id, const QString &nom,
                            const QString &type, const QString &etat,

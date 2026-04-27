@@ -1,4 +1,4 @@
-QT       += core gui sql charts printsupport network
+QT       += core gui sql charts printsupport network serialport
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -40,7 +40,8 @@ SOURCES += \
     ajout_produit.cpp \
     modifier_produit.cpp \
     qcustomplot.cpp \
-    smtp.cpp
+    smtp.cpp \
+    arduino.cpp
 
 HEADERS += \
     ajout.h \
@@ -59,7 +60,8 @@ HEADERS += \
     ajout_produit.h \
     modifier_produit.h \
     qcustomplot.h \
-    smtp.h
+    smtp.h \
+    arduino.h
 
 FORMS += \
     commandes.ui \
