@@ -24,6 +24,7 @@
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QImage>
+#include <QInputDialog>
 #include <QLineEdit>
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
@@ -44,12 +45,14 @@
 #include <QUrl>
 #include <QUrlQuery>
 #include <QTextStream>
+#include <QTextEdit>
+#include <QEventLoop>
+#include <QTimer>
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
-#include <QPixmap>
+#include <QSettings>
 #include <QScrollArea>
-#include <QGroupBox>
 #include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QGraphicsPixmapItem>
@@ -332,6 +335,7 @@ bool sauvegarderSignatureValidation(const QImage &signature, const QString &sign
 class InteractiveMapView : public QGraphicsView
 {
 public:
+    // Vue cartographique locale: charge des tuiles OSM et gere zoom/deplacement.
     explicit InteractiveMapView(QWidget *parent = nullptr)
         : QGraphicsView(parent)
         , m_scene(new QGraphicsScene(this))
@@ -545,12 +549,23 @@ QString nettoyerPourMaps(const QString &texte)
 
 QUrl construireUrlNominatim(const QString &recherche)
 {
+    // Endpoint de geocodage: convertit une adresse texte en latitude/longitude.
     QUrl url(QStringLiteral("https://nominatim.openstreetmap.org/search"));
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("format"), QStringLiteral("jsonv2"));
     query.addQueryItem(QStringLiteral("limit"), QStringLiteral("1"));
     query.addQueryItem(QStringLiteral("addressdetails"), QStringLiteral("1"));
     query.addQueryItem(QStringLiteral("q"), recherche);
+    url.setQuery(query);
+    return url;
+}
+
+QUrl construireUrlGoogleMaps(const QString &recherche)
+{
+    QUrl url(QStringLiteral("https://www.google.com/maps/search/"));
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("api"), QStringLiteral("1"));
+    query.addQueryItem(QStringLiteral("query"), recherche);
     url.setQuery(query);
     return url;
 }
@@ -565,6 +580,19 @@ QString normaliserPartieAdresse(QString partie)
 
 QString ajouterContexteTunisie(QString valeur)
 {
+    static const QStringList paysConnus = {
+        "tunisie", "tunis", "france", "italie", "allemagne", "espagne",
+        "maroc", "algerie", "turquie", "etats-unis", "usa", "united states",
+        "royaume-uni", "united kingdom", "uk", "germany", "italy", "spain"
+    };
+
+    const QString lower = valeur.toLower();
+    for (const QString &pays : paysConnus) {
+        if (lower.contains(pays)) {
+            return valeur;
+        }
+    }
+
     if (valeur.contains("Tunisie", Qt::CaseInsensitive) || valeur.contains("Tunis", Qt::CaseInsensitive)) {
         return valeur;
     }
@@ -573,6 +601,7 @@ QString ajouterContexteTunisie(QString valeur)
 
 QStringList construireCandidatsGeocodage(const QString &recherche)
 {
+    // Fallback progressif: plusieurs variantes d'adresse pour maximiser le taux de geocodage.
     QStringList segments = recherche.split(',', Qt::SkipEmptyParts);
     QStringList parties;
     for (const QString &segment : segments) {
@@ -638,6 +667,7 @@ void afficherErreurCarte(QLabel *mapLabel, const QString &message)
 bool afficherCarteInteractive(QLabel *mapLabel, const QString &nom, const QString &recherche, double latitude, double longitude)
 {
 #if FOURNISSEURS_HAS_WEBENGINE
+    // Chemin prioritaire: rendu Leaflet/WebEngine si le module est disponible.
         if (!mapLabel || !mapLabel->parentWidget()) {
                 return false;
         }
@@ -711,6 +741,7 @@ bool afficherCarteInteractive(QLabel *mapLabel, const QString &nom, const QStrin
         mapLabel->deleteLater();
         return true;
 #else
+    // Fallback: retour false pour utiliser la vue QGraphics (tuiles natives Qt).
         Q_UNUSED(mapLabel);
         Q_UNUSED(nom);
         Q_UNUSED(recherche);
@@ -766,6 +797,7 @@ void afficherCartePopupOpenStreetMap(QWidget *parent, const QString &nom, const 
     mainLayout->addWidget(mapLabel);
     mainLayout->addWidget(mapView, 1);
     
+    // Pipeline reseau: geocodage Nominatim -> affichage Leaflet ou tuiles OSM.
     QNetworkAccessManager *manager = new QNetworkAccessManager(dialog);
     auto candidats = std::make_shared<QStringList>(construireCandidatsGeocodage(recherche));
     auto geocoder = std::make_shared<std::function<void(int)>>();
@@ -776,7 +808,8 @@ void afficherCartePopupOpenStreetMap(QWidget *parent, const QString &nom, const 
             if (*hadNetworkError) {
                 afficherErreurCarte(mapLabel, "Connexion internet requise pour afficher la carte (géocodage impossible hors-ligne).");
             } else {
-                afficherErreurCarte(mapLabel, "Erreur: Adresse introuvable sur OpenStreetMap. Essayez une adresse plus précise.");
+                afficherErreurCarte(mapLabel, "Adresse introuvable sur OpenStreetMap. Ouverture de Google Maps en secours...");
+                QDesktopServices::openUrl(construireUrlGoogleMaps(recherche));
             }
             return;
         }
@@ -888,6 +921,7 @@ QString construireRechercheMaps(const QString &nom, const QString &adresse)
 {
     QStringList parties;
 
+    // Le nom n'est pas injecte dans la requete pour eviter un geocodage trop ambigu.
     Q_UNUSED(nom);
 
     const QString normalisee = adresse.simplified().trimmed();
@@ -1150,13 +1184,407 @@ struct RecommendationItem {
     QDate delai;
     double coutUnitaire = 0.0;
     double coutTotal = 0.0;
+    int capaciteMax = 0;
+    double fiabilite = 60.0;
     int scoreClassique = 0;
     int scoreIA = 0;
     double pOnTime = 0.0;
     double pQuality = 0.0;
     double pBudget = 0.0;
+    QString adresse;
+    QString sourceIA = "Locale";
     QString explication;
 };
+
+struct SuggestionExterne {
+    QString nom;
+    QString pays;
+    QString specialite;
+    QString contact;
+    QString pourquoi;
+};
+
+struct GroqRankingResult {
+    bool success = false;
+    QString error;
+    QHash<QString, int> scoreById;
+    QHash<QString, QString> explicationById;
+    QList<SuggestionExterne> suggestionsExternes;
+};
+
+QString requeteWebFournisseurs(const QString &typeCible)
+{
+    const QString t = typeCible.trimmed().toLower();
+    if (t.contains("cuir")) {
+        return "leather supplier";
+    }
+    if (t.contains("bois")) {
+        return "wood supplier";
+    }
+    if (t.contains("métal") || t.contains("metal")) {
+        return "metal supplier";
+    }
+    return typeCible.trimmed() + " supplier";
+}
+
+QString paysDepuisDomaine(const QString &domaine)
+{
+    const QString d = domaine.trimmed().toLower();
+    if (d.endsWith(".tn")) return "Tunisie";
+    if (d.endsWith(".fr")) return "France";
+    if (d.endsWith(".de")) return "Allemagne";
+    if (d.endsWith(".it")) return "Italie";
+    if (d.endsWith(".es")) return "Espagne";
+    if (d.endsWith(".uk") || d.endsWith(".co.uk")) return "Royaume-Uni";
+    if (d.endsWith(".us")) return "Etats-Unis";
+    if (d.endsWith(".ma")) return "Maroc";
+    if (d.endsWith(".dz")) return "Algerie";
+    if (d.endsWith(".tr")) return "Turquie";
+    if (d.isEmpty()) return "N/A";
+    return "International";
+}
+
+QStringList requetesWebFournisseursMultiples(const QString &typeCible)
+{
+    const QString t = typeCible.trimmed().toLower();
+    QStringList requetes;
+
+    if (t.contains("bois")) {
+        requetes << "timber" << "lumber" << "wood" << "wood materials";
+    } else if (t.contains("métal") || t.contains("metal")) {
+        requetes << "metal" << "steel" << "aluminum" << "metal industry";
+    } else if (t.contains("cuir")) {
+        requetes << "leather" << "tannery" << "leather goods" << "hide processing";
+    } else {
+        requetes << typeCible.trimmed() << (typeCible.trimmed() + " materials") << (typeCible.trimmed() + " industry");
+    }
+
+    requetes << requeteWebFournisseurs(typeCible);
+    requetes.removeDuplicates();
+    return requetes;
+}
+
+QList<SuggestionExterne> recupererSuggestionsExternesWeb(const QString &typeCible, QString *erreur)
+{
+    QList<SuggestionExterne> suggestions;
+
+    QNetworkAccessManager manager;
+    QSet<QString> dejaAjoutes;
+    const QStringList requetes = requetesWebFournisseursMultiples(typeCible);
+
+    for (const QString &q : requetes) {
+        QUrl url("https://autocomplete.clearbit.com/v1/companies/suggest");
+        QUrlQuery query;
+        query.addQueryItem("query", q);
+        url.setQuery(query);
+
+        QNetworkRequest request(url);
+        request.setHeader(QNetworkRequest::UserAgentHeader, "FournisseursQt/1.0 (External-Recommendation)");
+
+        QNetworkReply *reply = manager.get(request);
+        QEventLoop loop;
+        QTimer timer;
+        timer.setSingleShot(true);
+        QObject::connect(&timer, &QTimer::timeout, &loop, [&]() {
+            if (reply->isRunning()) {
+                reply->abort();
+            }
+            loop.quit();
+        });
+        QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+        timer.start(10000);
+        loop.exec();
+
+        if (!timer.isActive()) {
+            reply->deleteLater();
+            continue;
+        }
+        timer.stop();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            reply->deleteLater();
+            continue;
+        }
+
+        QJsonParseError parseErr;
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll(), &parseErr);
+        reply->deleteLater();
+
+        if (parseErr.error != QJsonParseError::NoError || !doc.isArray()) {
+            continue;
+        }
+
+        const QJsonArray arr = doc.array();
+        const int limite = std::min(6, static_cast<int>(arr.size()));
+        for (int i = 0; i < limite; ++i) {
+            const QJsonObject o = arr.at(i).toObject();
+            const QString nom = o.value("name").toString().trimmed();
+            const QString domaine = o.value("domain").toString().trimmed();
+            const QString cle = nom.toLower();
+            if (nom.isEmpty() || dejaAjoutes.contains(cle)) {
+                continue;
+            }
+
+            SuggestionExterne s;
+            s.nom = nom;
+            s.pays = paysDepuisDomaine(domaine);
+            s.specialite = "Fournisseur web - " + typeCible;
+            s.contact = domaine.isEmpty() ? QString() : ("https://" + domaine);
+            s.pourquoi = "Entreprise reelle trouvee sur le web (source publique). Verification commerciale requise.";
+            suggestions.append(s);
+            dejaAjoutes.insert(cle);
+
+            if (suggestions.size() >= 8) {
+                break;
+            }
+        }
+
+        if (suggestions.size() >= 8) {
+            break;
+        }
+    }
+
+    if (suggestions.isEmpty() && erreur) {
+        *erreur = "Aucune entreprise trouvee via les recherches web pour ce type de matiere.";
+    }
+
+    return suggestions;
+}
+
+void fusionnerSuggestionsExternes(QList<SuggestionExterne> &base, const QList<SuggestionExterne> &ajouts, int limite)
+{
+    QSet<QString> noms;
+    for (const SuggestionExterne &s : base) {
+        noms.insert(s.nom.trimmed().toLower());
+    }
+
+    for (const SuggestionExterne &s : ajouts) {
+        const QString key = s.nom.trimmed().toLower();
+        if (key.isEmpty() || noms.contains(key)) {
+            continue;
+        }
+        base.append(s);
+        noms.insert(key);
+        if (base.size() >= limite) {
+            break;
+        }
+    }
+}
+
+QString extraireObjetJson(const QString &content)
+{
+    const int start = content.indexOf('{');
+    const int end = content.lastIndexOf('}');
+    if (start < 0 || end < 0 || end <= start) {
+        return QString();
+    }
+    return content.mid(start, end - start + 1);
+}
+
+QString construirePromptGroq(
+    const QVector<RecommendationItem> &candidats,
+    const QString &typeCible,
+    int quantite,
+    double budget,
+    const QDate &dateLimite,
+    const QString &profil)
+{
+    // Prompt metier structure: contexte achat + candidats + contraintes explicites de sortie JSON.
+    QStringList lignes;
+    lignes << QString("Besoin: type=%1, quantite=%2, budget max=%3 TND, delai max=%4, profil=%5")
+                  .arg(typeCible)
+                  .arg(quantite)
+                  .arg(QString::number(budget, 'f', 2))
+                  .arg(dateLimite.toString("dd/MM/yyyy"))
+                  .arg(profil);
+    lignes << "Fournisseurs candidats:";
+
+    for (const RecommendationItem &r : candidats) {
+        const int confiance = static_cast<int>(std::round(100.0 * (r.pOnTime + r.pQuality + r.pBudget) / 3.0));
+        lignes << QString("- id=%1 | nom=%2 | qualite=%3 | delai=%4 | cout=%5 | score_local=%6 | confiance=%7")
+                      .arg(r.id)
+                      .arg(r.nom)
+                      .arg(r.qualite)
+                      .arg(r.delai.isValid() ? r.delai.toString("dd/MM/yyyy") : "N/A")
+                      .arg(QString::number(r.coutTotal, 'f', 2))
+                      .arg(r.scoreIA)
+                      .arg(confiance);
+    }
+
+    const QString consigne =
+        "Retourne strictement un JSON valide sans texte supplementaire, format exact: "
+        "{\"ranking\":[{\"id\":\"...\",\"score\":0-100,\"explication\":\"...\"}],"
+        "\"external_suggestions\":[{\"nom\":\"...\",\"specialite\":\"...\",\"contact\":\"...\",\"pourquoi\":\"...\"}]}. "
+        "Classe tous les ids fournis (meme ordre libre) et ajoute jusqu'a 3 suggestions externes "
+        "de fournisseurs potentiels hors base si tu identifies des alternatives plausibles sur le marche. "
+        "Si tu ne connais pas le contact, laisse le champ vide. "
+        "Les suggestions externes doivent etre clairement identifiees comme non verifiees.";
+
+    return consigne + "\n\n" + lignes.join("\n");
+}
+
+GroqRankingResult demanderClassementGroq(
+    const QVector<RecommendationItem> &candidats,
+    const QString &apiKey,
+    const QString &model,
+    const QString &typeCible,
+    int quantite,
+    double budget,
+    const QDate &dateLimite,
+    const QString &profil)
+{
+    // Appel synchrone controle a l'API Groq avec timeout, puis parsing strict du ranking JSON.
+    GroqRankingResult result;
+    if (apiKey.trimmed().isEmpty()) {
+        result.error = "Cle API Groq vide.";
+        return result;
+    }
+    if (candidats.isEmpty()) {
+        result.error = "Aucun candidat a analyser.";
+        return result;
+    }
+
+    QNetworkAccessManager manager;
+    // Endpoint compatible OpenAI expose par Groq.
+    QNetworkRequest request(QUrl("https://api.groq.com/openai/v1/chat/completions"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    request.setRawHeader("Authorization", QString("Bearer %1").arg(apiKey.trimmed()).toUtf8());
+
+    QJsonObject payload;
+    payload.insert("model", model.trimmed().isEmpty() ? "llama-3.3-70b-versatile" : model.trimmed());
+    payload.insert("temperature", 0.15);
+    // On force un objet JSON pour limiter les reponses non structurées du modele.
+    payload.insert("response_format", QJsonObject{{"type", "json_object"}});
+
+    QJsonArray messages;
+    messages.append(QJsonObject{
+        {"role", "system"},
+        {"content",
+         "Tu es un expert en gestion des achats industriels specialise dans la filiere cuir et maroquinerie. "
+         "Ton role est d'analyser des fournisseurs candidats et de les classer selon les criteres metier fournis. "
+         "Tu prends en compte: la fiabilite logistique, la qualite des materiaux, le respect des delais, "
+         "le rapport qualite/prix et la capacite de production. "
+         "Tu retournes TOUJOURS et UNIQUEMENT du JSON valide, sans aucun texte supplementaire, "
+         "sans bloc markdown, sans explication hors JSON. "
+         "Format obligatoire: {\"ranking\":[{\"id\":\"...\",\"score\":0-100,\"explication\":\"...\"}]}. "
+         "Chaque explication doit etre concise (max 120 caracteres), professionnelle, en francais, "
+         "et justifier le score attribue au fournisseur."}
+    });
+    messages.append(QJsonObject{
+        {"role", "user"},
+        {"content", construirePromptGroq(candidats, typeCible, quantite, budget, dateLimite, profil)}
+    });
+    payload.insert("messages", messages);
+
+    QNetworkReply *reply = manager.post(request, QJsonDocument(payload).toJson(QJsonDocument::Compact));
+    QEventLoop loop;
+    QTimer timer;
+    timer.setSingleShot(true);
+    QObject::connect(&timer, &QTimer::timeout, &loop, [&]() {
+        if (reply->isRunning()) {
+            reply->abort();
+        }
+        loop.quit();
+    });
+    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    timer.start(20000);
+    loop.exec();
+
+    if (!timer.isActive()) {
+        result.error = "Timeout API Groq (20s).";
+        reply->deleteLater();
+        return result;
+    }
+    timer.stop();
+
+    if (reply->error() != QNetworkReply::NoError) {
+        result.error = "Erreur reseau Groq: " + reply->errorString();
+        reply->deleteLater();
+        return result;
+    }
+
+    QJsonParseError parseErr;
+    const QByteArray body = reply->readAll();
+    const QJsonDocument doc = QJsonDocument::fromJson(body, &parseErr);
+    reply->deleteLater();
+
+    if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
+        result.error = "Reponse Groq invalide (JSON principal).";
+        return result;
+    }
+
+    const QJsonArray choices = doc.object().value("choices").toArray();
+    if (choices.isEmpty()) {
+        result.error = "Reponse Groq sans choices.";
+        return result;
+    }
+
+    const QString content = choices.at(0).toObject().value("message").toObject().value("content").toString();
+    const QString jsonText = extraireObjetJson(content);
+    if (jsonText.isEmpty()) {
+        result.error = "Groq n'a pas retourne un JSON exploitable.";
+        return result;
+    }
+
+    QJsonParseError rankingParseErr;
+    const QJsonDocument rankingDoc = QJsonDocument::fromJson(jsonText.toUtf8(), &rankingParseErr);
+    if (rankingParseErr.error != QJsonParseError::NoError || !rankingDoc.isObject()) {
+        result.error = "JSON ranking invalide.";
+        return result;
+    }
+
+    const QJsonArray ranking = rankingDoc.object().value("ranking").toArray();
+    if (ranking.isEmpty()) {
+        result.error = "Ranking vide dans la reponse Groq.";
+        return result;
+    }
+
+    for (const QJsonValue &v : ranking) {
+        const QJsonObject o = v.toObject();
+        const QString id = o.value("id").toString().trimmed();
+        if (id.isEmpty()) {
+            continue;
+        }
+
+        int score = o.value("score").toInt(-1);
+        if (score < 0 || score > 100) {
+            score = 50;
+        }
+
+        QString explication = o.value("explication").toString().trimmed();
+        if (explication.isEmpty()) {
+            explication = "Classement propose par IA Groq.";
+        }
+
+        result.scoreById.insert(id, score);
+        result.explicationById.insert(id, explication);
+    }
+
+    if (result.scoreById.isEmpty()) {
+        result.error = "Aucun id fournisseur reconnu dans le ranking Groq.";
+        return result;
+    }
+
+    const QJsonArray suggestionsExternes = rankingDoc.object().value("external_suggestions").toArray();
+    for (const QJsonValue &v : suggestionsExternes) {
+        const QJsonObject o = v.toObject();
+        const QString nom = o.value("nom").toString().trimmed();
+        if (nom.isEmpty()) {
+            continue;
+        }
+
+        SuggestionExterne s;
+        s.nom = nom;
+        s.pays = o.value("pays").toString().trimmed();
+        s.specialite = o.value("specialite").toString().trimmed();
+        s.contact = o.value("contact").toString().trimmed();
+        s.pourquoi = o.value("pourquoi").toString().trimmed();
+        result.suggestionsExternes.append(s);
+    }
+
+    result.success = true;
+    return result;
+}
 
 
 MainWindow::MainWindow(QWidget *parent)
@@ -1226,7 +1654,7 @@ MainWindow::MainWindow(QWidget *parent)
         );
 
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->tableWidget->setSelectionMode(QAbstractItemView::SingleSelection);
+    ui->tableWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->tableWidget->horizontalHeader()->setStretchLastSection(true);
     ui->tableWidget->horizontalHeader()->setVisible(true);
     ui->tableWidget->setColumnCount(8);
@@ -1542,97 +1970,204 @@ void MainWindow::on_pushButton_7_clicked() {
 void MainWindow::on_pushButton_8_clicked()
 {
     if (ui->tableWidget->rowCount() == 0) {
-        QMessageBox::information(this, "Exporter PDF", "Le tableau fournisseurs est vide.");
+        QMessageBox::information(this, "Recu achat", "Le tableau fournisseurs est vide.");
         return;
     }
 
-    QString chemin = QFileDialog::getSaveFileName(
+    QList<int> selectedRows;
+    const QModelIndexList selected = ui->tableWidget->selectionModel() ? ui->tableWidget->selectionModel()->selectedRows() : QModelIndexList();
+    for (const QModelIndex &idx : selected) {
+        if (idx.isValid() && !selectedRows.contains(idx.row())) {
+            selectedRows << idx.row();
+        }
+    }
+    std::sort(selectedRows.begin(), selectedRows.end());
+
+    if (selectedRows.isEmpty()) {
+        QMessageBox::information(this, "Recu achat", "Selectionnez au moins un fournisseur dans le tableau.");
+        return;
+    }
+
+    QDialog achatDialog(this);
+    achatDialog.setWindowTitle("Confirmation d'achat");
+    achatDialog.resize(520, 380);
+
+    auto *form = new QFormLayout(&achatDialog);
+    auto *refInput = new QLineEdit(QString("ACH-%1").arg(QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss")), &achatDialog);
+    auto *acheteurInput = new QLineEdit("Service Achat", &achatDialog);
+    auto *objetInput = new QLineEdit(&achatDialog);
+    auto *quantiteInput = new QSpinBox(&achatDialog);
+    quantiteInput->setRange(1, 1000000);
+    quantiteInput->setValue(500);
+    auto *prixUnitaireInput = new QDoubleSpinBox(&achatDialog);
+    prixUnitaireInput->setRange(0.0, 1000000.0);
+    prixUnitaireInput->setDecimals(3);
+    prixUnitaireInput->setValue(100.0);
+    prixUnitaireInput->setSuffix(" TND");
+    auto *dateAchatInput = new QDateEdit(QDate::currentDate(), &achatDialog);
+    dateAchatInput->setCalendarPopup(true);
+    dateAchatInput->setDisplayFormat("dd/MM/yyyy");
+    auto *dateLivraisonInput = new QDateEdit(QDate::currentDate().addDays(30), &achatDialog);
+    dateLivraisonInput->setCalendarPopup(true);
+    dateLivraisonInput->setDisplayFormat("dd/MM/yyyy");
+    auto *conditionsInput = new QTextEdit(&achatDialog);
+    conditionsInput->setMinimumHeight(80);
+    conditionsInput->setPlainText("Paiement a 30 jours - Conforme au cahier des charges.");
+
+    const int firstRow = selectedRows.first();
+    if (ui->tableWidget->item(firstRow, 2)) {
+        objetInput->setText(ui->tableWidget->item(firstRow, 2)->text());
+    }
+
+    form->addRow("Reference achat", refInput);
+    form->addRow("Acheteur", acheteurInput);
+    form->addRow("Matiere/Objet", objetInput);
+    form->addRow("Quantite", quantiteInput);
+    form->addRow("Prix unitaire", prixUnitaireInput);
+    form->addRow("Date achat", dateAchatInput);
+    form->addRow("Date livraison prevue", dateLivraisonInput);
+    form->addRow("Conditions", conditionsInput);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &achatDialog);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &achatDialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &achatDialog, &QDialog::reject);
+
+    if (achatDialog.exec() != QDialog::Accepted) {
+        return;
+    }
+
+    bool observationOk = false;
+    const QString observation = QInputDialog::getMultiLineText(
         this,
-        "Exporter le tableau fournisseurs en PDF",
-        "fournisseurs.pdf",
+        "Observation avant sauvegarde",
+        "Ajoutez une observation pour les recus (optionnel):",
+        "",
+        &observationOk);
+
+    if (!observationOk) {
+        return;
+    }
+
+    const QString basePath = QFileDialog::getSaveFileName(
+        this,
+        "Enregistrer recu(x) de confirmation d'achat",
+        "recu_confirmation_achat.pdf",
         "PDF (*.pdf)");
 
-    if (chemin.isEmpty()) {
-        return;
-    }
-    if (!chemin.endsWith(".pdf", Qt::CaseInsensitive)) {
-        chemin += ".pdf";
-    }
-
-    QPdfWriter writer(chemin);
-    writer.setPageSize(QPageSize(QPageSize::A4));
-    writer.setPageOrientation(QPageLayout::Landscape);
-    writer.setResolution(120);
-
-    QPainter painter(&writer);
-    if (!painter.isActive()) {
-        QMessageBox::warning(this, "Exporter PDF", "Impossible de creer le fichier PDF.");
+    if (basePath.isEmpty()) {
         return;
     }
 
-    const int margin = 40;
-    const int pageWidth = writer.width();
-    const int pageHeight = writer.height();
-    const int cols = ui->tableWidget->columnCount();
-    const int colWidth = (pageWidth - 2 * margin) / qMax(1, cols);
-    const int headerHeight = 34;
-    const int rowHeight = 28;
-
-    int y = margin;
-
-    QFont titleFont = painter.font();
-    titleFont.setPointSize(14);
-    titleFont.setBold(true);
-    painter.setFont(titleFont);
-    painter.drawText(margin, y, "Liste des fournisseurs");
-
-    QFont infoFont = painter.font();
-    infoFont.setPointSize(9);
-    infoFont.setBold(false);
-    painter.setFont(infoFont);
-    y += 24;
-    painter.drawText(margin, y, "Date export: " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
-    y += 20;
-
-    auto drawHeader = [&](int yHeader) {
-        QFont headerFont = painter.font();
-        headerFont.setBold(true);
-        painter.setFont(headerFont);
-        for (int c = 0; c < cols; ++c) {
-            const int x = margin + c * colWidth;
-            painter.drawRect(x, yHeader, colWidth, headerHeight);
-            const QString titre = ui->tableWidget->horizontalHeaderItem(c)
-                                      ? ui->tableWidget->horizontalHeaderItem(c)->text()
-                                      : QString("Col %1").arg(c + 1);
-            painter.drawText(x + 6, yHeader + 22, titre);
-        }
-        QFont bodyFont = painter.font();
-        bodyFont.setBold(false);
-        painter.setFont(bodyFont);
-    };
-
-    drawHeader(y);
-    y += headerHeight;
-
-    for (int r = 0; r < ui->tableWidget->rowCount(); ++r) {
-        if (y + rowHeight > pageHeight - margin) {
-            writer.newPage();
-            y = margin;
-            drawHeader(y);
-            y += headerHeight;
-        }
-
-        for (int c = 0; c < cols; ++c) {
-            const int x = margin + c * colWidth;
-            painter.drawRect(x, y, colWidth, rowHeight);
-            const QString texte = ui->tableWidget->item(r, c) ? ui->tableWidget->item(r, c)->text() : "";
-            painter.drawText(x + 6, y + 19, texte.left(32));
-        }
-        y += rowHeight;
+    QString pdfBase = basePath;
+    if (!pdfBase.endsWith(".pdf", Qt::CaseInsensitive)) {
+        pdfBase += ".pdf";
     }
 
-    painter.end();
-    QMessageBox::information(this, "Exporter PDF", "Export termine: " + chemin);
+    QFileInfo baseInfo(pdfBase);
+    const QString baseDir = baseInfo.absolutePath();
+    const QString baseName = baseInfo.completeBaseName();
+    int successCount = 0;
+    QStringList failedIds;
+
+    for (int row : selectedRows) {
+        const QString id = ui->tableWidget->item(row, 0) ? ui->tableWidget->item(row, 0)->text().trimmed() : "N/A";
+        const QString nom = ui->tableWidget->item(row, 1) ? ui->tableWidget->item(row, 1)->text().trimmed() : "N/A";
+        const QString type = ui->tableWidget->item(row, 2) ? ui->tableWidget->item(row, 2)->text().trimmed() : "N/A";
+        const QString telephone = ui->tableWidget->item(row, 3) ? ui->tableWidget->item(row, 3)->text().trimmed() : "N/A";
+        const QString adresse = ui->tableWidget->item(row, 4) ? ui->tableWidget->item(row, 4)->text().trimmed() : "N/A";
+
+        const QString suffix = selectedRows.size() > 1 ? ("_" + id) : QString();
+        const QString filePath = QDir(baseDir).filePath(baseName + suffix + ".pdf");
+
+        QPdfWriter writer(filePath);
+        writer.setPageSize(QPageSize(QPageSize::A4));
+        writer.setPageOrientation(QPageLayout::Portrait);
+        writer.setResolution(120);
+
+        QPainter painter(&writer);
+        if (!painter.isActive()) {
+            failedIds << id;
+            continue;
+        }
+
+        const int margin = 60;
+        int y = margin;
+
+        QFont titleFont = painter.font();
+        titleFont.setPointSize(16);
+        titleFont.setBold(true);
+        painter.setFont(titleFont);
+        painter.drawText(margin, y, "Recu de confirmation d'achat");
+
+        QFont normalFont = painter.font();
+        normalFont.setPointSize(10);
+        normalFont.setBold(false);
+        painter.setFont(normalFont);
+        y += 30;
+        painter.drawText(margin, y, "Reference: " + refInput->text().trimmed());
+        y += 20;
+        painter.drawText(margin, y, "Date emission: " + QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm"));
+        y += 28;
+
+        painter.drawText(margin, y, "Fournisseur");
+        y += 18;
+        painter.drawText(margin + 16, y, "ID: " + id);
+        y += 18;
+        painter.drawText(margin + 16, y, "Nom: " + nom);
+        y += 18;
+        painter.drawText(margin + 16, y, "Type matiere: " + type);
+        y += 18;
+        painter.drawText(margin + 16, y, "Telephone: " + telephone);
+        y += 18;
+        painter.drawText(margin + 16, y, "Adresse: " + adresse.left(100));
+        y += 30;
+
+        const int quantite = quantiteInput->value();
+        const double prixUnitaire = prixUnitaireInput->value();
+        const double montantTotal = prixUnitaire * static_cast<double>(quantite);
+
+        painter.drawText(margin, y, "Confirmation achat");
+        y += 18;
+        painter.drawText(margin + 16, y, "Acheteur: " + acheteurInput->text().trimmed());
+        y += 18;
+        painter.drawText(margin + 16, y, "Objet: " + objetInput->text().trimmed());
+        y += 18;
+        painter.drawText(margin + 16, y, "Quantite: " + QString::number(quantite));
+        y += 18;
+        painter.drawText(margin + 16, y, "Prix unitaire: " + QString::number(prixUnitaire, 'f', 3) + " TND");
+        y += 18;
+        painter.drawText(margin + 16, y, "Montant total estime: " + QString::number(montantTotal, 'f', 3) + " TND");
+        y += 18;
+        painter.drawText(margin + 16, y, "Date achat: " + dateAchatInput->date().toString("dd/MM/yyyy"));
+        y += 18;
+        painter.drawText(margin + 16, y, "Date livraison prevue: " + dateLivraisonInput->date().toString("dd/MM/yyyy"));
+        y += 28;
+
+        painter.drawText(margin, y, "Conditions:");
+        y += 18;
+        painter.drawText(QRect(margin + 16, y, writer.width() - (2 * margin + 16), 140), Qt::TextWordWrap, conditionsInput->toPlainText().trimmed());
+        y += 150;
+
+        painter.drawText(margin, y, "Observation:");
+        y += 18;
+        painter.drawText(QRect(margin + 16, y, writer.width() - (2 * margin + 16), 100), Qt::TextWordWrap,
+                         observation.trimmed().isEmpty() ? "Aucune observation." : observation.trimmed());
+
+        painter.end();
+        ++successCount;
+    }
+
+    if (successCount == 0) {
+        QMessageBox::warning(this, "Recu achat", "Aucun recu n'a pu etre genere.");
+        return;
+    }
+
+    QString msg = QString("%1 recu(x) genere(s) avec succes.").arg(successCount);
+    if (!failedIds.isEmpty()) {
+        msg += "\nEchec pour ID: " + failedIds.join(", ");
+    }
+    QMessageBox::information(this, "Recu achat", msg);
 }
 
 bool MainWindow::resoudreStructureFournisseurs()
@@ -1992,6 +2527,7 @@ void MainWindow::on_pushButton_9_clicked()
 
 void MainWindow::on_pushButton_maps_clicked()
 {
+    // Point d'entree UI du module Maps.
     const int row = ui->tableWidget->currentRow();
 
     QString nomSelectionne;
@@ -2059,7 +2595,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
 
     QDialog besoinsDialog(this);
     besoinsDialog.setWindowTitle("Recommandation intelligente");
-    besoinsDialog.resize(420, 250);
+    besoinsDialog.resize(560, 520);
 
     auto *form = new QFormLayout(&besoinsDialog);
     auto *typeInput = new QComboBox(&besoinsDialog);
@@ -2078,14 +2614,18 @@ void MainWindow::on_pushButton_recommandation_clicked()
     auto *profilInput = new QComboBox(&besoinsDialog);
     profilInput->addItems({"Equilibre IA", "Urgent (priorite delai)", "Economique (priorite budget)", "Premium qualite"});
 
+    // Groq est tente par defaut sans configuration visible dans le formulaire.
+    const QString envApiKey = QString::fromUtf8(qgetenv("GROQ_API_KEY")).trimmed();
+    const QString groqModel = QStringLiteral("llama-3.3-70b-versatile");
+
     auto *delaiInput = new QDateEdit(QDate::currentDate().addDays(30), &besoinsDialog);
     delaiInput->setCalendarPopup(true);
     delaiInput->setDisplayFormat("dd/MM/yyyy");
 
-    form->addRow("Type matière", typeInput);
-    form->addRow("Quantité demandée", quantiteInput);
+    form->addRow("Type matiere", typeInput);
+    form->addRow("Quantite demandee", quantiteInput);
     form->addRow("Budget max", budgetInput);
-    form->addRow("Délai max", delaiInput);
+    form->addRow("Delai max", delaiInput);
     form->addRow("Profil IA", profilInput);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &besoinsDialog);
@@ -2102,12 +2642,13 @@ void MainWindow::on_pushButton_recommandation_clicked()
     const double budget = budgetInput->value();
     const QDate dateLimite = delaiInput->date();
     const IAProfileWeights poidsIA = profileIAFromLabel(profilInput->currentText());
+    const QString groqApiKey = envApiKey;
 
     QSqlQuery query;
     if (m_hasAdvancedRecommendationFields) {
         query.prepare(
             QString("SELECT IDFOURNISSEUR, NOM, TYPE_MATIERE, QUALITE, DELAI_LIVRAISON, STATUT, "
-                    "NVL(PRIX_UNITAIRE_ESTIME, 0), NVL(CAPACITE_MAX, 0), NVL(TAUX_FIABILITE, 50) "
+                    "NVL(PRIX_UNITAIRE_ESTIME, 0), NVL(CAPACITE_MAX, 0), NVL(TAUX_FIABILITE, 50), ADRESSE "
                     "FROM %1 "
                     "WHERE UPPER(TYPE_MATIERE) LIKE :type")
                 .arg(m_tableFournisseurs)
@@ -2115,6 +2656,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
     } else {
         query.prepare(
             QString("SELECT IDFOURNISSEUR, NOM, TYPE_MATIERE, QUALITE, DELAI_LIVRAISON, STATUT "
+                    ", ADRESSE "
                     "FROM %1 "
                     "WHERE UPPER(TYPE_MATIERE) LIKE :type")
                 .arg(m_tableFournisseurs)
@@ -2137,6 +2679,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
     }
 
     QVector<RecommendationItem> candidats;
+    int champsAutoRemplis = 0;
     while (query.next()) {
         const QString statut = query.value(5).toString().trimmed().toUpper();
         if (!statut.isEmpty() && !statut.startsWith("ACTIF")) {
@@ -2148,24 +2691,62 @@ void MainWindow::on_pushButton_recommandation_clicked()
         item.nom = query.value(1).toString();
         item.qualite = query.value(3).toString();
         item.delai = query.value(4).toDate();
+        item.adresse = m_hasAdvancedRecommendationFields ? query.value(9).toString().trimmed()
+                                 : query.value(6).toString().trimmed();
         const int qScore = scoreQualite(item.qualite);
 
         double fiabiliteScore = 60.0;
         int capaciteMax = quantite;
+        bool missingPrix = false;
+        bool missingCapacite = false;
+        bool missingFiabilite = false;
         if (m_hasAdvancedRecommendationFields) {
             item.coutUnitaire = query.value(6).toDouble();
             capaciteMax = query.value(7).toInt();
             fiabiliteScore = query.value(8).toDouble();
+
+            missingPrix = item.coutUnitaire <= 0.0;
+            missingCapacite = capaciteMax <= 0;
+            missingFiabilite = fiabiliteScore <= 0.0;
+
+            if (missingCapacite) {
+                capaciteMax = static_cast<int>(std::ceil(static_cast<double>(quantite) * 1.25));
+            }
+            if (missingFiabilite) {
+                fiabiliteScore = 60.0;
+            }
+
             if (capaciteMax > 0 && quantite > capaciteMax) {
                 continue;
             }
-            if (item.coutUnitaire <= 0.0) {
+            if (missingPrix) {
                 item.coutUnitaire = coutUnitaireEstime(typeCible, item.qualite);
+            }
+
+            if (missingPrix || missingCapacite || missingFiabilite) {
+                QSqlQuery update;
+                update.prepare(
+                    QString("UPDATE %1 "
+                            "SET PRIX_UNITAIRE_ESTIME = CASE WHEN NVL(PRIX_UNITAIRE_ESTIME,0) <= 0 THEN :prix ELSE PRIX_UNITAIRE_ESTIME END, "
+                            "CAPACITE_MAX = CASE WHEN NVL(CAPACITE_MAX,0) <= 0 THEN :cap ELSE CAPACITE_MAX END, "
+                            "TAUX_FIABILITE = CASE WHEN NVL(TAUX_FIABILITE,0) <= 0 THEN :fiab ELSE TAUX_FIABILITE END "
+                            "WHERE IDFOURNISSEUR = :id")
+                        .arg(m_tableFournisseurs)
+                    );
+                update.bindValue(":prix", item.coutUnitaire);
+                update.bindValue(":cap", capaciteMax);
+                update.bindValue(":fiab", fiabiliteScore);
+                update.bindValue(":id", item.id);
+                if (update.exec()) {
+                    ++champsAutoRemplis;
+                }
             }
         } else {
             item.coutUnitaire = coutUnitaireEstime(typeCible, item.qualite);
         }
 
+        item.capaciteMax = capaciteMax;
+        item.fiabilite = std::max(0.0, std::min(100.0, fiabiliteScore));
         item.coutTotal = item.coutUnitaire * static_cast<double>(quantite);
 
         const int bScore = scoreBudget(item.coutTotal, budget);
@@ -2191,6 +2772,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
             0.20 * risque;
 
         item.scoreIA = static_cast<int>(std::round(100.0 * borner01(scorePred)));
+        item.sourceIA = "Locale";
         item.explication = explicationIA(item.pOnTime, item.pQuality, item.pBudget, fNorm);
 
         candidats.append(item);
@@ -2199,6 +2781,61 @@ void MainWindow::on_pushButton_recommandation_clicked()
     if (candidats.isEmpty()) {
         QMessageBox::information(this, "Recommandation", "Aucun fournisseur actif ne correspond au type saisi.");
         return;
+    }
+
+    if (champsAutoRemplis > 0) {
+        QMessageBox::information(
+            this,
+            "Recommandation",
+            QString("%1 fournisseur(s) ont eu les champs PRIX/CAPACITE/FIABILITE auto-remplis pour une recommandation plus fiable.")
+                .arg(champsAutoRemplis));
+    }
+
+    // Application du classement Groq; en cas d'echec, le classement local reste actif.
+    GroqRankingResult groqResult;
+    bool classementGroqApplique = false;
+    if (groqApiKey.isEmpty()) {
+        // Fallback silencieux: pas de cle Groq, on conserve simplement le classement local.
+    } else {
+        groqResult = demanderClassementGroq(
+            candidats,
+            groqApiKey,
+            groqModel,
+            typeCible,
+            quantite,
+            budget,
+            dateLimite,
+            poidsIA.label);
+
+        if (!groqResult.success) {
+            QMessageBox::warning(this, "Recommandation IA", "Groq indisponible: " + groqResult.error + "\nLe classement local est conserve.");
+        } else {
+            for (RecommendationItem &item : candidats) {
+                if (groqResult.scoreById.contains(item.id)) {
+                    item.scoreIA = groqResult.scoreById.value(item.id);
+                    item.sourceIA = "Groq";
+                    item.explication = "Groq: " + groqResult.explicationById.value(item.id);
+                }
+            }
+            classementGroqApplique = true;
+
+            if (!groqResult.suggestionsExternes.isEmpty()) {
+                QStringList nomsExternes;
+                for (const SuggestionExterne &s : groqResult.suggestionsExternes) {
+                    nomsExternes << s.nom;
+                }
+                QMessageBox::information(
+                    this,
+                    "Suggestions externes Groq",
+                    "Groq a propose des alternatives hors base: " + nomsExternes.join(", "));
+            }
+        }
+    }
+
+    QString erreurWebSuggestions;
+    const QList<SuggestionExterne> suggestionsWeb = recupererSuggestionsExternesWeb(typeCible, &erreurWebSuggestions);
+    if (!suggestionsWeb.isEmpty()) {
+        fusionnerSuggestionsExternes(groqResult.suggestionsExternes, suggestionsWeb, 8);
     }
 
     std::sort(candidats.begin(), candidats.end(), [](const RecommendationItem &a, const RecommendationItem &b) {
@@ -2215,23 +2852,28 @@ void MainWindow::on_pushButton_recommandation_clicked()
 
     QDialog resultatDialog(this);
     resultatDialog.setWindowTitle("Top 3 fournisseurs recommandes");
-    resultatDialog.resize(780, 340);
+    resultatDialog.resize(1180, 430);
 
     auto *layout = new QVBoxLayout(&resultatDialog);
     auto *subtitle = new QLabel(
-        QString("Besoin: %1 | Quantite: %2 | Budget: %3 TND | Delai: %4 | Profil: %5")
+        QString("Besoin: %1 | Quantite: %2 | Budget: %3 TND | Delai: %4 | Profil: %5 | Moteur: %6")
             .arg(typeCible)
             .arg(quantite)
             .arg(QString::number(budget, 'f', 2))
             .arg(dateLimite.toString("dd/MM/yyyy"))
-            .arg(poidsIA.label),
+            .arg(poidsIA.label)
+            .arg(classementGroqApplique ? "Groq API" : "IA locale"),
         &resultatDialog);
 
-    auto *table = new QTableWidget(topCount, 9, &resultatDialog);
-    table->setHorizontalHeaderLabels({"ID", "Nom", "Score IA", "Confiance", "Score classique", "Qualite", "Delai", "Cout estime", "Explication IA"});
-    table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    auto *table = new QTableWidget(topCount, 13, &resultatDialog);
+    table->setHorizontalHeaderLabels({"ID", "Nom", "Score IA", "Confiance", "Score classique", "Prix unitaire", "Cout total", "Capacite max", "Fiabilite", "Delai", "Localisation", "Source IA", "Explication IA"});
+    table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(10, QHeaderView::Stretch);
+    table->horizontalHeader()->setSectionResizeMode(12, QHeaderView::Stretch);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table->setSelectionMode(QAbstractItemView::NoSelection);
+    table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table->setSelectionMode(QAbstractItemView::SingleSelection);
 
     for (int i = 0; i < topCount; ++i) {
         const RecommendationItem &r = candidats.at(i);
@@ -2242,19 +2884,132 @@ void MainWindow::on_pushButton_recommandation_clicked()
         const int confiance = static_cast<int>(std::round(100.0 * (r.pOnTime + r.pQuality + r.pBudget) / 3.0));
         table->setItem(i, 3, new QTableWidgetItem(QString::number(confiance) + "%"));
         table->setItem(i, 4, new QTableWidgetItem(QString::number(r.scoreClassique)));
-        table->setItem(i, 5, new QTableWidgetItem(r.qualite));
-        table->setItem(i, 6, new QTableWidgetItem(r.delai.isValid() ? r.delai.toString("dd/MM/yyyy") : "N/A"));
-        table->setItem(i, 7, new QTableWidgetItem(QString::number(r.coutTotal, 'f', 2) + " TND"));
-        table->setItem(i, 8, new QTableWidgetItem(r.explication));
+        table->setItem(i, 5, new QTableWidgetItem(QString::number(r.coutUnitaire, 'f', 2) + " TND"));
+        table->setItem(i, 6, new QTableWidgetItem(QString::number(r.coutTotal, 'f', 2) + " TND"));
+        table->setItem(i, 7, new QTableWidgetItem(r.capaciteMax > 0 ? QString::number(r.capaciteMax) : "N/A"));
+        table->setItem(i, 8, new QTableWidgetItem(QString::number(r.fiabilite, 'f', 1) + "%"));
+        table->setItem(i, 9, new QTableWidgetItem(r.delai.isValid() ? r.delai.toString("dd/MM/yyyy") : "N/A"));
+        table->setItem(i, 10, new QTableWidgetItem(r.adresse.isEmpty() ? "N/A" : r.adresse));
+        table->setItem(i, 11, new QTableWidgetItem(r.sourceIA));
+        table->setItem(i, 12, new QTableWidgetItem(r.explication));
     }
 
     layout->addWidget(subtitle);
     layout->addWidget(table);
 
+    QTableWidget *tableExternes = new QTableWidget(&resultatDialog);
+    tableExternes->setColumnCount(5);
+    tableExternes->setHorizontalHeaderLabels({"Nom", "Specialite", "Localisation", "Contact", "Pourquoi"});
+    tableExternes->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    tableExternes->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+    tableExternes->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    tableExternes->setSelectionBehavior(QAbstractItemView::SelectRows);
+    tableExternes->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    if (!groqResult.suggestionsExternes.isEmpty()) {
+        tableExternes->setRowCount(groqResult.suggestionsExternes.size());
+        for (int i = 0; i < groqResult.suggestionsExternes.size(); ++i) {
+            const SuggestionExterne &s = groqResult.suggestionsExternes.at(i);
+            tableExternes->setItem(i, 0, new QTableWidgetItem(s.nom));
+            tableExternes->setItem(i, 1, new QTableWidgetItem(s.specialite));
+            tableExternes->setItem(i, 2, new QTableWidgetItem(s.pays.isEmpty() ? "N/A" : s.pays));
+            tableExternes->setItem(i, 3, new QTableWidgetItem(s.contact.isEmpty() ? "N/A" : s.contact));
+            tableExternes->setItem(i, 4, new QTableWidgetItem(s.pourquoi));
+        }
+    } else {
+        tableExternes->setRowCount(1);
+        tableExternes->setItem(0, 0, new QTableWidgetItem("Aucune suggestion web"));
+        tableExternes->setItem(0, 1, new QTableWidgetItem(typeCible));
+        tableExternes->setItem(0, 2, new QTableWidgetItem("N/A"));
+        tableExternes->setItem(0, 3, new QTableWidgetItem("N/A"));
+        tableExternes->setItem(0, 4, new QTableWidgetItem(erreurWebSuggestions.isEmpty() ? "Aucune correspondance retournee par le web." : erreurWebSuggestions));
+    }
+
+    auto *tabs = new QTabWidget(&resultatDialog);
+    tabs->addTab(table, "Fournisseurs internes");
+    tabs->addTab(tableExternes, "Suggestions externes");
+
+    layout->addWidget(tabs);
+
     auto *buttonRow = new QHBoxLayout();
+    auto *mapBtn = new QPushButton("Voir localisation", &resultatDialog);
+    mapBtn->setToolTip("Afficher la carte du fournisseur selectionne (interne ou externe)");
     auto *signBtn = new QPushButton("Signer la recommandation", &resultatDialog);
     signBtn->setToolTip("Valider le choix avec une signature manuscrite");
     auto *closeBtn = new QPushButton("Fermer", &resultatDialog);
+    connect(mapBtn, &QPushButton::clicked, &resultatDialog, [this, &resultatDialog, tabs, table, tableExternes, candidats]() {
+        if (tabs->currentIndex() == 0) {
+            if (candidats.isEmpty()) {
+                QMessageBox::information(&resultatDialog, "Localisation", "Aucune recommandation interne disponible.");
+                return;
+            }
+
+            int row = table->currentRow();
+            if (row < 0) {
+                row = 0;
+            }
+            if (row >= candidats.size()) {
+                QMessageBox::warning(&resultatDialog, "Localisation", "Ligne invalide.");
+                return;
+            }
+
+            const RecommendationItem &item = candidats.at(row);
+            const QString recherche = construireRechercheMaps(item.nom, item.adresse);
+            if (item.adresse.trimmed().isEmpty()) {
+                QMessageBox::information(&resultatDialog, "Localisation", "Adresse indisponible pour ce fournisseur.");
+                return;
+            }
+            afficherCartePopupOpenStreetMap(&resultatDialog, item.nom, recherche);
+            return;
+        }
+
+        if (tableExternes->rowCount() <= 0) {
+            QMessageBox::information(&resultatDialog, "Localisation", "Aucune suggestion externe disponible.");
+            return;
+        }
+
+        int row = tableExternes->currentRow();
+        if (row < 0) {
+            row = 0;
+        }
+
+        QTableWidgetItem *nomItem = tableExternes->item(row, 0);
+        QTableWidgetItem *locItem = tableExternes->item(row, 2);
+        QTableWidgetItem *contactItem = tableExternes->item(row, 3);
+        if (!nomItem) {
+            QMessageBox::warning(&resultatDialog, "Localisation", "Ligne externe invalide.");
+            return;
+        }
+
+        const QString nom = nomItem->text().trimmed();
+        const QString localisation = locItem ? locItem->text().trimmed() : QString();
+        const QString contact = contactItem ? contactItem->text().trimmed() : QString();
+        if (nom.isEmpty() || nom == "Aucune suggestion web") {
+            QMessageBox::information(&resultatDialog, "Localisation", "Aucun fournisseur externe localisable.");
+            return;
+        }
+
+        QString recherche = localisation.isEmpty() || localisation == "N/A" || localisation.compare("International", Qt::CaseInsensitive) == 0
+                ? (nom + " headquarters")
+                : (nom + ", " + localisation);
+
+        if (!contact.isEmpty() && contact != "N/A") {
+            const QUrl contactUrl(contact);
+            const QString host = contactUrl.host();
+            if (!host.isEmpty()) {
+                const QStringList parts = host.split('.');
+                if (!parts.isEmpty()) {
+                    const QString marque = parts.first();
+                    if (!marque.isEmpty()) {
+                        recherche = nom + " " + marque + " headquarters";
+                    }
+                }
+            }
+        }
+
+        afficherCartePopupOpenStreetMap(&resultatDialog, nom, recherche);
+    });
+
     connect(signBtn, &QPushButton::clicked, &resultatDialog, [this, &resultatDialog, candidats, topCount, typeCible, quantite, budget, dateLimite, poidsIA]() {
         if (candidats.isEmpty()) {
             QMessageBox::information(&resultatDialog, "Signature", "Aucune recommandation disponible à signer.");
@@ -2301,6 +3056,7 @@ void MainWindow::on_pushButton_recommandation_clicked()
     });
 
     connect(closeBtn, &QPushButton::clicked, &resultatDialog, &QDialog::accept);
+    buttonRow->addWidget(mapBtn);
     buttonRow->addWidget(signBtn);
     buttonRow->addStretch();
     buttonRow->addWidget(closeBtn);
