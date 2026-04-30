@@ -27,6 +27,7 @@ private slots:
     void on_pushButton_9_clicked(); // Statistiques
     void on_pushButton_10_clicked(); // Recherche
     void on_comboBox_tri_currentIndexChanged(int index); // Tri
+    void on_chatButton_clicked();
 
     // Navigation dynamique
     void navToEmploye();
@@ -42,6 +43,7 @@ private:
     int m_idEmployeConnecte;
     
     void setupNavigationMenu();
+    QString displayNameEmployeConnecte() const;
 };
 
 #endif // PRODUITSWINDOW_H

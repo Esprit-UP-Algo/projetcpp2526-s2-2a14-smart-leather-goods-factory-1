@@ -32,6 +32,7 @@ private slots:
     void on_pushButton_7_clicked();
     void on_pushButton_9_clicked();
     void filterTable();
+    void on_chatButton_clicked();
     void setupFournisseursTable();
     void loadFournisseurs();
 
@@ -48,6 +49,7 @@ private:
                                   const QString &qualite, const QString &statut);
     void updateRowColors(int row);
     void setupSearch();
+    QString displayNameEmployeConnecte() const;
 };
 
 #endif // FOURNISSEURS_H

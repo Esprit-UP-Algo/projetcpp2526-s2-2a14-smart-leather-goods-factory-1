@@ -2,7 +2,7 @@ import cv2
 import os
 import sys
 
-save_dir = "C:/Users/AZERTY/Desktop/qt/database_faces"
+save_dir = "C:/Users/AZERTY/Desktop/qt final/projet_qt/database_faces"
 
 def capture_face(cin_value):
     os.makedirs(save_dir, exist_ok=True)

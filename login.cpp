@@ -57,30 +57,30 @@ void login::redirigerSelonRole(int idEmp)
     }
 
     QString nom = query.value(0).toString().trimmed();
-    QString role = query.value(1).toString().trimmed();
+    QString role = query.value(1).toString().trimmed().toUpper();
 
     qDebug() << "ROLE FROM DB =" << role;
 
     QWidget *fenetre = nullptr;
 
-    if (role == "Produits") {
-        fenetre = new produitswindow(idEmp);
-    }
-    else if (role == "Fournisseurs") {
-        fenetre = new fournisseurs(idEmp);
-    }
-    else if (role == "Machines") {
-        fenetre = new pagemachine(idEmp);
-    }
-    else if (role == "Commandes") {
-        fenetre = new commandes(idEmp);
-    }
-    else if (role == "Matieres") {
-        fenetre = new Matieres(idEmp);
-    }
-    else if (role == "Employe") {
-        fenetre = new pageemployee(idEmp);
-    }
+    if (role == "PRODUITS") {
+    fenetre = new produitswindow(idEmp);
+}
+else if (role == "FOURNISSEURS") {
+    fenetre = new fournisseurs(idEmp);
+}
+else if (role == "MACHINES") {
+    fenetre = new pagemachine(idEmp);
+}
+else if (role == "COMMANDES") {
+    fenetre = new commandes(idEmp);
+}
+else if (role == "MATIERES") {
+    fenetre = new Matieres(idEmp);
+}
+else if (role == "EMPLOYE") {
+    fenetre = new pageemployee(idEmp);
+}
     else {
         QMessageBox::warning(this, "Rôle inconnu",
                              "Role non reconnu: " + role);
@@ -249,11 +249,47 @@ login::login(QWidget *parent)
         qDebug() << "Erreur lecture table =" << test.lastError().text();
     }
 
-    loadingDialog = new QProgressDialog("Reconnaissance faciale en cours...", "", 0, 0, this);
+    loadingDialog = new QProgressDialog(this);
+
     loadingDialog->setWindowTitle("Face ID");
+    loadingDialog->setLabelText("Reconnaissance faciale en cours...\nVeuillez patienter.");
     loadingDialog->setCancelButton(nullptr);
+
+    loadingDialog->setMinimum(0);
+    loadingDialog->setMaximum(0);
     loadingDialog->setMinimumDuration(0);
-    loadingDialog->close();
+
+    loadingDialog->setFixedSize(430, 160);
+
+    loadingDialog->setStyleSheet(
+        "QProgressDialog {"
+        "  background-color: #f7efe7;"
+        "  color: #2c1f15;"
+        "  border: 2px solid #b5835a;"
+        "  border-radius: 16px;"
+        "  font-family: Segoe UI;"
+        "  font-size: 14px;"
+        "}"
+        "QProgressDialog QLabel {"
+        "  color: #2c1f15;"
+        "  font-size: 15px;"
+        "  font-weight: bold;"
+        "  padding: 10px;"
+        "}"
+        "QProgressBar {"
+        "  background-color: #efe4d8;"
+        "  border: 1px solid #c9b2a2;"
+        "  border-radius: 10px;"
+        "  height: 18px;"
+        "  text-align: center;"
+        "}"
+        "QProgressBar::chunk {"
+        "  background-color: #7a4a2e;"
+        "  border-radius: 10px;"
+        "}"
+        );
+
+    loadingDialog->hide();
 
 
 }
@@ -679,12 +715,12 @@ void login::on_btnSignup_clicked()
     QComboBox *statusCombo = new QComboBox();
     statusCombo->addItems({
         "Actif",
-        "En congé",
+        "En conge",
         "Suspendu",
         "En formation",
         "Maladie",
         "Mission",
-        "Démissionné"
+        "Demissionne"
     });
 
     QDoubleSpinBox *salaireSpin = new QDoubleSpinBox();

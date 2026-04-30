@@ -11,6 +11,7 @@
 #include <QSqlQuery>
 #include <QTableWidgetItem>
 #include <QFileDialog>
+#include "pagechat.h"
 #include <QDateTime>
 #include <QDialog>
 #include <QVBoxLayout>
@@ -176,7 +177,7 @@ Matieres::Matieres(int idEmploye, QWidget *parent)
         "}";
 
     QWidget *sidebar = new QWidget(this);
-    sidebar->setGeometry(0, 0, 240, 900); 
+    sidebar->setGeometry(0, 0, 240, 750); 
     sidebar->setStyleSheet("background-color: #3a1f14;");
 
     // Smart Leather Logo on Sidebar
@@ -191,28 +192,38 @@ Matieres::Matieres(int idEmploye, QWidget *parent)
     navLayout->setContentsMargins(0, 160, 0, 20);
     navLayout->setSpacing(5);
 
-    auto addNavBtn = [&](const QString &txt, const char* slot, bool active = false) {
+    auto addNavBtn = [&](const QString &txt, const std::function<void()> &handler, bool active = false) {
         QPushButton *btn = new QPushButton("  " + txt);
         btn->setMinimumHeight(45);
         if (active) {
             btn->setStyleSheet(navBtnStyle + "QPushButton { background-color: rgba(255,255,255,0.1); color:white; border-left:4px solid #c9a87c; }");
         } else {
             btn->setStyleSheet(navBtnStyle);
-            connect(btn, SIGNAL(clicked()), this, slot);
+            if (handler) connect(btn, &QPushButton::clicked, this, handler);
         }
         navLayout->addWidget(btn);
         return btn;
     };
 
-    addNavBtn("Employés", SLOT(on_pushButton_6_clicked()));
-    addNavBtn("Produits", SLOT(on_pushButton_21_clicked()));
-    addNavBtn("Commandes", SLOT(on_pushButton_20_clicked()));
-    addNavBtn("Fournisseurs", SLOT(on_pushButton_22_clicked()));
+    addNavBtn("Employés", [this]() { on_pushButton_6_clicked(); });
+    addNavBtn("Produits", [this]() { on_pushButton_21_clicked(); });
+    addNavBtn("Commandes", [this]() { on_pushButton_20_clicked(); });
+    addNavBtn("Fournisseurs", [this]() { on_pushButton_22_clicked(); });
     addNavBtn("Matières", nullptr, true);
-    addNavBtn("Machines", SLOT(on_pushButton_23_clicked()));
+    addNavBtn("Machines", [this]() { on_pushButton_23_clicked(); });
 
-    navLayout->addStretch();
-    addNavBtn("Déconnexion", SLOT(on_pushButton_5_clicked()));
+    navLayout->addSpacing(30); 
+    
+    // Professional Separator
+    QFrame *lineSide = new QFrame();
+    lineSide->setFrameShape(QFrame::HLine);
+    lineSide->setStyleSheet("background-color: rgba(255,255,255,0.1); max-height: 1px; margin: 10px 20px;");
+    navLayout->addWidget(lineSide);
+
+    QPushButton *logoutBtnSide = addNavBtn("Déconnexion", [this]() { on_pushButton_5_clicked(); });
+    logoutBtnSide->setStyleSheet(navBtnStyle + 
+        "QPushButton:hover { background-color: rgba(220, 53, 69, 0.2); color: #ff9999; border-left: 4px solid #cc3333; }"
+    );
     
     sidebar->raise();
     sidebar->show();
@@ -237,6 +248,17 @@ Matieres::Matieres(int idEmploye, QWidget *parent)
     loadMatieres();
     setupSearch();
 
+    // ChatBox Button setup
+    QPushButton *chatBtn = new QPushButton("ChatBox", this);
+    chatBtn->setGeometry(820, 20, 120, 40);
+    chatBtn->setStyleSheet(
+        "QPushButton {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7a4a2e, stop:1 #5b2f1d);"
+        "  color: white; border-radius: 12px; font-weight: bold; border: 2px solid #3a1f14;"
+        "}"
+        "QPushButton:hover { background-color: #8b5a3a; }"
+    );
+    connect(chatBtn, &QPushButton::clicked, this, &Matieres::on_chatButton_clicked);
 }
 
 Matieres::~Matieres() { delete ui; }
@@ -643,4 +665,22 @@ void Matieres::on_pushButton_22_clicked() { if (denyIfRoleMismatch(this, m_idEmp
 void Matieres::on_pushButton_23_clicked() { if (denyIfRoleMismatch(this, m_idEmploye, "Machines")) return; auto *ss = new pagemachine(m_idEmploye, nullptr); ss->show(); this->close(); this->deleteLater(); }
 void Matieres::on_pushButton_5_clicked() { hide(); login *l = new login(); l->show(); }
 void Matieres::on_pushButton_11_clicked() { on_pushButton_6_clicked(); }
+
+void Matieres::on_chatButton_clicked()
+{
+    pagechat *chat = new pagechat(m_idEmploye, displayNameEmployeConnecte(), this, nullptr);
+    chat->show();
+    this->hide();
+}
+
+QString Matieres::displayNameEmployeConnecte() const
+{
+    QSqlQuery q;
+    q.prepare("SELECT NOM, PRENOM FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", m_idEmploye);
+    if (q.exec() && q.next()) {
+        return q.value("PRENOM").toString() + " " + q.value("NOM").toString();
+    }
+    return "Utilisateur";
+}
 

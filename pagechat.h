@@ -19,7 +19,7 @@ class pagechat : public QWidget
 public:
     explicit pagechat(int idEmployeConnecte,
                       const QString &displayName,
-                      pageemployee *pageEmp = nullptr,
+                      QWidget *parentPage = nullptr,
                       QWidget *parent = nullptr);
     ~pagechat();
 
@@ -45,7 +45,7 @@ private:
     int m_idEmploye;
     QString m_displayName;
     QTimer *m_timer;
-    pageemployee *m_pageEmployee;
+    QWidget *m_parentPage;
     QNetworkAccessManager *m_network;
 
     QString m_appId = "3ACA12C5-32A0-40FD-A225-F22BD8E8EF2E";

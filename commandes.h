@@ -39,6 +39,7 @@ private slots:
 
     void on_lineEdit_5_textChanged(const QString &text);
     void on_lineEdit_6_textChanged(const QString &text);
+    void on_chatButton_clicked();
 
 private:
     Ui::commandes *ui;
@@ -54,6 +55,7 @@ private:
     bool validateData(const QString &id, const QString &client, const QString &address,
                       const QString &montant);
     void setupSearch();
+    QString displayNameEmployeConnecte() const;
 };
 
 #endif // COMMANDES_H

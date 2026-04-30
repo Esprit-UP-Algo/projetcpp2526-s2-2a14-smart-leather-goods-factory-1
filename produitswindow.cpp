@@ -19,6 +19,7 @@
 #include <QComboBox>
 #include <QDateTimeEdit>
 #include <QPushButton>
+#include "pagechat.h"
 #include <QFileDialog>
 #include <QPrinter>
 #include <QTextDocument>
@@ -323,6 +324,17 @@ produitswindow::produitswindow(int idEmployeConnecte, QWidget *parent)
         "    color: #f5efe8; padding: 10px; border: none; font-weight: bold; font-size: 11px; letter-spacing: 1px;"
         "}"
     );
+    // ChatBox Button setup
+    QPushButton *chatBtn = new QPushButton("ChatBox", this);
+    chatBtn->setGeometry(820, 20, 120, 40);
+    chatBtn->setStyleSheet(
+        "QPushButton {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7a4a2e, stop:1 #5b2f1d);"
+        "  color: white; border-radius: 12px; font-weight: bold; border: 2px solid #3a1f14;"
+        "}"
+        "QPushButton:hover { background-color: #8b5a3a; }"
+    );
+    connect(chatBtn, &QPushButton::clicked, this, &produitswindow::on_chatButton_clicked);
 }
 
 produitswindow::~produitswindow()
@@ -945,12 +957,20 @@ void produitswindow::setupNavigationMenu() {
     connect(btnMach, &QPushButton::clicked, this, &produitswindow::navToMachines);
     navLayout->addWidget(btnMach);
 
-    navLayout->addStretch();
+    navLayout->addSpacing(30);
+
+    // Professional Separator
+    QFrame *line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setStyleSheet("background-color: rgba(255,255,255,0.1); max-height: 1px; margin: 10px 20px;");
+    navLayout->addWidget(line);
 
     // Bouton Déconnexion
     QPushButton *btnLogout = new QPushButton("  Déconnexion");
     btnLogout->setMinimumHeight(45);
-    btnLogout->setStyleSheet(navBtnStyle);
+    btnLogout->setStyleSheet(navBtnStyle + 
+        "QPushButton:hover { background-color: rgba(220, 53, 69, 0.2); color: #ff9999; border-left: 4px solid #cc3333; }"
+    );
     connect(btnLogout, &QPushButton::clicked, this, &produitswindow::navToLogout);
     navLayout->addWidget(btnLogout);
 
@@ -1002,4 +1022,21 @@ void produitswindow::navToLogout() {
     l->show();
     this->close();
     this->deleteLater();
+}
+void produitswindow::on_chatButton_clicked()
+{
+    pagechat *chat = new pagechat(m_idEmployeConnecte, displayNameEmployeConnecte(), this, nullptr);
+    chat->show();
+    this->hide();
+}
+
+QString produitswindow::displayNameEmployeConnecte() const
+{
+    QSqlQuery q;
+    q.prepare("SELECT NOM, PRENOM FROM SMARTLEATHER.EMPLOYE WHERE ID_EMPLOYE = :id");
+    q.bindValue(":id", m_idEmployeConnecte);
+    if (q.exec() && q.next()) {
+        return q.value("PRENOM").toString() + " " + q.value("NOM").toString();
+    }
+    return "Utilisateur";
 }

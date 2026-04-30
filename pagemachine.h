@@ -30,6 +30,7 @@ private slots:
     void on_pushButton_7_clicked();
     void on_pushButton_9_clicked();
     void filterTable();
+    void on_chatButton_clicked();
     void setupMachinesTable();
     void loadMachines();
 
@@ -49,6 +50,7 @@ private:
 
     void updateRowColors(int row);
     void setupSearch();
+    QString displayNameEmployeConnecte() const;
 };
 
 #endif // PAGEMACHINE_H

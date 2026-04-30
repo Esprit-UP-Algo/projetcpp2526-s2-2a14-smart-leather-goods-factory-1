@@ -42,11 +42,8 @@ private slots:
     void on_pushButton_8_clicked();   // Logout
     void on_btnSaveFacePhoto_clicked();
     // arduino
-    void onArduinoReadyRead();
-    void verifierBadgeRFID(const QString &uid);
 private:
     Ui::pageemployee *ui;
-    Arduino arduino;
     int m_idEmployeConnecte;
 
     void setupTable();

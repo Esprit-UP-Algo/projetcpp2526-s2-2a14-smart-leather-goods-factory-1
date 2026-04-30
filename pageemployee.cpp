@@ -80,7 +80,7 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
         "}";
 
     QWidget *sidebar = new QWidget(this);
-    sidebar->setGeometry(0, 0, 240, 900);
+    sidebar->setGeometry(0, 0, 240, 750);
     sidebar->setStyleSheet("background-color: #3a1f14;");
 
     QLabel *logoLab = new QLabel(sidebar);
@@ -116,23 +116,23 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     addNavBtn("Matières", [this]() { on_pushButton_22_clicked(); });
     addNavBtn("Machines", [this]() { on_pushButton_23_clicked(); });
 
-    navLayout->addStretch();
-    addNavBtn("Déconnexion", [this]() { on_pushButton_8_clicked(); });
+    navLayout->addSpacing(30);
+    
+    // Professional Separator
+    QFrame *line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setStyleSheet("background-color: rgba(255,255,255,0.1); max-height: 1px; margin: 10px 20px;");
+    navLayout->addWidget(line);
+
+    QPushButton *logoutBtnSide = addNavBtn("Déconnexion", [this]() { on_pushButton_8_clicked(); });
+    logoutBtnSide->setStyleSheet(navBtnStyle + 
+        "QPushButton:hover { background-color: rgba(220, 53, 69, 0.2); color: #ff9999; border-left: 4px solid #cc3333; }"
+    );
 
     sidebar->raise();
     sidebar->show();
 
     // 🔥 Connexion Arduino
-    if (arduino.connectArduino("COM3")) {  // change COM3 selon ton PC
-        connect(arduino.getSerial(), &QSerialPort::readyRead,
-                this, &pageemployee::onArduinoReadyRead);
-
-        qDebug() << "Connexion Arduino OK";
-        arduino.sendMessage("PING\n");
-    } else {
-        qDebug() << "Connexion Arduino echouee";
-    }
-    qDebug() << "pageemployee opened, idEmployeConnecte =" << m_idEmployeConnecte;
 
     setupTable();
     loadEmployeesTable();
@@ -140,6 +140,8 @@ pageemployee::pageemployee(int idEmployeConnecte, QWidget *parent)
     qDebug() << ">>> apres verifierBadgeRFID";
     connect(ui->searchIdEdit,  &QLineEdit::textChanged, this, &pageemployee::applyFilter);
     connect(ui->searchNomEdit, &QLineEdit::textChanged, this, &pageemployee::applyFilter);
+
+    connect(logoutBtnSide, &QPushButton::clicked, this, &pageemployee::on_pushButton_8_clicked);
 }
 
 pageemployee::~pageemployee()
@@ -254,7 +256,7 @@ void pageemployee::on_btnSaveFacePhoto_clicked()
 void pageemployee::setupTable()
 {
     // On garde ID_EMPLOYE en colonne 0 (cachée)
-    ui->tableWidget->setColumnCount(10);
+    ui->tableWidget->setColumnCount(11);
     ui->tableWidget->setHorizontalHeaderLabels({
         "ID",
         "Nom",
@@ -265,7 +267,8 @@ void pageemployee::setupTable()
         "Niveau",
         "Status",
         "Salaire",
-        "Email"
+        "Email",
+        "RFID UID"
     });
 
     ui->tableWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -303,7 +306,7 @@ void pageemployee::loadEmployeesTable(const QString &whereClause, const QVariant
     ui->tableWidget->setRowCount(0);
 
     QString sql =
-        "SELECT ID_EMPLOYE, NOM, PRENOM, CIN, DATE_NAISSANCE, POSTE, NIVEAU, STATUS, SALAIRE, EMAIL "
+        "SELECT ID_EMPLOYE, NOM, PRENOM, CIN, DATE_NAISSANCE, POSTE, NIVEAU, STATUS, SALAIRE, EMAIL, RFID_UID "
         "FROM SMARTLEATHER.EMPLOYE";
 
     if (!whereClause.trimmed().isEmpty())
@@ -348,6 +351,7 @@ void pageemployee::loadEmployeesTable(const QString &whereClause, const QVariant
         ui->tableWidget->setItem(r, 7, new QTableWidgetItem(q.value(7).toString())); // STATUS
         ui->tableWidget->setItem(r, 8, new QTableWidgetItem(QString::number(q.value(8).toDouble(), 'f', 2))); // SALAIRE
         ui->tableWidget->setItem(r, 9, new QTableWidgetItem(q.value(9).toString())); // EMAIL
+        ui->tableWidget->setItem(r, 10, new QTableWidgetItem(q.value(10).toString())); // RFID_UID
 
         r++;
     }
@@ -402,6 +406,26 @@ void pageemployee::on_actualiser_clicked()
     loadEmployeesTable();
 }
 
+static bool passwordValide(const QString &password)
+{
+    if (password.length() < 8)
+        return false;
+
+    bool hasUpper = false;
+    bool hasLower = false;
+    bool hasDigit = false;
+    bool hasSpecial = false;
+
+    for (QChar c : password) {
+        if (c.isUpper()) hasUpper = true;
+        else if (c.isLower()) hasLower = true;
+        else if (c.isDigit()) hasDigit = true;
+        else if (!c.isSpace()) hasSpecial = true;
+    }
+
+    return hasUpper && hasLower && hasDigit && hasSpecial;
+}
+
 /* =========================
    Ajouter
 ========================= */
@@ -409,7 +433,7 @@ void pageemployee::on_pushButton_clicked()
 {
     QDialog dlg(this);
     dlg.setWindowTitle("Ajouter un employé");
-    dlg.setFixedSize(520, 560);
+    dlg.setFixedSize(550, 720);
 
     QVBoxLayout *main = new QVBoxLayout(&dlg);
 
@@ -426,27 +450,26 @@ void pageemployee::on_pushButton_clicked()
     // ===== ComboBox au lieu de QLineEdit =====
     QComboBox *posteCombo = new QComboBox();
     posteCombo->addItems({
-        "Produits",
-        "Fournisseurs",
-        "Machines",
-        "Commandes",
-        "Matieres",
-        "Employe"
+        "PRODUITS",
+        "FOURNISSEURS",
+        "MACHINES",
+        "COMMANDES",
+        "MATIERES",
+        "EMPLOYE"
     });
-
 
     QComboBox *niveauCombo = new QComboBox();
     niveauCombo->addItems({"BAC", "LICENCE", "MASTER"});
 
     QComboBox *statusCombo = new QComboBox();
     statusCombo->addItems({
-        "Actif",
-        "En congé",
-        "Suspendu",
-        "En formation",
-        "Maladie",
-        "Mission",
-        "Démissionné"
+        "ACTIF",
+        "EN CONGE",
+        "SUSPENDU",
+        "EN FORMATION",
+        "MALADIE",
+        "MISSION",
+        "DEMISSIONNE"
     });
 
     // ===== Salaire en spinbox =====
@@ -458,6 +481,24 @@ void pageemployee::on_pushButton_clicked()
 
     QLineEdit *emailEdit = new QLineEdit();
 
+    QLineEdit *passwordEdit = new QLineEdit();
+    passwordEdit->setEchoMode(QLineEdit::Password);
+    passwordEdit->setPlaceholderText("Mot de passe (8 car, min, maj, num, spec)");
+
+    QLineEdit *rfidEdit = new QLineEdit();
+    rfidEdit->setPlaceholderText("Scannez le badge ou saisissez l'UID");
+
+    connect(passwordEdit, &QLineEdit::textChanged, [&]() {
+        QString mdp = passwordEdit->text();
+        if (mdp.isEmpty()) {
+            passwordEdit->setStyleSheet("");
+        } else if (passwordValide(mdp)) {
+            passwordEdit->setStyleSheet("border:2px solid green;");
+        } else {
+            passwordEdit->setStyleSheet("border:2px solid red;");
+        }
+    });
+
     main->addWidget(new QLabel("Nom:"));             main->addWidget(nomEdit);
     main->addWidget(new QLabel("Prénom:"));          main->addWidget(prenomEdit);
     main->addWidget(new QLabel("CIN:"));             main->addWidget(cinEdit);
@@ -467,6 +508,8 @@ void pageemployee::on_pushButton_clicked()
     main->addWidget(new QLabel("Status:"));          main->addWidget(statusCombo);
     main->addWidget(new QLabel("Salaire:"));         main->addWidget(salaireSpin);
     main->addWidget(new QLabel("Email:"));           main->addWidget(emailEdit);
+    main->addWidget(new QLabel("Mot de passe:"));    main->addWidget(passwordEdit);
+    main->addWidget(new QLabel("RFID UID:"));        main->addWidget(rfidEdit);
 
     QHBoxLayout *btns = new QHBoxLayout();
     QPushButton *save = new QPushButton("Enregistrer");
@@ -485,9 +528,11 @@ void pageemployee::on_pushButton_clicked()
         QString niveau = niveauCombo->currentText().trimmed();
         QString status = statusCombo->currentText().trimmed();
         QString email = emailEdit->text().trimmed();
+        QString password = passwordEdit->text();
+        QString rfid = rfidEdit->text().trimmed();
         double sal = salaireSpin->value();
 
-        if (nom.isEmpty() || prenom.isEmpty() || cin.isEmpty() || email.isEmpty()) {
+        if (nom.isEmpty() || prenom.isEmpty() || cin.isEmpty() || email.isEmpty() || password.isEmpty()) {
             QMessageBox::warning(&dlg, "Validation", "Nom, Prénom, CIN et Email sont obligatoires.");
             return;
         }
@@ -502,6 +547,11 @@ void pageemployee::on_pushButton_clicked()
                 QMessageBox::warning(&dlg, "Validation", "Le CIN doit contenir uniquement des chiffres.");
                 return;
             }
+        }
+
+        if (!passwordValide(password)) {
+            QMessageBox::warning(&dlg, "Validation", "Le mot de passe doit contenir au moins 8 caractères (majuscule, minuscule, chiffre, spécial).");
+            return;
         }
 
         if (!email.contains('@') || !email.contains('.')) {
@@ -534,8 +584,8 @@ void pageemployee::on_pushButton_clicked()
         QSqlQuery q;
         q.prepare(
             "INSERT INTO SMARTLEATHER.EMPLOYE "
-            "(NOM, PRENOM, CIN, DATE_NAISSANCE, POSTE, NIVEAU, STATUS, SALAIRE, EMAIL) "
-            "VALUES (:nom, :prenom, :cin, :dn, :poste, :niveau, :status, :sal, :email)"
+            "(NOM, PRENOM, CIN, DATE_NAISSANCE, POSTE, NIVEAU, STATUS, SALAIRE, EMAIL, PASSWORD, RFID_UID) "
+            "VALUES (:nom, :prenom, :cin, :dn, :poste, :niveau, :status, :sal, :email, :password, :rfid)"
             );
         q.bindValue(":nom", nom);
         q.bindValue(":prenom", prenom);
@@ -546,6 +596,8 @@ void pageemployee::on_pushButton_clicked()
         q.bindValue(":status", status);
         q.bindValue(":sal", sal);
         q.bindValue(":email", email);
+        q.bindValue(":password", password);
+        q.bindValue(":rfid", rfid);
 
         if (!q.exec()) {
             QMessageBox::critical(&dlg, "DB Insert", q.lastError().text());
@@ -587,10 +639,11 @@ void pageemployee::on_pushButton_2_clicked()
     QString status = ui->tableWidget->item(row, 7) ? ui->tableWidget->item(row, 7)->text().trimmed() : "";
     double salaire = ui->tableWidget->item(row, 8) ? ui->tableWidget->item(row, 8)->text().replace("DT","").trimmed().toDouble() : 0.0;
     QString email  = ui->tableWidget->item(row, 9) ? ui->tableWidget->item(row, 9)->text() : "";
+    QString rfid   = ui->tableWidget->item(row, 10) ? ui->tableWidget->item(row, 10)->text() : "";
 
     QDialog dlg(this);
     dlg.setWindowTitle("Modifier employé");
-    dlg.setFixedSize(520, 580);
+    dlg.setFixedSize(550, 720);
 
     QVBoxLayout *main = new QVBoxLayout(&dlg);
 
@@ -606,12 +659,12 @@ void pageemployee::on_pushButton_2_clicked()
     // ===== ComboBox =====
     QComboBox *posteCombo = new QComboBox();
     posteCombo->addItems({
-        "Produits",
-        "Fournisseurs",
-        "Machines",
-        "Commandes",
-        "Matieres",
-        "Employe"
+        "EMPLOYE",
+    "PRODUITS",
+    "FOURNISSEURS",
+    "COMMANDES",
+    "MATIERES",
+    "MACHINES"
     });
 
     QComboBox *niveauCombo = new QComboBox();
@@ -619,21 +672,23 @@ void pageemployee::on_pushButton_2_clicked()
 
     QComboBox *statusCombo = new QComboBox();
     statusCombo->addItems({
-        "Actif",
-        "En congé",
-        "Suspendu",
-        "En formation",
-        "Maladie",
-        "Mission",
-        "Démissionné"
+        "ACTIF",
+        "EN CONGE",
+        "SUSPENDU",
+        "EN FORMATION",
+        "MALADIE",
+        "MISSION",
+        "DEMISSIONNE"
     });
 
-    // sélectionner la valeur actuelle
-    int idxPoste = posteCombo->findText(poste, Qt::MatchFixedString);
-    if (idxPoste >= 0) posteCombo->setCurrentIndex(idxPoste);
-    else {
-        posteCombo->addItem(poste);
-        posteCombo->setCurrentText(poste);
+    // sélectionner la valeur actuelle (forcer majuscules pour éviter conflits)
+    int idxPoste = posteCombo->findText(poste.toUpper(), Qt::MatchFixedString);
+    if (idxPoste >= 0) {
+        posteCombo->setCurrentIndex(idxPoste);
+    } else {
+        // Si valeur inconnue, on force sur EMPLOYÉ par défaut pour éviter le crash DB
+        int defIdx = posteCombo->findText("EMPLOYE", Qt::MatchFixedString);
+        if (defIdx >= 0) posteCombo->setCurrentIndex(defIdx);
     }
 
     int idxNiveau = niveauCombo->findText(niveau, Qt::MatchFixedString);
@@ -643,11 +698,13 @@ void pageemployee::on_pushButton_2_clicked()
         niveauCombo->setCurrentText(niveau);
     }
 
-    int idxStatus = statusCombo->findText(status, Qt::MatchFixedString);
-    if (idxStatus >= 0) statusCombo->setCurrentIndex(idxStatus);
-    else {
-        statusCombo->addItem(status);
-        statusCombo->setCurrentText(status);
+    int idxStatus = statusCombo->findText(status.toUpper(), Qt::MatchFixedString);
+    if (idxStatus >= 0) {
+        statusCombo->setCurrentIndex(idxStatus);
+    } else {
+        // Si valeur inconnue, on force sur ACTIF par défaut
+        int defIdx = statusCombo->findText("ACTIF", Qt::MatchFixedString);
+        if (defIdx >= 0) statusCombo->setCurrentIndex(defIdx);
     }
 
     // ===== Salaire spinbox =====
@@ -659,6 +716,24 @@ void pageemployee::on_pushButton_2_clicked()
 
     QLineEdit *emailEdit = new QLineEdit(email);
 
+    QLineEdit *passwordEdit = new QLineEdit();
+    passwordEdit->setEchoMode(QLineEdit::Password);
+    passwordEdit->setPlaceholderText("Laisser vide pour ne pas modifier");
+
+    QLineEdit *rfidEdit = new QLineEdit(rfid);
+    rfidEdit->setPlaceholderText("RFID UID");
+
+    connect(passwordEdit, &QLineEdit::textChanged, [&]() {
+        QString mdp = passwordEdit->text();
+        if (mdp.isEmpty()) {
+            passwordEdit->setStyleSheet("");
+        } else if (passwordValide(mdp)) {
+            passwordEdit->setStyleSheet("border:2px solid green;");
+        } else {
+            passwordEdit->setStyleSheet("border:2px solid red;");
+        }
+    });
+
     main->addWidget(new QLabel("Nom:"));             main->addWidget(nomEdit);
     main->addWidget(new QLabel("Prénom:"));          main->addWidget(prenomEdit);
     main->addWidget(new QLabel("CIN:"));             main->addWidget(cinEdit);
@@ -668,6 +743,8 @@ void pageemployee::on_pushButton_2_clicked()
     main->addWidget(new QLabel("Status:"));          main->addWidget(statusCombo);
     main->addWidget(new QLabel("Salaire:"));         main->addWidget(salaireSpin);
     main->addWidget(new QLabel("Email:"));           main->addWidget(emailEdit);
+    main->addWidget(new QLabel("Nouveau mot de passe:")); main->addWidget(passwordEdit);
+    main->addWidget(new QLabel("RFID UID:"));        main->addWidget(rfidEdit);
 
     QHBoxLayout *btns = new QHBoxLayout();
     QPushButton *save = new QPushButton("Mettre à jour");
@@ -686,6 +763,8 @@ void pageemployee::on_pushButton_2_clicked()
         QString newNiveau = niveauCombo->currentText().trimmed();
         QString newStatus = statusCombo->currentText().trimmed();
         QString newEmail = emailEdit->text().trimmed();
+        QString newPassword = passwordEdit->text();
+        QString newRfid = rfidEdit->text().trimmed();
         double sal = salaireSpin->value();
 
         if (newNom.isEmpty() || newPrenom.isEmpty() || newCin.isEmpty() || newEmail.isEmpty()) {
@@ -703,6 +782,11 @@ void pageemployee::on_pushButton_2_clicked()
                 QMessageBox::warning(&dlg, "Validation", "Le CIN doit contenir uniquement des chiffres.");
                 return;
             }
+        }
+
+        if (!newPassword.isEmpty() && !passwordValide(newPassword)) {
+            QMessageBox::warning(&dlg, "Validation", "Le mot de passe doit contenir au moins 8 caractères (majuscule, minuscule, chiffre, spécial).");
+            return;
         }
 
         if (!newEmail.contains('@') || !newEmail.contains('.')) {
@@ -734,12 +818,15 @@ void pageemployee::on_pushButton_2_clicked()
         }
 
         QSqlQuery q;
-        q.prepare(
-            "UPDATE SMARTLEATHER.EMPLOYE SET "
-            "NOM=:nom, PRENOM=:prenom, CIN=:cin, DATE_NAISSANCE=:dn, "
-            "POSTE=:poste, NIVEAU=:niveau, STATUS=:status, SALAIRE=:sal, EMAIL=:email "
-            "WHERE ID_EMPLOYE=:id"
-            );
+        QString sql = "UPDATE SMARTLEATHER.EMPLOYE SET "
+                      "NOM=:nom, PRENOM=:prenom, CIN=:cin, DATE_NAISSANCE=:dn, "
+                      "POSTE=:poste, NIVEAU=:niveau, STATUS=:status, SALAIRE=:sal, EMAIL=:email, RFID_UID=:rfid";
+        if (!newPassword.isEmpty()) {
+            sql += ", PASSWORD=:password";
+        }
+        sql += " WHERE ID_EMPLOYE=:id";
+        
+        q.prepare(sql);
         q.bindValue(":nom", newNom);
         q.bindValue(":prenom", newPrenom);
         q.bindValue(":cin", newCin);
@@ -749,6 +836,10 @@ void pageemployee::on_pushButton_2_clicked()
         q.bindValue(":status", newStatus);
         q.bindValue(":sal", sal);
         q.bindValue(":email", newEmail);
+        q.bindValue(":rfid", newRfid);
+        if (!newPassword.isEmpty()) {
+            q.bindValue(":password", newPassword);
+        }
         q.bindValue(":id", id);
 
         if (!q.exec()) {
@@ -796,14 +887,8 @@ void pageemployee::on_pushButton_3_clicked()
 
     QSqlQuery q(db);
 
-    // Supprimer d'abord les enfants liés
-    q.prepare("DELETE FROM SMARTLEATHER.MESSAGE WHERE ID_EMPLOYE = :id");
-    q.bindValue(":id", id);
-    if (!q.exec()) {
-        db.rollback();
-        QMessageBox::critical(this, "DB Delete", "Erreur suppression MESSAGE :/n" + q.lastError().text());
-        return;
-    }
+    // La table MESSAGE n'existe plus dans la base de données, 
+    // on passe directement à la suppression de l'employé.
 
     // Ajouter ici d'autres tables enfants si nécessaire
     // ex:
@@ -1056,26 +1141,26 @@ void pageemployee::on_pushButton_9_clicked()
 
     for (int r = 0; r < total; ++r) {
         QString status = ui->tableWidget->item(r, 7)
-        ? ui->tableWidget->item(r, 7)->text().trimmed()
+        ? ui->tableWidget->item(r, 7)->text().trimmed().toUpper()
         : "";
 
         if (status.isEmpty())
-            status = "Non défini";
+            status = "NON DEFINI";
 
         statusCount[status] += 1;
     }
 
-    int nbActif       = statusCount.value("Actif", 0);
-    int nbConge       = statusCount.value("En congé", 0);
-    int nbSuspendu    = statusCount.value("Suspendu", 0);
-    int nbFormation   = statusCount.value("En formation", 0);
-    int nbMaladie     = statusCount.value("Maladie", 0);
-    int nbMission     = statusCount.value("Mission", 0);
-    int nbDemissionne = statusCount.value("Démissionné", 0);
+    int nbActif       = statusCount.value("ACTIF", 0);
+    int nbConge       = statusCount.value("EN CONGE", 0);
+    int nbSuspendu    = statusCount.value("SUSPENDU", 0);
+    int nbFormation   = statusCount.value("EN FORMATION", 0);
+    int nbMaladie     = statusCount.value("MALADIE", 0);
+    int nbMission     = statusCount.value("MISSION", 0);
+    int nbDemissionne = statusCount.value("DEMISSIONNE", 0);
 
     QDialog dlg(this);
     dlg.setWindowTitle("Statistiques des employés");
-    dlg.setFixedSize(960, 660);
+    dlg.setFixedSize(1000, 750); // Slightly larger to fit more info
     dlg.setStyleSheet(
         "QDialog { background-color: #f1e7dc; }"
         "QLabel { color: #3a2a20; font-size: 13px; }"
@@ -1105,43 +1190,59 @@ void pageemployee::on_pushButton_9_clicked()
 
     QVBoxLayout *main = new QVBoxLayout(&dlg);
     main->setContentsMargins(20, 20, 20, 20);
-    main->setSpacing(18);
+    main->setSpacing(15);
 
     QLabel *title = new QLabel("Tableau de bord des employés");
     title->setAlignment(Qt::AlignCenter);
     title->setStyleSheet("font-size: 28px; font-weight: 800; color: #5b2f1d; letter-spacing: 1px;");
     main->addWidget(title);
 
-    QHBoxLayout *kpiLayout = new QHBoxLayout();
-    kpiLayout->setSpacing(14);
+    // --- KPI Section (Two Rows) ---
+    QVBoxLayout *kpisMainLayout = new QVBoxLayout();
+    kpisMainLayout->setSpacing(10);
 
-    auto makeCard = [](const QString &big, const QString &small) {
+    QHBoxLayout *kpiRow1 = new QHBoxLayout();
+    kpiRow1->setSpacing(12);
+
+    QHBoxLayout *kpiRow2 = new QHBoxLayout();
+    kpiRow2->setSpacing(12);
+
+    auto makeCard = [](const QString &big, const QString &small, const QString &color = "#5b2f1d") {
         QFrame *card = new QFrame();
         card->setObjectName("card");
-        card->setMinimumHeight(92);
+        card->setMinimumHeight(85);
 
         QVBoxLayout *l = new QVBoxLayout(card);
-        l->setContentsMargins(15, 12, 15, 12);
+        l->setContentsMargins(10, 10, 10, 10);
 
         QLabel *bigLabel = new QLabel(big);
         bigLabel->setAlignment(Qt::AlignCenter);
-        bigLabel->setStyleSheet("font-size: 32px; font-weight: 800; color: #5b2f1d;");
+        bigLabel->setStyleSheet(QString("font-size: 28px; font-weight: 800; color: %1;").arg(color));
 
         QLabel *smallLabel = new QLabel(small);
         smallLabel->setAlignment(Qt::AlignCenter);
-        smallLabel->setStyleSheet("font-size: 13px; color: #7b6656; font-weight: 600;");
+        smallLabel->setStyleSheet("font-size: 12px; color: #7b6656; font-weight: 600;");
 
         l->addWidget(bigLabel);
         l->addWidget(smallLabel);
         return card;
     };
 
-    kpiLayout->addWidget(makeCard(QString::number(total), "Employés"));
-    kpiLayout->addWidget(makeCard(QString::number(nbActif), "Actifs"));
-    kpiLayout->addWidget(makeCard(QString::number(nbConge), "En congé"));
-    kpiLayout->addWidget(makeCard(QString::number(nbSuspendu), "Suspendus"));
+    // Row 1: Total and primary statuses
+    kpiRow1->addWidget(makeCard(QString::number(total), "Employés"));
+    kpiRow1->addWidget(makeCard(QString::number(nbActif), "Actifs", "#6f8f3d"));
+    kpiRow1->addWidget(makeCard(QString::number(nbConge), "En congé", "#d18b2f"));
+    kpiRow1->addWidget(makeCard(QString::number(nbSuspendu), "Suspendus", "#c4573a"));
 
-    main->addLayout(kpiLayout);
+    // Row 2: Secondary statuses
+    kpiRow2->addWidget(makeCard(QString::number(nbFormation), "En formation", "#4b88c7"));
+    kpiRow2->addWidget(makeCard(QString::number(nbMaladie), "Maladie", "#8e6ccf"));
+    kpiRow2->addWidget(makeCard(QString::number(nbMission), "Mission", "#2f9d8f"));
+    kpiRow2->addWidget(makeCard(QString::number(nbDemissionne), "Démissionnés", "#7a7a7a"));
+
+    kpisMainLayout->addLayout(kpiRow1);
+    kpisMainLayout->addLayout(kpiRow2);
+    main->addLayout(kpisMainLayout);
 
     QHBoxLayout *centerLayout = new QHBoxLayout();
     centerLayout->setSpacing(18);
@@ -1164,26 +1265,29 @@ void pageemployee::on_pushButton_9_clicked()
         QPieSlice *slice = series->append(label, value);
         slice->setBrush(color);
         slice->setLabelVisible(true);
+        slice->setLabelPosition(QPieSlice::LabelOutside); // Move labels outside for better readability
         double pct = total > 0 ? (value * 100.0 / total) : 0.0;
-        slice->setLabel(QString("%1\n%2%").arg(label).arg(QString::number(pct, 'f', 1)));
+        slice->setLabel(QString("%1 (%2%)").arg(label).arg(QString::number(pct, 'f', 1)));
         slice->setLabelColor(QColor("#5b2f1d"));
-        slice->setLabelFont(QFont("Segoe UI", 9, QFont::DemiBold));
+        slice->setLabelFont(QFont("Segoe UI", 9, QFont::Bold));
     };
 
     addSlice("Actif",        nbActif,       QColor("#6f8f3d"));
-    addSlice("En congé",     nbConge,       QColor("#d18b2f"));
+    addSlice("En conge",     nbConge,       QColor("#d18b2f"));
     addSlice("Suspendu",     nbSuspendu,    QColor("#c4573a"));
     addSlice("En formation", nbFormation,   QColor("#4b88c7"));
     addSlice("Maladie",      nbMaladie,     QColor("#8e6ccf"));
     addSlice("Mission",      nbMission,     QColor("#2f9d8f"));
-    addSlice("Démissionné",  nbDemissionne, QColor("#7a7a7a"));
+    addSlice("Demissionne",  nbDemissionne, QColor("#7a7a7a"));
 
     QChart *chart = new QChart();
     chart->addSeries(series);
     chart->setTitle(" ");
-    chart->legend()->hide();
+    chart->legend()->setVisible(true); // Enable legend for additional clarity
+    chart->legend()->setAlignment(Qt::AlignBottom);
+    chart->legend()->setFont(QFont("Segoe UI", 9));
     chart->setBackgroundVisible(false);
-    chart->setMargins(QMargins(6, 6, 6, 6));
+    chart->setMargins(QMargins(10, 10, 10, 10));
 
     QChartView *chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
@@ -1229,12 +1333,12 @@ void pageemployee::on_pushButton_9_clicked()
     };
 
     addStatusRow("Actif",        nbActif,       "#6f8f3d");
-    addStatusRow("En congé",     nbConge,       "#d18b2f");
+    addStatusRow("En conge",     nbConge,       "#d18b2f");
     addStatusRow("Suspendu",     nbSuspendu,    "#c4573a");
     addStatusRow("En formation", nbFormation,   "#4b88c7");
     addStatusRow("Maladie",      nbMaladie,     "#8e6ccf");
     addStatusRow("Mission",      nbMission,     "#2f9d8f");
-    addStatusRow("Démissionné",  nbDemissionne, "#7a7a7a");
+    addStatusRow("Demissionne",  nbDemissionne, "#7a7a7a");
 
     detailsLayout->addStretch();
 
@@ -1325,41 +1429,5 @@ void pageemployee::on_pushButton_8_clicked()
         login *lg = new login();
         lg->show();
         this->close();
-    }
-}
-void pageemployee::onArduinoReadyRead()
-{
-    QString msg = arduino.readMessage();
-    qDebug() << "Message Arduino reçu :" << msg;
-
-    if (msg.startsWith("UID:")) {
-        QString uid = msg.section(':', 1, 1).trimmed();
-        verifierBadgeRFID(uid);
-    }
-}
-void pageemployee::verifierBadgeRFID(const QString &uid)
-{
-    qDebug() << ">>> verifierBadgeRFID appelee avec UID/CIN =" << uid;
-
-    QSqlQuery query;
-    query.prepare("SELECT NOM, POSTE FROM SMARTLEATHER.EMPLOYE WHERE CIN = :uid");
-    query.bindValue(":uid", uid);
-
-    if (!query.exec()) {
-        qDebug() << "Erreur SQL verifierBadgeRFID =" << query.lastError().text();
-        return;
-    }
-
-    if (query.next()) {
-        QString nom = query.value(0).toString().trimmed();
-        QString poste = query.value(1).toString().trimmed();
-
-        QString reponse = "VALID;" + nom + ";" + poste + "\n";
-        qDebug() << "Badge valide :" << reponse;
-
-        arduino.sendMessage(reponse);
-    } else {
-        qDebug() << "Aucun employe trouve pour CIN =" << uid;
-        arduino.sendMessage("INVALID\n");
     }
 }

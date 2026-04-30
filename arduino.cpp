@@ -8,6 +8,9 @@ Arduino::Arduino(QObject *parent) : QObject(parent)
 
 bool Arduino::connectArduino(const QString &portName)
 {
+    if (serial->isOpen())
+        serial->close();
+
     serial->setPortName(portName);
     serial->setBaudRate(QSerialPort::Baud9600);
     serial->setDataBits(QSerialPort::Data8);
@@ -16,12 +19,12 @@ bool Arduino::connectArduino(const QString &portName)
     serial->setFlowControl(QSerialPort::NoFlowControl);
 
     if (serial->open(QIODevice::ReadWrite)) {
-        qDebug() << "Arduino connecté sur" << portName;
+        qDebug() << "✅ Arduino connecté sur" << portName;
         return true;
-    } else {
-        qDebug() << "Erreur connexion Arduino :" << serial->errorString();
-        return false;
     }
+
+    qDebug() << "❌ Erreur Arduino:" << serial->errorString();
+    return false;
 }
 
 void Arduino::sendMessage(const QString &message)
@@ -34,9 +37,13 @@ void Arduino::sendMessage(const QString &message)
 
 QString Arduino::readMessage()
 {
-    if (serial->isOpen() && serial->canReadLine()) {
+    if (!serial->isOpen())
+        return "";
+
+    if (serial->canReadLine()) {
         return QString::fromUtf8(serial->readLine()).trimmed();
     }
+
     return "";
 }
 

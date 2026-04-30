@@ -33,7 +33,7 @@ QString displayNameFromEmployeId(int idEmploye)
 
 } // namespace
 
-pagechat::pagechat(int idEmployeConnecte, const QString &displayName, pageemployee *pageEmp, QWidget *parent)
+pagechat::pagechat(int idEmployeConnecte, const QString &displayName, QWidget *parentPage, QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::pagechat)
     , m_idEmploye(idEmployeConnecte)
@@ -41,7 +41,7 @@ pagechat::pagechat(int idEmployeConnecte, const QString &displayName, pageemploy
                         ? (QStringLiteral("Employe ") + QString::number(idEmployeConnecte))
                         : displayName.trimmed())
     , m_timer(new QTimer(this))
-    , m_pageEmployee(pageEmp)
+    , m_parentPage(parentPage)
     , m_network(new QNetworkAccessManager(this))
 {
     ui->setupUi(this);
@@ -413,8 +413,8 @@ void pagechat::handleSendMessageReply(QNetworkReply *reply)
 
 void pagechat::on_pushButton_5_clicked()
 {
-    if (m_pageEmployee) {
-        m_pageEmployee->show();
+    if (m_parentPage) {
+        m_parentPage->show();
     }
     close();
 }

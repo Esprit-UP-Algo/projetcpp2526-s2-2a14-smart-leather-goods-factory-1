@@ -37,6 +37,7 @@ private slots:
     void on_pushButton_4_clicked();
     void on_pushButton_7_clicked();
     void on_pushButton_9_clicked();
+    void on_chatButton_clicked();
 
 private:
     Ui::Matieres *ui;
@@ -51,6 +52,7 @@ private:
                               const QString &couleur, const QString &qualite,
                               const QString &prix, const QString &stock,
                               const QString &fournisseur);
+    QString displayNameEmployeConnecte() const;
 };
 
 #endif // MATIERES_H
