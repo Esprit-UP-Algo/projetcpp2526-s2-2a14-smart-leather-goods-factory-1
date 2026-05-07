@@ -17,13 +17,15 @@ public:
     explicit Modifier(QWidget *parent = nullptr);
 
     // Function to fill the dialog with existing data from the table
-    void setInitialData(QString id, QString client, QString addr, QString amount);
+    void setInitialData(QString id, QString client, QString addr, QString amount,
+                        QString phone = QString(), QString currentStatus = QString());
     void setDates(const QDateTime &dateOrderIn, const QDateTime &dateDeliveryIn);
 
     // Getters to retrieve the modified data in the main window
     QString getId() const { return idEdit->text(); }
     QString getClient() const { return clientEdit->text(); }
     QString getAddress() const { return addressEdit->text(); }
+    QString getPhone() const { return phoneEdit->text(); }
     QString getAmount() const { return amountEdit->text(); }
     QString getStatus() const { return statusCombo->currentText(); }
     QDateTime getDateOrder() const { return dateOrder->dateTime(); }
@@ -36,6 +38,7 @@ private:
     QLabel *errorClient;
     QLineEdit *addressEdit;
     QLabel *errorAddr;
+    QLineEdit *phoneEdit;
     QDateTimeEdit *dateOrder;
     QDateTimeEdit *dateDelivery;
     QLabel *errorDate;

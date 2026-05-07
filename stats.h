@@ -2,6 +2,9 @@
 #define STATS_H
 
 #include <QDialog>
+#include <QLabel>
+#include <QPushButton>
+#include <QDateEdit>
 #include <QtCharts/QChartView>
 #include <QtCharts/QPieSeries>
 #include <QtCharts/QBarSeries>
@@ -9,7 +12,6 @@
 #include <QtCharts/QBarCategoryAxis>
 #include <QtCharts/QValueAxis>
 #include <QtCharts/QLineSeries>
-#include <QDateEdit>
 
 class Stats : public QDialog
 {
@@ -18,29 +20,41 @@ public:
     explicit Stats(QWidget *parent = nullptr);
 
 private:
-    // Controls
+    // Contrôle de sélection du mois
     QDateEdit *monthEdit;
 
-    // Views
+    // Vues des 4 graphiques
     QChartView *statusChartView;
     QChartView *monthlyCountChartView;
     QChartView *revenueChartView;
     QChartView *paymentChartView;
 
-    // Builders
+    // Labels du panel KPI (résumé chiffré en haut de la fenêtre)
+    QLabel *m_kpiTotal;
+    QLabel *m_kpiRevenue;
+    QLabel *m_kpiAvg;
+    QLabel *m_kpiDelivered;
+
+    // Bouton export rapport PDF
+    QPushButton *m_btnExport;
+
+    // Constructeurs des graphiques
     QChart *buildStatusDistributionChart();
     QChart *buildDailyCountChart();
-    QChart *buildMonthlyRevenueChart(); // filtered to shipped only
+    QChart *buildMonthlyRevenueChart();
     QChart *buildPaymentModeChart();
 
-    // Helpers
+    // Rafraîchissement
     QString currentYearMonth() const;
     void refreshCharts();
+    void refreshKpis();       // Met à jour les 4 KPI cards
+    void exportStatsPdf();    // Génère un rapport PDF des statistiques
 
-    QMap<QString, int> fetchStatusCounts(const QString &ym) const;
-    QMap<QString, int> fetchDailyCounts(const QString &ym) const;
+    // Requêtes SQL
+    QMap<QString, int>    fetchStatusCounts(const QString &ym) const;
+    QMap<QString, int>    fetchDailyCounts(const QString &ym) const;
     QMap<QString, double> fetchMonthlyRevenueShipped(const QString &ym) const;
-    QMap<QString, int> fetchPaymentModeCounts(const QString &ym) const;
+    QMap<QString, int>    fetchPaymentModeCounts(const QString &ym) const;
 };
 
 #endif // STATS_H

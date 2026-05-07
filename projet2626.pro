@@ -1,4 +1,4 @@
-QT       += core gui sql charts printsupport network
+QT       += core gui sql charts printsupport network serialport
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -30,6 +30,8 @@ SOURCES += \
     login.cpp \
     main.cpp \
     commandes.cpp \
+    commandes_slots.cpp \
+    connexion.cpp \
     matieres.cpp \
     modifier.cpp \
     pagechat.cpp \
@@ -40,11 +42,18 @@ SOURCES += \
     ajout_produit.cpp \
     modifier_produit.cpp \
     qcustomplot.cpp \
-    smtp.cpp
+    smtp.cpp \
+    stats.cpp \
+    twilio_sms.cpp \
+    qrpaymentdialog.cpp \
+    simplepayserver.cpp \
+    arduinocontroller.cpp \
+    employeemodel.cpp
 
 HEADERS += \
     ajout.h \
     commandes.h \
+    connexion.h \
     connection.h \
     faceid.h \
     fournisseurs.h \
@@ -59,7 +68,13 @@ HEADERS += \
     ajout_produit.h \
     modifier_produit.h \
     qcustomplot.h \
-    smtp.h
+    smtp.h \
+    stats.h \
+    twilio_sms.h \
+    qrpaymentdialog.h \
+    simplepayserver.h \
+    arduinocontroller.h \
+    employeemodel.h
 
 FORMS += \
     commandes.ui \

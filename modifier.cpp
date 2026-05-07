@@ -1,11 +1,13 @@
 #include "modifier.h"
 #include <QHBoxLayout>
 #include <QMessageBox>
+#include <QDoubleValidator>
+#include <QRegularExpressionValidator>
 
 
 Modifier::Modifier(QWidget *parent) : QDialog(parent) {
     setWindowTitle("Modifier la Commande");
-    setFixedSize(450, 700);
+    setFixedSize(450, 780);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(30, 30, 30, 30);
@@ -34,6 +36,12 @@ Modifier::Modifier(QWidget *parent) : QDialog(parent) {
     errorAddr = new QLabel("");
     errorAddr->setStyleSheet("color: #a23b2a; font-size: 11px; font-weight: normal; margin-top: -10px; margin-bottom: 5px;");
 
+    phoneEdit = new QLineEdit();
+    phoneEdit->setPlaceholderText("Téléphone client (+216… ou 8 chiffres)");
+    phoneEdit->setAlignment(Qt::AlignCenter);
+    phoneEdit->setValidator(new QRegularExpressionValidator(
+        QRegularExpression(R"([\+\d\s\-]{0,16})"), phoneEdit));
+
     dateOrder = new QDateTimeEdit(QDateTime::currentDateTime());
     dateOrder->setCalendarPopup(true);
     dateOrder->setDisplayFormat("yyyy-MM-dd");
@@ -48,11 +56,14 @@ Modifier::Modifier(QWidget *parent) : QDialog(parent) {
     errorDate->setStyleSheet("color: #a23b2a; font-size: 11px; font-weight: normal; margin-top: -10px; margin-bottom: 5px;");
 
     statusCombo = new QComboBox();
-    statusCombo->addItems({"En attente", "En production", "Livrée"});
+    statusCombo->addItems({"En attente", "En cours", "Livrée", "Annulée"});
 
     amountEdit = new QLineEdit();
-    amountEdit->setPlaceholderText("Montant Total");
+    amountEdit->setPlaceholderText("Montant Total (ex: 1250.00)");
     amountEdit->setAlignment(Qt::AlignCenter);
+    auto *amtVal = new QDoubleValidator(0.01, 9999999.99, 2, amountEdit);
+    amtVal->setNotation(QDoubleValidator::StandardNotation);
+    amountEdit->setValidator(amtVal);
     errorAmount = new QLabel("");
     errorAmount->setStyleSheet("color: #a23b2a; font-size: 11px; font-weight: normal; margin-top: -10px; margin-bottom: 5px;");
 
@@ -65,6 +76,8 @@ Modifier::Modifier(QWidget *parent) : QDialog(parent) {
     mainLayout->addWidget(new QLabel("Logistique :"));
     mainLayout->addWidget(addressEdit);
     mainLayout->addWidget(errorAddr);
+    mainLayout->addWidget(new QLabel("Téléphone (SMS) :"));
+    mainLayout->addWidget(phoneEdit);
     mainLayout->addWidget(dateOrder);
     mainLayout->addWidget(dateDelivery);
     mainLayout->addWidget(errorDate);
@@ -91,6 +104,7 @@ Modifier::Modifier(QWidget *parent) : QDialog(parent) {
 
     connect(clientEdit, &QLineEdit::textChanged, this, &Modifier::validateForm);
     connect(addressEdit, &QLineEdit::textChanged, this, &Modifier::validateForm);
+    connect(phoneEdit, &QLineEdit::textChanged, this, &Modifier::validateForm);
     connect(amountEdit, &QLineEdit::textChanged, this, &Modifier::validateForm);
     connect(dateDelivery, &QDateTimeEdit::dateChanged, this, &Modifier::validateForm);
     connect(dateOrder, &QDateTimeEdit::dateChanged, this, &Modifier::validateForm);
@@ -131,11 +145,18 @@ void Modifier::setupStyle() {
         );
 }
 
-void Modifier::setInitialData(QString id, QString client, QString addr, QString amount) {
+void Modifier::setInitialData(QString id, QString client, QString addr, QString amount,
+                              QString phone, QString currentStatus) {
     idEdit->setText(id);
     clientEdit->setText(client);
     addressEdit->setText(addr);
     amountEdit->setText(amount);
+    phoneEdit->setText(phone);
+    if (!currentStatus.isEmpty()) {
+        const int idx = statusCombo->findText(currentStatus);
+        if (idx >= 0)
+            statusCombo->setCurrentIndex(idx);
+    }
     validateForm();
 }
 

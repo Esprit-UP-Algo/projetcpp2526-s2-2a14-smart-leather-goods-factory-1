@@ -2,6 +2,8 @@
 #include "ui_commandes.h"
 #include "ajout.h"
 #include "modifier.h"
+#include "twilio_sms.h"
+#include "qrpaymentdialog.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QtPrintSupport/QPrinter>
@@ -10,11 +12,52 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QVariant>
+#include <QDebug>
+#include <QPointer>
+#include <QStatusBar>
+#include <QBrush>
+#include <QColor>
 
-commandes::commandes(QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::commandes)
+// ── Couleur de fond selon l'état de la commande ───────────────────────────────
+static QColor statusBgColor(const QString &etat) {
+    if (etat == "Livrée")     return QColor("#d4edda"); // vert clair
+    if (etat == "Annulée")    return QColor("#f8d7da"); // rouge clair
+    if (etat == "En cours")   return QColor("#cce5ff"); // bleu clair
+    if (etat == "En attente") return QColor("#fff3cd"); // jaune clair
+    return QColor(Qt::white);
+}
+
+// ── Colorise toutes les cellules d'une ligne selon l'état (colonne 6) ─────────
+static void colorizeRow(QTableWidget *table, int row) {
+    QTableWidgetItem *etatItem = table->item(row, 6);
+    QColor bg = statusBgColor(etatItem ? etatItem->text() : QString());
+    for (int col = 0; col < table->columnCount(); ++col)
+        if (auto *it = table->item(row, col))
+            it->setBackground(QBrush(bg));
+}
+
+commandes::commandes(int idEmployeConnecte, QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::commandes)
+    , m_idEmployeConnecte(idEmployeConnecte)
+    , m_twilio(std::make_unique<TwilioSms>(this))
 {
+    Q_UNUSED(m_idEmployeConnecte);
     ui->setupUi(this);
+
+    ui->tableWidget->setColumnCount(10);
+    ui->tableWidget->setHorizontalHeaderLabels({
+        QStringLiteral("ID"),
+        QStringLiteral("Réf."),
+        QStringLiteral("Client"),
+        QStringLiteral("Adresse"),
+        QStringLiteral("Date cmd."),
+        QStringLiteral("Date liv."),
+        QStringLiteral("État"),
+        QStringLiteral("Montant"),
+        QStringLiteral("Paiement"),
+        QStringLiteral("Tél. client"),
+    });
 
     // 1. Setup UI defaults
     ui->dateEdit_commande->setDate(QDate::currentDate());
@@ -47,8 +90,8 @@ void commandes::on_pushButton_clicked() {
         }
 
         QSqlQuery checkQuery;
-        checkQuery.prepare("SELECT COUNT(*) FROM COMMANDE WHERE REFERENCE = :ref");
-        checkQuery.bindValue(":ref", reference);
+        checkQuery.prepare(QStringLiteral("SELECT COUNT(*) FROM SMARTLEATHER.COMMANDE WHERE REF = :ref"));
+        checkQuery.bindValue(QStringLiteral(":ref"), reference);
         
         if (checkQuery.exec() && checkQuery.next()) {
             if (checkQuery.value(0).toInt() > 0) {
@@ -63,21 +106,24 @@ void commandes::on_pushButton_clicked() {
         QDateTime dateLiv = dialog.getDateDelivery(); // This is the delivery date
         QString etat = dialog.getStatus();
         QString montant = dialog.getAmount();
-        QString modePaiement = ""; 
+        QString modePaiement = "";
+        const QString phone = dialog.getPhone().trimmed();
 
         QSqlQuery q;
-        q.prepare("INSERT INTO COMMANDE "
-                  "(ID_COMMANDE, REFERENCE, NOM_CLIENT, ADRESSE_LIVRAISON, "
-                  " DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT) "
-                  "VALUES (SEQ_COMMANDE.NEXTVAL, :ref, :nom, :addr, :datecmd, :dateliv, :etat, :montant, :mode)");
-        q.bindValue(":ref", reference);
-        q.bindValue(":nom", client);
-        q.bindValue(":addr", address);
-        q.bindValue(":datecmd", dateCmd);
-        q.bindValue(":dateliv", dateLiv);
-        q.bindValue(":etat", etat);
-        q.bindValue(":montant", montant);
-        q.bindValue(":mode", modePaiement);
+        q.prepare(
+            QStringLiteral("INSERT INTO SMARTLEATHER.COMMANDE "
+                           "(REF, NOM_CLIENT, ADRESSE_LIVRAISON, "
+                           " DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT, TELEPHONE_CLIENT) "
+                           "VALUES (:ref, :nom, :addr, :datecmd, :dateliv, :etat, :montant, :mode, :tel)"));
+        q.bindValue(QStringLiteral(":ref"), reference);
+        q.bindValue(QStringLiteral(":nom"), client);
+        q.bindValue(QStringLiteral(":addr"), address);
+        q.bindValue(QStringLiteral(":datecmd"), dateCmd);
+        q.bindValue(QStringLiteral(":dateliv"), dateLiv);
+        q.bindValue(QStringLiteral(":etat"), etat);
+        q.bindValue(QStringLiteral(":montant"), montant);
+        q.bindValue(QStringLiteral(":mode"), modePaiement);
+        q.bindValue(QStringLiteral(":tel"), phone.isEmpty() ? QVariant() : phone);
 
         if (!q.exec()) {
             QMessageBox::critical(this, "Erreur d'insertion", q.lastError().text());
@@ -102,6 +148,8 @@ void commandes::on_pushButton_clicked() {
         ui->tableWidget->setItem(row, 6, new QTableWidgetItem(etat));
         ui->tableWidget->setItem(row, 7, new QTableWidgetItem(montant));
         ui->tableWidget->setItem(row, 8, new QTableWidgetItem(modePaiement));
+        ui->tableWidget->setItem(row, 9, new QTableWidgetItem(phone));
+        colorizeRow(ui->tableWidget, row);
 
         ui->tableWidget->setSortingEnabled(true);
         // --- END BUG FIX ---
@@ -119,32 +167,38 @@ void commandes::on_pushButton_2_clicked() {
     }
 
     QString id = ui->tableWidget->item(currentRow, 0)->text();
+    QString ref = ui->tableWidget->item(currentRow, 1)->text();
     QString client = ui->tableWidget->item(currentRow, 2)->text();
     QString address = ui->tableWidget->item(currentRow, 3)->text();
     QString dateCmdStr = ui->tableWidget->item(currentRow, 4)->text();
     QString dateLivStr = ui->tableWidget->item(currentRow, 5)->text();
+    QString oldStatus = ui->tableWidget->item(currentRow, 6)->text();
     QString amount = ui->tableWidget->item(currentRow, 7)->text();
+    QString phoneRow = ui->tableWidget->item(currentRow, 9) ? ui->tableWidget->item(currentRow, 9)->text() : QString();
 
     Modifier dialog(this);
-    dialog.setInitialData(id, client, address, amount);
+    dialog.setInitialData(id, client, address, amount, phoneRow, oldStatus);
     
     QDate dateCmd = QDate::fromString(dateCmdStr, "yyyy-MM-dd");
     QDate dateLiv = QDate::fromString(dateLivStr, "yyyy-MM-dd");
     dialog.setDates(QDateTime(dateCmd, QTime(0,0)), QDateTime(dateLiv, QTime(0,0)));
 
     if (dialog.exec() == QDialog::Accepted) {
+        const QString newStatus = dialog.getStatus();
         QSqlQuery q;
-        q.prepare("UPDATE COMMANDE SET "
+        q.prepare(QStringLiteral("UPDATE SMARTLEATHER.COMMANDE SET "
                   "NOM_CLIENT = :nom, ADRESSE_LIVRAISON = :addr, "
                   "DATE_LIVRAISON_PREVUE = :dateliv, ETAT_COMMANDE = :etat, "
-                  "MONTANT_TOTAL = :montant "
-                  "WHERE ID_COMMANDE = :id");
-        q.bindValue(":nom", dialog.getClient());
-        q.bindValue(":addr", dialog.getAddress());
-        q.bindValue(":dateliv", dialog.getDateDelivery());
-        q.bindValue(":etat", dialog.getStatus());
-        q.bindValue(":montant", dialog.getAmount());
-        q.bindValue(":id", id);
+                  "MONTANT_TOTAL = :montant, TELEPHONE_CLIENT = :tel "
+                  "WHERE ID_COMMANDE = :id"));
+        q.bindValue(QStringLiteral(":nom"), dialog.getClient());
+        q.bindValue(QStringLiteral(":addr"), dialog.getAddress());
+        q.bindValue(QStringLiteral(":dateliv"), dialog.getDateDelivery());
+        q.bindValue(QStringLiteral(":etat"), newStatus);
+        q.bindValue(QStringLiteral(":montant"), dialog.getAmount());
+        const QString tel = dialog.getPhone().trimmed();
+        q.bindValue(QStringLiteral(":tel"), tel.isEmpty() ? QVariant() : tel);
+        q.bindValue(QStringLiteral(":id"), id);
 
         if (!q.exec()) {
             QMessageBox::critical(this, "Erreur", q.lastError().text());
@@ -157,13 +211,39 @@ void commandes::on_pushButton_2_clicked() {
         ui->tableWidget->item(currentRow, 2)->setText(dialog.getClient());
         ui->tableWidget->item(currentRow, 3)->setText(dialog.getAddress());
         ui->tableWidget->item(currentRow, 5)->setText(dialog.getDateDelivery().date().toString("yyyy-MM-dd"));
-        ui->tableWidget->item(currentRow, 6)->setText(dialog.getStatus());
+        ui->tableWidget->item(currentRow, 6)->setText(newStatus);
         ui->tableWidget->item(currentRow, 7)->setText(dialog.getAmount());
+        if (ui->tableWidget->item(currentRow, 9))
+            ui->tableWidget->item(currentRow, 9)->setText(tel);
+        else
+            ui->tableWidget->setItem(currentRow, 9, new QTableWidgetItem(tel));
+        colorizeRow(ui->tableWidget, currentRow); // re-colorise si l'état a changé
 
         ui->tableWidget->setSortingEnabled(true);
         // --- END BUG FIX ---
 
-        applyFilters(); 
+        // ── Notification SMS automatique si l'état a changé ──────────────────
+        if (oldStatus != newStatus && m_twilio && m_twilio->isConfigured() && !tel.isEmpty()) {
+            // QPointer protège contre un crash si la fenêtre est fermée
+            // avant que la réponse HTTP de Twilio n'arrive (asynchrone)
+            QPointer<commandes> self(this);
+            m_twilio->sendOrderStatusSms(tel, dialog.getClient(), ref, newStatus,
+                [self, tel, newStatus](bool ok, const QString &detail) {
+                    if (!self) return; // fenêtre déjà détruite → abandon
+                    if (ok) {
+                        self->statusBar()->showMessage(
+                            QString("SMS envoyé à %1 — Nouvel état : %2").arg(tel, newStatus),
+                            6000 /* ms */);
+                    } else {
+                        QMessageBox::warning(self, "SMS non envoyé",
+                            "L'envoi du SMS a échoué.\n\n"
+                            "Détail : " + detail +
+                            "\n\nVérifiez les identifiants Twilio ou le numéro de téléphone.");
+                    }
+                });
+        }
+
+        applyFilters();
         QMessageBox::information(this, "Succès", "Commande mise à jour !");
     }
 }
@@ -176,9 +256,9 @@ void commandes::loadAllCommandes() {
 
     QSqlQuery q;
     // Removed ORDER BY because the QTableWidget sorting handles the view
-    if (!q.exec("SELECT ID_COMMANDE, REFERENCE, NOM_CLIENT, ADRESSE_LIVRAISON, "
-                "DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT "
-                "FROM COMMANDE")) {
+    if (!q.exec(QStringLiteral("SELECT ID_COMMANDE, REF, NOM_CLIENT, ADRESSE_LIVRAISON, "
+                "DATE_COMMANDE, DATE_LIVRAISON_PREVUE, ETAT_COMMANDE, MONTANT_TOTAL, MODE_PAIEMENT, TELEPHONE_CLIENT "
+                "FROM SMARTLEATHER.COMMANDE"))) {
         QMessageBox::critical(this, "Erreur SQL", q.lastError().text());
         ui->tableWidget->blockSignals(false);
         ui->tableWidget->setSortingEnabled(true);
@@ -207,7 +287,9 @@ void commandes::loadAllCommandes() {
         ui->tableWidget->setItem(rowCount, 6, new QTableWidgetItem(q.value(6).toString()));
         ui->tableWidget->setItem(rowCount, 7, new QTableWidgetItem(q.value(7).toString()));
         ui->tableWidget->setItem(rowCount, 8, new QTableWidgetItem(q.value(8).toString()));
-        
+        ui->tableWidget->setItem(rowCount, 9, new QTableWidgetItem(q.value(9).isNull() ? QString() : q.value(9).toString()));
+        colorizeRow(ui->tableWidget, rowCount);
+
         rowCount++;
     }
 
@@ -241,6 +323,7 @@ void commandes::on_pushButton_7_clicked() {
     QString etat = getText(6);
     QString montant = getText(7);
     QString modePaiement = getText(8);
+    QString telephone = getText(9);
 
     QString html;
     html += "<!DOCTYPE html><html><head><meta charset='utf-8'/>";
@@ -274,6 +357,7 @@ void commandes::on_pushButton_7_clicked() {
     html += "<tr><td style='background-color:#fcf7f2;'><b>Date de Livraison Prévue</b></td><td style='background-color:#fcf7f2;'>" + dateLivraison + "</td></tr>";
     html += "<tr><td><b>État</b></td><td>" + etat + "</td></tr>";
     html += "<tr><td style='background-color:#fcf7f2;'><b>Mode de Paiement</b></td><td style='background-color:#fcf7f2;'>" + modePaiement + "</td></tr>";
+    html += "<tr><td><b>Téléphone</b></td><td>" + telephone + "</td></tr>";
     html += "</table>";
     
     // Totals Table
@@ -306,6 +390,34 @@ void commandes::on_pushButton_7_clicked() {
     doc.print(&printer);
 
     QMessageBox::information(this, "Export PDF", "Facture exportée: " + fileName);
+}
+
+// ── QR Code Paiement ──────────────────────────────────────────────────────
+void commandes::on_pushButton_qr_clicked() {
+    int currentRow = ui->tableWidget->currentRow();
+    if (currentRow < 0) {
+        QMessageBox::warning(this, "Sélection",
+                             "Veuillez sélectionner une commande pour générer le QR code.");
+        return;
+    }
+
+    auto getText = [&](int col) -> QString {
+        QTableWidgetItem *it = ui->tableWidget->item(currentRow, col);
+        return it ? it->text() : QString();
+    };
+
+    QString ref    = getText(1);   // column 1 = Réf.
+    QString client = getText(2);   // column 2 = Client
+    QString amount = getText(7);   // column 7 = Montant
+
+    if (ref.isEmpty()) {
+        QMessageBox::warning(this, "Données manquantes",
+                             "La référence de la commande est vide.");
+        return;
+    }
+
+    QrPaymentDialog *dlg = new QrPaymentDialog(ref, amount, client, this);
+    dlg->exec();
 }
 
 // make sure u have this in database
@@ -369,8 +481,8 @@ void commandes::on_pushButton_3_clicked() {
     if (reply == QMessageBox::Yes) {
         // 4. Delete from Database
         QSqlQuery q;
-        q.prepare("DELETE FROM COMMANDE WHERE ID_COMMANDE = :id");
-        q.bindValue(":id", id);
+        q.prepare(QStringLiteral("DELETE FROM SMARTLEATHER.COMMANDE WHERE ID_COMMANDE = :id"));
+        q.bindValue(QStringLiteral(":id"), id);
 
         if (!q.exec()) {
             QMessageBox::critical(this, "Erreur de suppression", 

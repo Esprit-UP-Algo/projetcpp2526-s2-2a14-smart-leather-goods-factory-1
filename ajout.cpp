@@ -1,10 +1,12 @@
 #include "ajout.h"
 #include <QMessageBox>
+#include <QDoubleValidator>
+#include <QRegularExpressionValidator>
 
 
 Ajout::Ajout(QWidget *parent) : QDialog(parent) {
     setWindowTitle("Nouvelle Commande");
-    setFixedSize(450, 700);
+    setFixedSize(450, 780);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(30, 30, 30, 30);
@@ -35,6 +37,13 @@ Ajout::Ajout(QWidget *parent) : QDialog(parent) {
     errorAddr = new QLabel("");
     errorAddr->setStyleSheet("color: #a23b2a; font-size: 11px; font-weight: normal; margin-top: -10px; margin-bottom: 5px;");
 
+    phoneEdit = new QLineEdit();
+    phoneEdit->setPlaceholderText("Téléphone client (+216… ou 8 chiffres)");
+    phoneEdit->setAlignment(Qt::AlignCenter);
+    // Autorise uniquement : chiffres, +, espaces, tirets (max 16 caractères)
+    phoneEdit->setValidator(new QRegularExpressionValidator(
+        QRegularExpression(R"([\+\d\s\-]{0,16})"), phoneEdit));
+
     dateOrder = new QDateTimeEdit(QDateTime::currentDateTime());
     dateOrder->setCalendarPopup(true);
     dateOrder->setDisplayFormat("yyyy-MM-dd");
@@ -49,11 +58,15 @@ Ajout::Ajout(QWidget *parent) : QDialog(parent) {
     errorDate->setStyleSheet("color: #a23b2a; font-size: 11px; font-weight: normal; margin-top: -10px; margin-bottom: 5px;");
 
     statusCombo = new QComboBox();
-    statusCombo->addItems({"En attente", "En production", "Livrée"});
+    statusCombo->addItems({"En attente", "En cours", "Livrée", "Annulée"});
 
     amountEdit = new QLineEdit();
-    amountEdit->setPlaceholderText("Montant Total");
+    amountEdit->setPlaceholderText("Montant Total (ex: 1250.00)");
     amountEdit->setAlignment(Qt::AlignCenter);
+    // Autorise uniquement des nombres décimaux positifs (0.01 → 9 999 999)
+    auto *amtVal = new QDoubleValidator(0.01, 9999999.99, 2, amountEdit);
+    amtVal->setNotation(QDoubleValidator::StandardNotation);
+    amountEdit->setValidator(amtVal);
     errorAmount = new QLabel("");
     errorAmount->setStyleSheet("color: #a23b2a; font-size: 11px; font-weight: normal; margin-top: -10px; margin-bottom: 5px;");
 
@@ -66,6 +79,8 @@ Ajout::Ajout(QWidget *parent) : QDialog(parent) {
 
     mainLayout->addWidget(addressEdit);
     mainLayout->addWidget(errorAddr);
+    mainLayout->addWidget(new QLabel("Téléphone (SMS) :"));
+    mainLayout->addWidget(phoneEdit);
     mainLayout->addWidget(dateOrder);
     mainLayout->addWidget(dateDelivery);
     mainLayout->addWidget(errorDate);
@@ -93,6 +108,7 @@ Ajout::Ajout(QWidget *parent) : QDialog(parent) {
     connect(referenceEdit, &QLineEdit::textChanged, this, &Ajout::validateForm);
     connect(clientEdit, &QLineEdit::textChanged, this, &Ajout::validateForm);
     connect(addressEdit, &QLineEdit::textChanged, this, &Ajout::validateForm);
+    connect(phoneEdit, &QLineEdit::textChanged, this, &Ajout::validateForm);
     connect(amountEdit, &QLineEdit::textChanged, this, &Ajout::validateForm);
     connect(dateDelivery, &QDateTimeEdit::dateChanged, this, &Ajout::validateForm);
     connect(dateOrder, &QDateTimeEdit::dateChanged, this, &Ajout::validateForm);

@@ -176,6 +176,16 @@ QPushButton#pushButton_3 {
     border-color: #6e2418;
 }
 
+/* QR Payment button */
+QPushButton#pushButton_qr {
+    background-color: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #c4890a,stop:1 #9a6200);
+    border-color: #7a4800;
+    color: #fffaf5;
+}
+QPushButton#pushButton_qr:hover {
+    background-color: #d4980c;
+}
+
 /* Pagination buttons */
 QPushButton#pushButton_8,
 QPushButton#pushButton_13,
@@ -466,6 +476,22 @@ QTableWidget::item:selected {
        <string>Exporter PDF</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="pushButton_qr">
+      <property name="geometry">
+       <rect>
+        <x>940</x>
+        <y>60</y>
+        <width>150</width>
+        <height>29</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>&#x1F4F1; QR Paiement</string>
+      </property>
+      <property name="toolTip">
+       <string>Générer un QR code de paiement pour la commande sélectionnée</string>
+      </property>
+     </widget>
      <widget class="QLabel" name="label_8">
       <property name="geometry">
        <rect>
@@ -547,7 +573,7 @@ QTableWidget::item:selected {
      <widget class="QPushButton" name="pushButton_9">
       <property name="geometry">
        <rect>
-        <x>950</x>
+        <x>1110</x>
         <y>60</y>
         <width>131</width>
         <height>31</height>

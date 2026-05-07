@@ -23,6 +23,7 @@ public:
     QDateTime getDateDelivery() const { return dateDelivery->dateTime(); }
     QString getStatus() const { return statusCombo->currentText(); }
     QString getAmount() const { return amountEdit->text(); }
+    QString getPhone() const { return phoneEdit->text(); }
 
 private:
     QLineEdit *referenceEdit;
@@ -31,6 +32,7 @@ private:
     QLabel *errorClient;
     QLineEdit *addressEdit;
     QLabel *errorAddr;
+    QLineEdit *phoneEdit;
     QDateTimeEdit *dateOrder;
     QDateTimeEdit *dateDelivery;
     QLabel *errorDate;

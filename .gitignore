@@ -1,0 +1,14 @@
+# Shadow build & generated makefiles (regenerate with qmake)
+build/
+*-build-*/
+.qmake.stash
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+.qtc_clangd/
+
+# Typical compile artifacts at repo root (if any)
+*.o
+*.obj
+*.exe
