@@ -7,6 +7,7 @@
 #include "fournisseurs.h"
 #include "matieres.h"
 #include "smtp.h"
+#include <QtSerialPort/QSerialPortInfo>
 
 #include <QMessageBox>
 #include <QSqlError>
@@ -256,7 +257,25 @@ pagemachine::pagemachine(int idEmploye, QWidget *parent)
         qDebug() << "Arduino connected on:" << A.getarduino_port_name();
         connect(A.getserial(), &QSerialPort::readyRead, this, &pagemachine::update_label);
     } else {
-        qDebug() << "Arduino not found or connection failed (" << ret << ")";
+        // Fallback: Fix for clone boards (CH340) on COM9
+        qDebug() << "Auto-detect failed, scanning all ports for Arduino/CH340...";
+        foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
+            qDebug() << "Found port:" << info.portName() << " Desc:" << info.description();
+            // Connect to COM9 (known Arduino port) or any port described as Arduino/CH340
+            if (info.portName() == "COM9" || info.description().contains("CH340") || info.description().contains("Arduino")) {
+                A.getserial()->setPortName(info.portName());
+                if (A.getserial()->open(QSerialPort::ReadWrite)) {
+                    A.getserial()->setBaudRate(QSerialPort::Baud9600);
+                    A.getserial()->setDataBits(QSerialPort::Data8);
+                    A.getserial()->setParity(QSerialPort::NoParity);
+                    A.getserial()->setStopBits(QSerialPort::OneStop);
+                    A.getserial()->setFlowControl(QSerialPort::NoFlowControl);
+                    qDebug() << "SUCCESS! Connected on:" << info.portName();
+                    connect(A.getserial(), &QSerialPort::readyRead, this, &pagemachine::update_label);
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -885,25 +904,45 @@ void pagemachine::on_pushButton_7_clicked() {
 
 void pagemachine::update_label()
 {
-    data = A.read_from_arduino();
-    QString msg = QString::fromStdString(data.toStdString()).trimmed();
-    
-    if (msg.startsWith("ALERTE:")) {
-        QString machineRef = msg.mid(7);
-        qDebug() << "ARDUINO ALERTE RECEIVED FOR MACHINE:" << machineRef;
+    // Buffer incoming bytes — Serial data can arrive in fragments
+    data += A.getserial()->readAll();
 
-        QSqlQuery query;
-        query.prepare("UPDATE MACHINE SET ETAT = 'En panne' WHERE REF = :ref");
-        query.bindValue(":ref", machineRef);
-        
-        if (query.exec()) {
-            loadMachines(); // Refresh table
-            QMessageBox::critical(this, "ALERTE SÉCURITÉ", 
-                "Surchauffe détectée sur la machine " + machineRef + " !\nL'état a été mis à jour : EN PANNE.");
-            
-            // Optional: send email here if wanted
-        } else {
-            qDebug() << "SQL Error during Arduino alert update:" << query.lastError().text();
+    // Process only when a full line ending with '\n' is received
+    while (data.contains('\n')) {
+        int idx = data.indexOf('\n');
+        QString line = QString::fromUtf8(data.left(idx)).trimmed();
+        data = data.mid(idx + 1); // keep remaining bytes
+
+        qDebug() << "[Arduino] Received:" << line;
+
+        if (line.startsWith("ALERTE:")) {
+            QString machineRef = line.mid(7).trimmed();
+            qDebug() << "ALERTE for machine:" << machineRef;
+
+            QSqlQuery query;
+            query.prepare("UPDATE SMARTLEATHER.MACHINE SET ETAT = 'En panne' WHERE REF = :ref");
+            query.bindValue(":ref", machineRef);
+
+            if (query.exec()) {
+                QSqlDatabase::database().commit(); // True Qt commit
+                
+
+                for (int row = 0; row < ui->tableWidget->rowCount(); ++row) {
+                    if (ui->tableWidget->item(row, 1)->text().trimmed() == machineRef) {
+                        ui->tableWidget->item(row, 4)->setText("En panne");
+                        updateRowColors(row); // Applique le rouge
+                        break;
+                    }
+                }
+                ui->tableWidget->viewport()->update();
+
+                QMessageBox::critical(this, "ALERTE SECURITE",
+                    "Surchauffe détectée sur la machine " + machineRef +
+                    " !\nL'état a été mis à jour : EN PANNE.");
+
+            } else {
+                qDebug() << "SQL Error:" << query.lastError().text();
+            }
         }
     }
 }

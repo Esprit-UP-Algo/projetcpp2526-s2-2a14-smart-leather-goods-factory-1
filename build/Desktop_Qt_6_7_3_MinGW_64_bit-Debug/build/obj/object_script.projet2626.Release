@@ -16,6 +16,9 @@ build/obj/ajout_produit.o
 build/obj/modifier_produit.o
 build/obj/qcustomplot.o
 build/obj/smtp.o
+build/obj/arduino.o
+build/obj/ajoutfournisseur.o
+build/obj/modifierfournisseur.o
 build/obj/qrc_logo.o
 build/obj/moc_ajout.o
 build/obj/moc_commandes.o
@@ -32,3 +35,6 @@ build/obj/moc_ajout_produit.o
 build/obj/moc_modifier_produit.o
 build/obj/moc_qcustomplot.o
 build/obj/moc_smtp.o
+build/obj/moc_arduino.o
+build/obj/moc_ajoutfournisseur.o
+build/obj/moc_modifierfournisseur.o

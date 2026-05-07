@@ -51,6 +51,10 @@ private:
                               const QString &couleur, const QString &qualite,
                               const QString &prix, const QString &stock,
                               const QString &fournisseur);
+
+    void checkStockAlerts();
+    void checkAIQuality();
+    QPushButton *btnAlertesStock = nullptr;
 };
 
 #endif // MATIERES_H

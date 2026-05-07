@@ -41,7 +41,9 @@ SOURCES += \
     modifier_produit.cpp \
     qcustomplot.cpp \
     smtp.cpp \
-    arduino.cpp
+    arduino.cpp \
+    ajoutfournisseur.cpp \
+    modifierfournisseur.cpp
 
 HEADERS += \
     ajout.h \
@@ -61,7 +63,9 @@ HEADERS += \
     modifier_produit.h \
     qcustomplot.h \
     smtp.h \
-    arduino.h
+    arduino.h \
+    ajoutfournisseur.h \
+    modifierfournisseur.h
 
 FORMS += \
     commandes.ui \
